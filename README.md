@@ -1,31 +1,32 @@
-# Hypertube - banche `main`
+# Hypertube — branche `prod`
 
-⚠️ Ceci est la branche de **développement**. Le code ici peut être temporairement
-instable pendant l'intégration de nouvelles fonctionnalités.
- 
+✅ Ceci est la branche de **production**. Chaque commit ici correspond à une
+version stable, déployée, et taguée (`vX.Y.Z`).
+
 ## Rôle de cette branche
- 
-- Toutes les fonctionnalités validées sont intégrées ici en premier
-- C'est la branche de référence pour démarrer tout nouveau travail
-- Elle n'est jamais déployée directement en production
+
+- Reflète exactement ce qui tourne en production
+- Sert de point de départ pour les corrections urgentes (`hotfix/xxx`)
+- N'est jamais en avance sur ce qui est réellement déployé
 
 ## Règles
- 
-- ❌ Ne jamais commit directement sur `main`
-- ✅ Toujours passer par une branche `feature/xxx`
-- ✅ Toute Pull Request vers `main` nécessite au moins 1 review avant merge
-- ✅ Une fois le scope d'une version validé, une branche `release/x.y.z` est créée pour préparer le passage en production
 
-## Démarrer une nouvelle fonctionnalité
- 
+- ❌ Ne jamais commit directement sur `prod`
+- ✅ Seuls les merges depuis `release/x.y.z` ou `hotfix/xxx` sont autorisés
+- ✅ Chaque merge doit être immédiatement suivi d'un tag de version et d'un déploiement
+- ✅ Après chaque merge, répercuter les changements sur `main` (pour ne pas perdre les fixes de hotfix)
+
+## Corriger un bug critique en production
+
 ```bash
-git checkout main
+git checkout prod
 git pull
-git checkout -b feature/nom-explicite
+git checkout -b hotfix/nom-explicite
+# ... correction ...
+# Ouvrir une PR vers prod, puis une seconde vers main une fois mergé
 ```
- 
+
 ## Voir aussi
- 
-- [CONTRIBUTING.md](./CONTRIBUTING.md) pour le workflow complet et les conventions de commit
-- Branche `prod` pour la version stable actuellement en production
- 
+
+- Branche `main` pour le développement en cours
+- [CONTRIBUTING.md](https://raw.githubusercontent.com/.../main/CONTRIBUTING.md) sur `main` pour le workflow complet
