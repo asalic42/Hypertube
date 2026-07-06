@@ -1,7 +1,7 @@
-FILE='./docker-compose.yml'
+FILE='./docker-compose-dev.yml'
 
 all: compose
-	docker compose -f ./docker-compose.yml up -d --build
+	docker compose -f ${FILE} up -d --build
 
 compose :
 	@if [ ! -f ${FILE} ]; then\
@@ -10,7 +10,7 @@ compose :
 	fi
 
 down:
-	docker compose -f ./docker-compose.yml down -t 10
+	docker compose -f ${FILE} down -t 10
 
 re : down all
 
