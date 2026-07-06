@@ -36,7 +36,7 @@ volumes:
     driver_opts:
       type: 'none'
       o: 'bind'
-      device: /home/leo/dev/Hypertube/volumes/frontend
+      device: placeholder/volumes/frontend
 
 
 networks:
