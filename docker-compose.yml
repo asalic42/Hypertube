@@ -1,0 +1,17 @@
+services:
+  nginx:
+    image: hypertube-nginx
+    container_name: 'hypertube-nginx'
+    networks:
+      - hypertube
+    build:
+      context: nginx
+      dockerfile: Dockerfile
+    ports:
+      - '8080:8080'
+    restart: on-failure
+
+network:
+  hypertube:
+    name: hypertube
+    driver: bridge
