@@ -73,7 +73,7 @@ volumes:
     driver_opts:
       type: 'none'
       o: 'bind'
-      device: placeholder/volumes/app_users
+      device: placeholder/volumes/users/app_users
 
 networks:
   hypertube:
