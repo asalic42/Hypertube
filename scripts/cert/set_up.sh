@@ -1,0 +1,8 @@
+#!/bin/bash
+echo ${CERTIFICATE_AUTHORITY_PATH}
+SCRIPT_DIR=./scripts/cert
+
+${SCRIPT_DIR}/tls_certificate_authority.sh ${CERTIFICATE_AUTHORITY_PATH}
+${SCRIPT_DIR}/tls_proxy.sh ${CERTIFICATE_AUTHORITY_PATH}
+
+rm -rf ${CERTIFICATE_AUTHORITY_PATH}
