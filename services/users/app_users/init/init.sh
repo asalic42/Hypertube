@@ -1,3 +1,6 @@
 #!/bin/bash
 
-pip
+set -e
+
+python manage.py migrate --noinput
+exec "$@"

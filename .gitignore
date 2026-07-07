@@ -6,3 +6,5 @@ env
 *.key
 *.csr
 *.pem
+
+# **/__pycache__
