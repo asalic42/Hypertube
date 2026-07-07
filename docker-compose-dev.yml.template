@@ -6,7 +6,7 @@ services:
       - hypertube
     depends_on:
       - frontend
-      # - app-users
+      # - app_users
     build:
       context: services/proxy
       dockerfile: Dockerfile
@@ -30,16 +30,16 @@ services:
       - '8443'
     restart: on-failure
 
-  app-users:
-    image: hypertube-users
-    container_name: 'hypertube-users'
+  app_users:
+    image: hypertube-app-users
+    container_name: 'hypertube-app-users'
     volumes:
       - app-users:/code
     networks:
       - hypertube
     build:
       context: .
-      dockerfile: services/users/app_users/Dockerfile
+      dockerfile: services/app-users/Dockerfile
     env_file: .env
     ports:
       - '8000:8000'
@@ -52,7 +52,7 @@ services:
   #   networks:
   #     - hypertube
   #   build:
-  #     context: services/db-users/app_db-users
+  #     context: services/db-users
   #     dockerfile: Dockerfile
   #   env_file: .env
   #   ports:
@@ -81,6 +81,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: demo@example.com
       PGADMIN_DEFAULT_PASSWORD: secret
       PGADMIN_CONFIG_SERVER_MODE: 'False'
+      MASTER_PASSWORD_REQUIRED: 'False'
     ports:
       - "5050:80"
     depends_on:
@@ -107,18 +108,33 @@ volumes:
     driver_opts:
       type: 'none'
       o: 'bind'
-      device: placeholder/volumes/users/app_users
+      device: placeholder/volumes/app-users
 
   postgres-data:
-    name: postgres-data
-    driver: local
-    driver_opts:
-      type: 'none'
-      o: 'bind'
-      device: placeholder/volumes/db
+
+  #postgres-data:
+  #  name: postgres-data
+  #  driver: local
+  #  driver_opts:
+  #    type: 'none'
+  #    o: 'bind'
+  #    device: placeholder/volumes/db
 
 
 networks:
   hypertube:
     name: hypertube
     driver: bridge
+
+
+#➜  volumes git:(micro-service-setup) ✗ podman unshare bash
+#➜  volumes git:(micro-service-setup) ✗ ls -ln
+#chown -R $(id -u):$(id -g) db
+#exit
+#total 12
+#drwxr-xr-x.  4 0 0   66 Jul  7 18:10 app-users
+#drwx------. 19 0 0 4096 Jul  7 19:22 db
+#-rw-r--r--.  1 0 0  203 Jul  7 11:08 django_env.sh
+#drwxr-xr-x.  2 0 0   24 Jul  7 11:08 frontend
+#-rw-r--r--.  1 0 0   30 Jul  7 11:08 requirements.txt
+#➜  volumes git:(micro-service-setup) ✗ rm -rf db

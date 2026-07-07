@@ -4,7 +4,7 @@ from django.urls import include, path
 
 
 def root(request):
-    return JsonResponse({"service": "users-api", "status": "ok"})
+    return JsonResponse({"service": "app-users-api", "status": "ok"})
 
 
 urlpatterns = [

@@ -1,49 +1,21 @@
 -- Création des schémas
-CREATE SCHEMA auth;
-CREATE SCHEMA user_service;
-CREATE SCHEMA movie;
-CREATE SCHEMA torrent;
-CREATE SCHEMA watch;
+CREATE SCHEMA app_users;
 
 
 -- Création des utilisateurs des microservices
 
-CREATE USER auth_service WITH PASSWORD 'auth_password';
-CREATE USER user_service WITH PASSWORD 'user_password';
-CREATE USER movie_service WITH PASSWORD 'movie_password';
-CREATE USER torrent_service WITH PASSWORD 'torrent_password';
-CREATE USER watch_service WITH PASSWORD 'watch_password';
+CREATE USER app_users_service WITH PASSWORD 'app_users_password';
 
 
 -- Droits sur les schémas
 
-GRANT USAGE, CREATE ON SCHEMA auth TO auth_service;
-
-GRANT USAGE, CREATE ON SCHEMA user_service TO user_service;
-
-GRANT USAGE, CREATE ON SCHEMA movie TO movie_service;
-
-GRANT USAGE, CREATE ON SCHEMA torrent TO torrent_service;
-
-GRANT USAGE, CREATE ON SCHEMA watch TO watch_service;
+GRANT USAGE, CREATE ON SCHEMA app_users TO app_users_service;
 
 
 -- Chaque service utilise son propre schéma par défaut
 
-ALTER USER auth_service
-SET search_path TO auth;
-
-ALTER USER user_service
-SET search_path TO user_service;
-
-ALTER USER movie_service
-SET search_path TO movie;
-
-ALTER USER torrent_service
-SET search_path TO torrent;
-
-ALTER USER watch_service
-SET search_path TO watch;
+ALTER USER app_users_service
+SET search_path TO app_users;
 
 
 -- Empêche les services de créer dans public

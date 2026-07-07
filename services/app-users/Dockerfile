@@ -9,8 +9,8 @@ WORKDIR /code
 
 RUN pip install --upgrade pip
 
-COPY services/users/app_users/init/ /init/
-COPY volumes/users/app_users/ /code/
+COPY services/app-users/init/ /init/
+COPY volumes/app-users/ /code/
 
 RUN pip install --no-cache-dir -r /init/requirements.txt
 
