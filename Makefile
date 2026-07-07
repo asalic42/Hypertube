@@ -1,13 +1,14 @@
-FILE='./docker-compose-dev.yml'
+FILE=./docker-compose-dev.yml
 
 all: compose
 	docker compose -f ${FILE} up -d --build
 
 compose :
-	@if [ ! -f ${FILE} ]; then\
-		cp ${FILE}.template ${FILE};\
-		sed -i "s|placeholder|${PWD}|g" ${FILE};\
-	fi
+	@if [ ! -f "$(FILE)" ]; then \
+		cp "$(FILE).template" "$(FILE)"; \
+	fi; \
+	tmp="$(FILE).tmp"; \
+	sed "s|placeholder|$$PWD|g" "$(FILE)" > "$$tmp" && mv "$$tmp" "$(FILE)"
 
 down:
 	docker compose -f ${FILE} down -t 10
@@ -25,4 +26,4 @@ clean: clean_docker
 prune: down clean
 	echo "y" | docker system prune -a
 
-.Phony : all down clean re clean_docker prune fclean
+.PHONY : all down clean re clean_docker prune fclean
