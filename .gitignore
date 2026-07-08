@@ -1,0 +1,10 @@
+docker-compose-dev.yml
+djangoEnv
+.env
+env
+*.crt
+*.key
+*.csr
+*.pem
+
+**/__pycache__

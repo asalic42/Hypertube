@@ -1,0 +1,140 @@
+services:
+  proxy:
+    image: hypertube-proxy
+    container_name: 'hypertube-proxy'
+    networks:
+      - hypertube
+    depends_on:
+      - frontend
+      # - app_users
+    build:
+      context: services/proxy
+      dockerfile: Dockerfile
+    env_file: .env
+    ports:
+      - '8080:8080'
+    restart: on-failure
+
+  frontend:
+    image: hypertube-frontend
+    container_name: 'hypertube-frontend'
+    volumes:
+      - data-frontend:/var/www/hypertube_frontend
+    networks:
+      - hypertube
+    build:
+      context: services/frontend
+      dockerfile: Dockerfile
+    env_file: .env
+    ports:
+      - '8443'
+    restart: on-failure
+
+  app_users:
+    image: hypertube-app-users
+    container_name: 'hypertube-app-users'
+    volumes:
+      - app-users:/code
+    networks:
+      - hypertube
+    build:
+      context: .
+      dockerfile: services/app-users/Dockerfile
+    env_file: .env
+    ports:
+      - '8000:8000'
+    restart: on-failure
+
+
+  # db-users:
+  #   image: hypertube-db-users
+  #   container_name: 'hypertube-db-users'
+  #   networks:
+  #     - hypertube
+  #   build:
+  #     context: services/db-users
+  #     dockerfile: Dockerfile
+  #   env_file: .env
+  #   ports:
+  #     - '5432'
+  #   restart: on-failure
+
+  db:
+    image: hypertube-db
+    container_name: 'hypertube-db'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - hypertube
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    env_file: .env
+    ports:
+      - "5432:5432"
+    restart: on-failure
+  
+  pgAdmin:
+    image: dpage/pgadmin4
+    container_name: hypertube-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: demo@example.com
+      PGADMIN_DEFAULT_PASSWORD: secret
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      MASTER_PASSWORD_REQUIRED: 'False'
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    networks:
+      - hypertube
+    restart: on-failure
+    volumes:
+      - ./servers.json:/pgadmin4/servers.json
+
+
+volumes:
+  data-frontend:
+    name: data-frontend
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: placeholder/volumes/frontend
+
+  app-users:
+    name: app-users
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: placeholder/volumes/app-users
+
+  postgres-data:
+
+  #postgres-data:
+  #  name: postgres-data
+  #  driver: local
+  #  driver_opts:
+  #    type: 'none'
+  #    o: 'bind'
+  #    device: placeholder/volumes/db
+
+
+networks:
+  hypertube:
+    name: hypertube
+    driver: bridge
+
+
+#➜  volumes git:(micro-service-setup) ✗ podman unshare bash
+#➜  volumes git:(micro-service-setup) ✗ ls -ln
+#chown -R $(id -u):$(id -g) db
+#exit
+#total 12
+#drwxr-xr-x.  4 0 0   66 Jul  7 18:10 app-users
+#drwx------. 19 0 0 4096 Jul  7 19:22 db
+#-rw-r--r--.  1 0 0  203 Jul  7 11:08 django_env.sh
+#drwxr-xr-x.  2 0 0   24 Jul  7 11:08 frontend
+#-rw-r--r--.  1 0 0   30 Jul  7 11:08 requirements.txt
+#➜  volumes git:(micro-service-setup) ✗ rm -rf db
