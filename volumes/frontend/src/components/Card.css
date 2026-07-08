@@ -1,0 +1,19 @@
+.movie-card {
+    display: flex;
+    flex-direction: column;
+    max-width: 200px;
+    margin: auto;
+    height: 100%;
+}
+
+.movie-card img {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    display: block;
+}
+
+.movie-card h4 {
+    height: 46px;
+
+}

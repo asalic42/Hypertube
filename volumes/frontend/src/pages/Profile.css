@@ -1,0 +1,12 @@
+.profile-page {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    align-items: center;
+}
+
+.profile-page img {
+    width: 200px;
+    display: block;
+}
