@@ -38,8 +38,8 @@ services:
     networks:
       - hypertube
     build:
-      context: .
-      dockerfile: services/app-users/Dockerfile
+      context: services/app-users
+      dockerfile: Dockerfile
     env_file: .env
     ports:
       - '8000:8000'
@@ -96,6 +96,9 @@ volumes:
       type: 'none'
       o: 'bind'
       device: placeholder/volumes/app-users
+
+
+  postgres-data:
 
   #postgres-data:
   #  name: postgres-data
