@@ -6,7 +6,6 @@ services:
       - hypertube
     depends_on:
       - frontend
-      # - app_users
     build:
       context: services/proxy
       dockerfile: Dockerfile
@@ -45,20 +44,6 @@ services:
       - '8000:8000'
     restart: on-failure
 
-
-  # db-users:
-  #   image: hypertube-db-users
-  #   container_name: 'hypertube-db-users'
-  #   networks:
-  #     - hypertube
-  #   build:
-  #     context: services/db-users
-  #     dockerfile: Dockerfile
-  #   env_file: .env
-  #   ports:
-  #     - '5432'
-  #   restart: on-failure
-
   db:
     image: hypertube-db
     container_name: 'hypertube-db'
@@ -75,7 +60,7 @@ services:
     restart: on-failure
   
   pgAdmin:
-    image: dpage/pgadmin4
+    image: docker.io/dpage/pgadmin4
     container_name: hypertube-pgadmin
     environment:
       PGADMIN_DEFAULT_EMAIL: demo@example.com
@@ -111,14 +96,6 @@ volumes:
       device: placeholder/volumes/app-users
 
   postgres-data:
-
-  #postgres-data:
-  #  name: postgres-data
-  #  driver: local
-  #  driver_opts:
-  #    type: 'none'
-  #    o: 'bind'
-  #    device: placeholder/volumes/db
 
 
 networks:

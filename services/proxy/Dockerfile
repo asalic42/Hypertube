@@ -1,4 +1,4 @@
-FROM nginx:1.30.3
+FROM docker.io/library/nginx:1.30.3
 
 COPY ./conf/nginx.proxy.conf /etc/nginx/nginx.conf
 

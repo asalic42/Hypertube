@@ -8,3 +8,5 @@ env
 *.pem
 
 **/__pycache__
+
+example_users_django
