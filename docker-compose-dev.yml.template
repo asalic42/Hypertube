@@ -44,6 +44,21 @@ services:
       - '8000:8000'
     restart: on-failure
 
+  auth:
+    image: hypertube-auth
+    container_name: 'hypertube-auth'
+    volumes:
+      - auth:/code
+    networks:
+      - hypertube
+    build:
+      context: .
+      dockerfile: services/auth/Dockerfile
+    env_file: .env
+    ports:
+      - '8001:8001'
+    restart: on-failure
+
   db:
     image: hypertube-db
     container_name: 'hypertube-db'
@@ -95,7 +110,16 @@ volumes:
       o: 'bind'
       device: placeholder/volumes/app-users
 
+  auth:
+    name: auth
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: placeholder/volumes/auth
+
   postgres-data:
+    name: postgres-data
 
 
 networks:

@@ -54,8 +54,8 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "app-users API",
-    "DESCRIPTION": "API de gestion des utilisateurs.",
+    "TITLE": "auth API",
+    "DESCRIPTION": "API de gestion de l'authentification.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
@@ -64,8 +64,8 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.getenv("DB_NAME"),
-        "USER": os.getenv("APP_USERS_USER"),
-        "PASSWORD": os.getenv("APP_USERS_PASSWORD"),
+        "USER": os.getenv("AUTH_USER"),
+        "PASSWORD": os.getenv("AUTH_PASSWORD"),
         "HOST": os.getenv("DB_HOST"),
         "PORT": os.getenv("DB_PORT"),
     }
