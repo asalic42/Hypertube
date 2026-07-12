@@ -62,7 +62,7 @@ services:
     restart: on-failure
   
   pgAdmin:
-    image: dpage/pgadmin4
+    image: docker.io/dpage/pgadmin4
     container_name: hypertube-pgadmin
     environment:
       PGADMIN_DEFAULT_EMAIL: demo@example.com
@@ -98,14 +98,6 @@ volumes:
       device: placeholder/volumes/app-users
 
   postgres-data:
-
-  #postgres-data:
-  #  name: postgres-data
-  #  driver: local
-  #  driver_opts:
-  #    type: 'none'
-  #    o: 'bind'
-  #    device: placeholder/volumes/db
 
 
 networks:

@@ -10,3 +10,4 @@ env
 **/__pycache__
 
 */node_modules
+example_users_django
