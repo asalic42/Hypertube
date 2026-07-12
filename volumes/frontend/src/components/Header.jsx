@@ -3,7 +3,7 @@ import './Header.css'
 
 function Header() {
     const location = useLocation();
-    const pagesAuth = ['/login', '/signup'];
+    const pagesAuth = ['/login', '/signup', '/forgot-password', '/reset-password'];
 
     if (pagesAuth.includes(location.pathname)) {
         return null;

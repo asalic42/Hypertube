@@ -1,7 +1,7 @@
 import { useState } from "react";
 import './Auth.css'
 
-function Login() {
+export default function Login() {
     const [formData, setFormData] = useState({email: '', password: ''});
 
     function handleChange(e) {
@@ -33,9 +33,8 @@ function Login() {
                     />
                 <button type="submit">Login</button>
             </form>
+            <a href="./forgot-password">Forgot password</a>
             <a href="./signup">Create an account</a>
         </div>
     )
 }
-
-export default Login;
