@@ -40,9 +40,10 @@ $GEN_CRT \
     -CA "${AUTH_DIR}/ca.crt" \
     -CAkey "${AUTH_DIR}/ca.key"
 
+
+
 # Copy the database certificate and private key into the PostgreSQL
 # service directory so they can be mounted inside the container.
 mkdir -p "${SERVICE_NAME}/certs"
-
 cp "${SERVICE_CERTS_DIR}/${SERVICE_NAME}.key" "${SERVICE_NAME}/certs"
 cp "${SERVICE_CERTS_DIR}/${SERVICE_NAME}.crt" "${SERVICE_NAME}/certs"

@@ -66,7 +66,6 @@ services:
     container_name: 'hypertube-db'
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./db/certs:/certs:ro
     networks:
       - hypertube
     build:
