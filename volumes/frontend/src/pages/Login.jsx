@@ -1,5 +1,5 @@
 import { useState } from "react";
-import './Auth.css'
+// import './Auth.css'
 
 export default function Login() {
     const [formData, setFormData] = useState({email: '', password: ''});
