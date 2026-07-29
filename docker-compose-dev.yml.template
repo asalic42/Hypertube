@@ -6,7 +6,6 @@ services:
       - hypertube
     depends_on:
       - frontend
-      # - app_users
     build:
       context: services/proxy
       dockerfile: Dockerfile
@@ -19,15 +18,17 @@ services:
     image: hypertube-frontend
     container_name: 'hypertube-frontend'
     volumes:
-      - data-frontend:/var/www/hypertube_frontend
+      #- data-frontend:/var/www/hypertube_frontend
+      - ./volumes/frontend:/app
+      - /app/node_modules
     networks:
       - hypertube
     build:
-      context: services/frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/frontend/Dockerfile
     env_file: .env
     ports:
-      - '8443'
+      - '5173:5173'
     restart: on-failure
 
   app_users:
@@ -45,6 +46,20 @@ services:
       - '8000:8000'
     restart: on-failure
 
+  auth:
+    image: hypertube-auth
+    container_name: 'hypertube-auth'
+    volumes:
+      - auth:/code
+    networks:
+      - hypertube
+    build:
+      context: .
+      dockerfile: services/auth/Dockerfile
+    env_file: .env
+    ports:
+      - '8001:8001'
+    restart: on-failure
 
   db:
     image: hypertube-db
@@ -62,7 +77,7 @@ services:
     restart: on-failure
   
   pgAdmin:
-    image: dpage/pgadmin4
+    image: docker.io/dpage/pgadmin4
     container_name: hypertube-pgadmin
     environment:
       PGADMIN_DEFAULT_EMAIL: demo@example.com
@@ -97,16 +112,16 @@ volumes:
       o: 'bind'
       device: placeholder/volumes/app-users
 
+  auth:
+    name: auth
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: placeholder/volumes/auth
 
   postgres-data:
-
-  #postgres-data:
-  #  name: postgres-data
-  #  driver: local
-  #  driver_opts:
-  #    type: 'none'
-  #    o: 'bind'
-  #    device: placeholder/volumes/db
+    name: postgres-data
 
 
 networks:

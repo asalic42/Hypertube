@@ -6,7 +6,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 
 def root(request):
-    return JsonResponse({"service": "app-users-api", "status": "ok"})
+    return JsonResponse({"service": "auth-api", "status": "ok"})
 
 
 urlpatterns = [

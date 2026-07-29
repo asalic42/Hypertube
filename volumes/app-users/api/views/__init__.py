@@ -1,2 +1,9 @@
 from .health import HealthView
-from .test_db import TestDBView
+from .public_users import (
+    PublicUserList,
+    PublicUserCreate,
+    PublicUserRetrieveDetail,
+    PublicUserUpdate,
+    PublicUserUpdateAvatar,
+    PublicUserDelete
+)

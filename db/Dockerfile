@@ -1,4 +1,4 @@
-FROM postgres:16
+FROM docker.io/library/postgres:16
 
 RUN mkdir -p /docker-entrypoint-initdb
 RUN mkdir -p /etc/psql.conf
