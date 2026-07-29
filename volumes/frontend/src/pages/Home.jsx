@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import Card from '../components/Card'
+import FilmCard from '../components/FilmCard'
 import './Home.css'
 
 function Home() {
@@ -33,9 +33,14 @@ function Home() {
     if (erreur) return <p>Erreur : {erreur}</p>;
 
     return (
-        <div className='film-list'>
-            {films.map((film) => (<Card key={film.id} film={film} />))}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4">
+        {films.map((film) => (
+            <FilmCard key={film.id} film={film} />
+        ))}
         </div>
+        // <div className='film-list'>
+        //     {films.map((film) => (<Card key={film.id} film={film} />))}
+        // </div>
     );
 }
 

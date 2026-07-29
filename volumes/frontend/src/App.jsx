@@ -11,9 +11,9 @@ import Footer from './components/Footer'
 function App() {
   return (
     <BrowserRouter>
-      <div className='app'>
+      <div className='flex flex-col min-h-screen'>
         <Header />
-        <main className='content'>
+        <main className="flex-1 flex items-center justify-center">
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
