@@ -68,6 +68,10 @@ DATABASES = {
         "PASSWORD": os.getenv("AUTH_PASSWORD"),
         "HOST": os.getenv("DB_HOST"),
         "PORT": os.getenv("DB_PORT"),
+	# "OPTIONS": {
+	# 	"sslmode": "verify-full",
+	# 	"sslrootcert": "/certs/ca.crt",
+	# },
     }
 }
 
