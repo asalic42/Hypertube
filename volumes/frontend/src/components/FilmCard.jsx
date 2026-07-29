@@ -9,11 +9,11 @@ function FilmCard({ film }) {
             <img
                 src={`${root_path}${film.poster_path}`}
                 alt={film.title}
-                className="w-full h-72 object-cover"
+                className="w-full h-80 object-cover"
             />
-            <CardContent classname="px-3">
+            <CardContent className="px-3">
                 <h4 className="font-semibold text-sm line-clamp-2">{film.title}</h4>
-                <p classname="text-sm text-muted-foreground">Note : {film.vote_average}/10</p>
+                <p className="text-sm text-muted-foreground">Note : {film.vote_average}/10</p>
             </CardContent>
             <CardFooter className="px-3 pb-3">
                 <Button variant="ghost" size="icon">{film.favori ? '❤️' : '🤍'}</Button>
