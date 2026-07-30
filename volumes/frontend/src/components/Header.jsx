@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom'
-import './Header.css'
+import { Link } from "react-router-dom";
+import { Input } from "@/components/ui/input";
 
 function Header() {
     const location = useLocation();
@@ -10,19 +11,34 @@ function Header() {
     }
 
     return (
-        <header className="header">
-            <h2>Hypertube</h2>
-            <ul className='nav-list'>
-                <div className='nav-left'>
-                    <li><a href="/home">Home</a></li>
-                    <li><input type='text' placeholder="Search..."></input></li>
-                </div>
-                <div className='nav-right'>
-                    <li><a href="/home">Language</a></li>
-                    <li><a href="/home">Disconnect</a></li>
-                    <li><a href="/profile">Profile</a></li>
-                </div>
-            </ul>
+        <header className="sticky top-0 flex items-center justify-between bg-gray-700 px-4 text-white">
+        <div>
+            <Link 
+                to="/home" 
+                className="flex items-center text-lg font-bold"
+            >
+                Hypertube
+            </Link>
+        </div>
+        <nav className="flex items-stretch">
+            <div className="flex items-stretch gap-4">
+            <div className="flex items-center py-2">
+                <Input type="search" aria-label="Search" placeholder="Search..." className="w-48" />
+            </div>
+            </div>
+
+            <div className="flex items-stretch gap-4 ml-6">
+            <Link to="/home" className="flex items-center px-4 hover:bg-black">
+                Language
+            </Link>
+            <Link to="/home" className="flex items-center px-4 hover:bg-black">
+                Disconnect
+            </Link>
+            <Link to="/profile" className="flex items-center px-4 hover:bg-black">
+                Profile
+            </Link>
+            </div>
+        </nav>
         </header>
     );
 }

@@ -1,12 +1,8 @@
 function Footer() {
   return (
-    <div className='footer'>
-        <h3>Hypertube</h3>
-        <h3>aciezadl</h3>
-        <h3>aducobu</h3>
-        <h3>asalic</h3>
-        <h3>ldoyen</h3>
-    </div>
+    <footer className="w-full py-4 px-6 bg-gray-900 text-white text-center text-sm">
+      <p>© 2026 Hypertube - aciezadl - aducobu - asalic - ldoyen</p>
+    </footer>
   );
 }
 

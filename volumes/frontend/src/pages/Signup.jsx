@@ -1,5 +1,17 @@
 import { useState } from "react";
-import './Auth.css'
+import { Button } from "@/components/ui/button"
+import { 
+  Card, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription, 
+  CardAction, 
+  CardContent, 
+  CardFooter 
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Link } from "react-router-dom";
 
 function Signup() {
     const [formData, setFormData] = useState({email: '', username: '', lastname: '', firstname: '', password: ''});
@@ -14,48 +26,86 @@ function Signup() {
     }
 
     return (
-        <div className="login-container">
-            <h1>Signup</h1>
-            <form onSubmit={handleSubmit}>
-                <label>Username:</label>
-                    <input
-                        type="username"
+        <Card className="w-full max-w-lg">
+            <CardHeader>
+                <CardTitle>Create account</CardTitle>
+                <CardDescription>
+                Enter your information to create an account
+                </CardDescription>
+                <CardAction>
+                <Button asChild variant="link">
+                    <Link to="/login">Login</Link>
+                </Button>
+                </CardAction>
+            </CardHeader>
+            <CardContent>
+                <form id="signup-form" onSubmit={handleSubmit}>
+                <div className="flex flex-col gap-6">
+                    <div className="grid gap-2">
+                    <Label htmlFor="username">User name</Label>
+                    <Input
+                        id="username"
+                        type="text"
                         name="username"
                         value={formData.username}
                         onChange={handleChange}
+                        required
                     />
-                <label>Firstname:</label>
-                    <input
-                        type="firstname"
+                    </div>
+                    <div className="grid gap-2">
+                    <Label htmlFor="firstname">First name</Label>
+                    <Input
+                        id="firstname"
+                        type="text"
                         name="firstname"
                         value={formData.firstname}
                         onChange={handleChange}
+                        required
                     />
-                <label>Lastname:</label>
-                    <input
-                        type="lastname"
+                    </div>
+                    <div className="grid gap-2">
+                    <Label htmlFor="lastname">Last name</Label>
+                    <Input
+                        id="lastname"
+                        type="text"
                         name="lastname"
                         value={formData.lastname}
                         onChange={handleChange}
+                        required
                     />
-                <label>Email:</label>
-                    <input 
+                    </div>
+                    <div className="grid gap-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                        id="email"
                         type="email"
                         name="email"
+                        placeholder="m@example.com"
                         value={formData.email}
                         onChange={handleChange}
+                        required
                     />
-                <label>Password:</label>
-                    <input
+                    </div>
+                    <div className="grid gap-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                        id="password"
                         type="password"
                         name="password"
                         value={formData.password}
                         onChange={handleChange}
+                        required 
                     />
-                <button type="submit">Signup</button>
-            </form>
-            <a href="./login">Already an account ?</a>
-        </div>
+                    </div>
+                </div>
+                </form>
+            </CardContent>
+            <CardFooter className="flex-col gap-2">
+                <Button type="submit" className="w-full">
+                Create
+                </Button>
+            </CardFooter>
+        </Card>
     )
 }
 

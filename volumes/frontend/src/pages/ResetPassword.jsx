@@ -1,5 +1,8 @@
 import { useState } from "react";
-import "./Auth.css"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 export default function ResetPassword() {
     const [formData, setFormData] = useState({ new_password: '', confirm_password: '' })
@@ -31,7 +34,7 @@ export default function ResetPassword() {
                     value={formData.confirm_password}
                     onChange={handleChange}
                 />
-                <button type="submit">Change password</button>
+                <Button type="submit">Change password</Button>
             </form>
         </div>
     )
