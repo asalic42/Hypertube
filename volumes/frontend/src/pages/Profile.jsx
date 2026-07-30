@@ -22,7 +22,7 @@ function Profile() {
     return (
         <FieldSet className="w-full max-w-sm">
             <Field className="flex justify-center items-center">
-            <Avatar className="size-95 shrink-0">
+            <Avatar className="size-[95px] shrink-0">
                 <AvatarImage src={defaultAvatar} alt="profile picture" />
                 <AvatarFallback>A</AvatarFallback>
               {/* <AvatarImage src={user.profilePicture} alt={user.username} /> */}
