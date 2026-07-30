@@ -31,7 +31,7 @@ clean_docker:
 
 clean_certs:
 	${RM} certs
-	sudo ${RM} db/certs
+	${RM} db/certs
 	${RM} services/proxy/certs
 	${RM} services/app-users/certs
 	${RM} services/auth/certs

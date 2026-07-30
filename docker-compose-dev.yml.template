@@ -10,6 +10,8 @@ services:
       context: services/proxy
       dockerfile: Dockerfile
     env_file: .env
+    volumes:
+      - ./services/proxy/certs:/etc/nginx/certs
     ports:
       - '8080:8080'
     restart: on-failure
