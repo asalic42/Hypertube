@@ -4,14 +4,12 @@ ENV PYTHONUNBUFFERED=1
 
 RUN mkdir -p /code
 RUN mkdir -p /init
-RUN mkdir -p /certs
 
-COPY certs/* /certs
+RUN mkdir -p /certs
+COPY certs/ca.crt /certs/
 COPY init/* /init/
-# COPY volumes/app-users/ /code/
 
 RUN mkdir -p /usr/local/share/ca-certificates
-RUN cp /certs/ca.crt /usr/local/share/ca-certificates/ca.crt
 
 WORKDIR /code
 
