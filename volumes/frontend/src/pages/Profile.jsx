@@ -30,7 +30,7 @@ function Profile() {
             </Avatar>
             </Field>
         <FieldLegend className="w-full text-center">Profile</FieldLegend>
-        <FieldDescription>Check or update your informations</FieldDescription>
+        <FieldDescription>Check or update your information</FieldDescription>
         <FieldSeparator />
         <FieldGroup>
             <Field>
