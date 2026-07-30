@@ -67,7 +67,7 @@ function Signup() {
                     <Label htmlFor="lastname">Last name</Label>
                     <Input
                         id="lastname"
-                        type="lastname"
+                        type="text"
                         name="lastname"
                         value={formData.lastname}
                         onChange={handleChange}
