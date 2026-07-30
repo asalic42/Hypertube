@@ -39,7 +39,7 @@ function Signup() {
                 </CardAction>
             </CardHeader>
             <CardContent>
-                <form onSubmit={handleSubmit}>
+                <form id="signup-form" onSubmit={handleSubmit}>
                 <div className="flex flex-col gap-6">
                     <div className="grid gap-2">
                     <Label htmlFor="username">User name</Label>
