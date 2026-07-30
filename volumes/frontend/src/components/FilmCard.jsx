@@ -16,7 +16,7 @@ function FilmCard({ film }) {
                 <p className="text-sm text-muted-foreground">Note : {film.vote_average}/10</p>
             </CardContent>
             <CardFooter className="px-3 pb-3">
-                <Button variant="ghost" size="icon">{film.favori ? '❤️' : '🤍'}</Button>
+                <Button type="button" variant="ghost" size="icon" aria-label={film.favori ? "Remove from favorites" : "Add to favorites"}>{film.favori ? '❤️' : '🤍'}</Button>
             </CardFooter>
         </Card>
     );
