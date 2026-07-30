@@ -37,7 +37,6 @@ function Home() {
             <FilmCard key={film.id} film={film} />
         ))}
         </div>
-        {/* legacy .film-list markup removed */}
     );
 }
 
