@@ -42,10 +42,10 @@ function Signup() {
                 <form onSubmit={handleSubmit}>
                 <div className="flex flex-col gap-6">
                     <div className="grid gap-2">
-                    <Label htmlFor="email">User name</Label>
+                    <Label htmlFor="username">User name</Label>
                     <Input
                         id="username"
-                        type="username"
+                        type="text"
                         name="username"
                         value={formData.username}
                         onChange={handleChange}
