@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import FilmCard from '../components/FilmCard'
-import './Home.css'
 
 function Home() {
     const [films, setFilms] = useState([]);
