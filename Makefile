@@ -1,6 +1,6 @@
-FILE= ./docker-compose-dev.yml
-CERT_DIR = certs
-RM= rm -rf
+FILE := ./docker-compose-dev.yml
+CERT_DIR := certs
+RM := rm -rf
 
 all: cert compose
 	docker compose -f ${FILE} up -d --build
