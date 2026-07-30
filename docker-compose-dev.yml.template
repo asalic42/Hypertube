@@ -10,6 +10,8 @@ services:
       context: services/proxy
       dockerfile: Dockerfile
     env_file: .env
+    volumes:
+      - ./services/proxy/certs:/etc/nginx/certs
     ports:
       - '8080:8080'
     restart: on-failure
@@ -39,11 +41,26 @@ services:
     networks:
       - hypertube
     build:
-      context: .
-      dockerfile: services/app-users/Dockerfile
+      context: services/app-users
+      dockerfile: Dockerfile
     env_file: .env
     ports:
       - '8000:8000'
+    restart: on-failure
+
+  auth:
+    image: hypertube-auth
+    container_name: 'hypertube-auth'
+    volumes:
+      - auth:/code
+    networks:
+      - hypertube
+    build:
+      context: services/auth
+      dockerfile: Dockerfile
+    env_file: .env
+    ports:
+      - '8001:8001'
     restart: on-failure
 
   db:
@@ -56,6 +73,10 @@ services:
     build:
       context: ./db
       dockerfile: Dockerfile
+    environment:
+      POSTGRES_DB: hypertube
+      POSTGRES_USER: hypertube
+      POSTGRES_PASSWORD: hypertube
     env_file: .env
     ports:
       - "5432:5432"
@@ -97,7 +118,16 @@ volumes:
       o: 'bind'
       device: placeholder/volumes/app-users
 
+  auth:
+    name: auth
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: placeholder/volumes/auth
+
   postgres-data:
+    name: postgres-data
 
 
 networks:

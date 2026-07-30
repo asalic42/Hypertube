@@ -1,6 +1,8 @@
-FILE=./docker-compose-dev.yml
+FILE := ./docker-compose-dev.yml
+CERT_DIR := certs
+RM := rm -rf
 
-all: compose
+all: cert compose
 	docker compose -f ${FILE} up -d --build
 
 compose :
@@ -13,6 +15,11 @@ compose :
 down:
 	docker compose -f ${FILE} down -t 10
 
+${CERT_DIR}:
+	bash scripts/cert/set_up.sh
+
+cert: ${CERT_DIR}
+
 re : down all
 
 clean_docker:
@@ -21,7 +28,16 @@ clean_docker:
 	docker rmi -f $$(docker images -qa);\
 	docker volume rm $$(docker volume ls -q);\
 
-clean: clean_docker
+
+clean_certs:
+	${RM} certs
+	${RM} db/certs
+	${RM} services/proxy/certs
+	${RM} services/app-users/certs
+	${RM} services/auth/certs
+
+
+clean: clean_certs clean_docker
 
 prune: down clean
 	echo "y" | docker system prune -a
