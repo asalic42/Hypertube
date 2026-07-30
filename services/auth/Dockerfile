@@ -12,6 +12,9 @@ RUN pip install --upgrade pip
 COPY services/auth/init/ /init/
 COPY volumes/auth/ /code/
 
+RUN mkdir -p /certs
+COPY ./certs/ca.crt /certs/ca.crt
+
 RUN pip install --no-cache-dir -r /init/requirements.txt
 
 EXPOSE 8001

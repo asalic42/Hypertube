@@ -4,13 +4,18 @@ ENV PYTHONUNBUFFERED=1
 
 RUN mkdir -p /code
 RUN mkdir -p /init
+RUN mkdir -p /certs
+
+COPY certs/* /certs
+COPY init/* /init/
+# COPY volumes/app-users/ /code/
+
+RUN mkdir -p /usr/local/share/ca-certificates
+RUN cp /certs/ca.crt /usr/local/share/ca-certificates/ca.crt
 
 WORKDIR /code
 
 RUN pip install --upgrade pip
-
-COPY services/app-users/init/ /init/
-COPY volumes/app-users/ /code/
 
 RUN pip install --no-cache-dir -r /init/requirements.txt
 
