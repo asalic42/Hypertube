@@ -30,7 +30,7 @@ function Signup() {
             <CardHeader>
                 <CardTitle>Create account</CardTitle>
                 <CardDescription>
-                Enter your informations to create an account
+                Enter your information to create an account
                 </CardDescription>
                 <CardAction>
                 <Button asChild variant="link">
