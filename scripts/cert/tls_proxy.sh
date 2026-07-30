@@ -30,7 +30,7 @@ $GEN_CSR \
     "${SERVICE_CERTS_DIR}/${SERVICE_NAME}.csr" \
     -keyout "${SERVICE_CERTS_DIR}/${SERVICE_NAME}.key" \
     -subj "/C=FR/ST=IDF/L=PARIS/O=42/OU=42/CN=${SERVICE_NAME}/UID=hypertube-admin" \
-    -addext "subjectAltName=DNS:$SERVICE_NAME}"
+    -addext "subjectAltName=DNS:${SERVICE_NAME}"
 
 # Sign the CSR using the private CA.
 # The resulting certificate is trusted by any client that trusts ca.crt.
