@@ -2,6 +2,44 @@ import requests
 
 torrents = []
 
+def search_top_medias(limit=5):
+    url_api = "https://archive.org/advancedsearch.php"
+    
+    requete = 'format:"Archive BitTorrent"' 
+
+    parametres = {
+        'q': requete,
+        'fl[]': ['identifier', 'title', 'downloads'],
+        'sort[]': 'downloads desc',
+        'rows': limit,
+        'output': 'json'
+    }
+
+    reponse = requests.get(url_api, params=parametres)
+    if reponse.status_code == 200:
+        donnees = reponse.json()
+        documents = donnees.get('response', {}).get('docs', [])
+        
+        print(f"--- Top {limit} médias les plus téléchargés ---\n")
+        for doc in documents:
+            identifiant = doc.get('identifier')
+            titre = doc.get('title')
+            telechargements = doc.get('downloads', 0)
+            
+            # Reconstruction du lien torrent normalisé
+            url_torrent = f"https://archive.org/download/{identifiant}/{identifiant}_archive.torrent"
+            torrents.append(url_torrent)
+            
+            print(f"Film : {titre}")
+            print(f"ID IA : {identifiant}")
+            print(f"Téléchargements : {telechargements}")
+            print(f"Lien Torrent : {url_torrent}")
+            print(f"Type de média : {doc.get('mediatype', 'N/A')}")
+            print("-" * 40)
+    else:
+        print(f"Erreur lors de la requête : {reponse.status_code}")
+
+
 def rechercher_films_torrent(mots_cles, limite=5):
     # Encodage de la requête de recherche avancée
     url_api = "https://archive.org/advancedsearch.php"
@@ -41,7 +79,7 @@ def rechercher_films_torrent(mots_cles, limite=5):
         print(f"Erreur lors de la requête : {reponse.status_code}")
 
 # Exemple d'utilisation avec le mot-clé "Sherlock"
-rechercher_films_torrent("Sherlock", limite=3)
+# rechercher_films_torrent("Sherlock", limite=3)
 
 import time
 import requests
@@ -98,5 +136,8 @@ def telecharger_depuis_torrent(url_torrent, dossier_destination="."):
 url_exemple = "https://archive.org/download/lost_world/lost_world_archive.torrent"
 
 # Lancement du téléchargement dans le dossier actuel
-for torrent in torrents:
-    telecharger_depuis_torrent(torrent, dossier_destination=".")
+# for torrent in torrents:
+#     telecharger_depuis_torrent(torrent, dossier_destination="./films")
+
+search_top_medias(limit=5)
+print("torrents:", torrents)
