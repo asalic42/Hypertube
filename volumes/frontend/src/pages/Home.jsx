@@ -37,9 +37,7 @@ function Home() {
             <FilmCard key={film.id} film={film} />
         ))}
         </div>
-        // <div className='film-list'>
-        //     {films.map((film) => (<Card key={film.id} film={film} />))}
-        // </div>
+        {/* legacy .film-list markup removed */}
     );
 }
 
