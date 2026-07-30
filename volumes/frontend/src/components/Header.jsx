@@ -23,7 +23,7 @@ function Header() {
         <nav className="flex items-stretch">
             <div className="flex items-stretch gap-4">
             <div className="flex items-center py-2">
-                <Input type="text" placeholder="Search..." className="w-48" />
+                <Input type="search" aria-label="Search" placeholder="Search..." className="w-48" />
             </div>
             </div>
 
