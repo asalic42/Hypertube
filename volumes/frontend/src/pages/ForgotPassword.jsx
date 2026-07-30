@@ -38,7 +38,7 @@ export default function ForgotPassword() {
                 </CardAction>
             </CardHeader>
             <CardContent>
-                <form onSubmit={handleSubmit}>
+                <form id="forgot-password-form" onSubmit={handleSubmit}>
                 <div className="flex flex-col gap-6">
                     <div className="grid gap-2">
                     <Label htmlFor="email">Email</Label>
