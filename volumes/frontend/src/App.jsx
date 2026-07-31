@@ -7,6 +7,7 @@ import Home from './pages/Home';
 import Profile from './pages/Profile';
 import Header from './components/Header'
 import Footer from './components/Footer'
+import { Toaster } from "@/components/ui/toast";
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           </Routes>
         </main>
         <Footer />
+        <Toaster />
       </div>
     </BrowserRouter>
   );

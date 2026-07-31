@@ -14,12 +14,12 @@ import { Label } from "@/components/ui/label"
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { NativeSelect } from "@/components/ui/native-select";
+import { toast } from "@/components/ui/toast";
 
 
 function Signup() {
     const navigate = useNavigate();
     const [formData, setFormData] = useState({email: '', username: '', lastname: '', firstname: '', profilePic: null, preferredLanguage: ''});
-    const [erreur, setErreur] = useState(null);
 
     function handleChange(e) {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -55,12 +55,21 @@ function Signup() {
             }
 
             const datares = await response.json();
+            toast.add({
+                title: "Account created",
+                description: "Account successfully created !",
+                type : "success",
+            });
             console.log('User created:', datares);
             navigate('https://localhost:8080/login');
         
         } catch (err) {
             console.error(err);
-            setErreur(err.message);
+            toast.add({
+                title: "Error",
+                description: err.message,
+                type: "error",
+            });
         }
     }
 
