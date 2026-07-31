@@ -32,7 +32,6 @@ function Signup() {
 
     async function handleSubmit(e) {
         e.preventDefault();
-        console.log(formData);
 
         const data = new FormData();
         data.append('username', formData.username);
@@ -60,7 +59,6 @@ function Signup() {
                 description: "Account successfully created !",
                 type : "success",
             });
-            console.log('User created:', datares);
             navigate('https://localhost:8080/login');
         
         } catch (err) {
