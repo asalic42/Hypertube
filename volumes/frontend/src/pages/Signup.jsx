@@ -148,8 +148,15 @@ function Signup() {
                     <Label htmlFor="password">Language</Label>
                     <NativeSelect name="preferredLanguage" value={formData.preferredLanguage} onChange={handleChange}>
                         <option value="en">English</option>
-                        <option value="fr">Français</option>
-                        <option value="es">Español</option>
+                        <option value="fr">French</option>
+                        <option value="es">Spanish</option>
+                        <option value="de">German</option>
+                        <option value="it">Italian</option>
+                        <option value="pt">Portuguese</option>
+                        <option value="ru">Russian</option>
+                        <option value="zh">Chinese</option>
+                        <option value="ja">Japanese</option>
+                        <option value="ko">Korean</option>
                     </NativeSelect>
                     </div>
                     <Button type="submit" className="w-full">
