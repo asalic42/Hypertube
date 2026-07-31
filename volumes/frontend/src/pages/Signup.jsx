@@ -12,17 +12,56 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { NativeSelect } from "@/components/ui/native-select";
+
 
 function Signup() {
-    const [formData, setFormData] = useState({email: '', username: '', lastname: '', firstname: '', password: ''});
+    const navigate = useNavigate();
+    const [formData, setFormData] = useState({email: '', username: '', lastname: '', firstname: '', profilePic: null, preferredLanguage: ''});
+    const [erreur, setErreur] = useState(null);
 
     function handleChange(e) {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     }
 
-    function handleSubmit(e) {
+    function handleFileChange(e) {
+    const file = e.target.files[0]; // le premier (et seul) fichier sélectionné
+    setFormData({ ...formData, profilePic: file });
+    }
+
+    async function handleSubmit(e) {
         e.preventDefault();
         console.log(formData);
+
+        const data = new FormData();
+        data.append('username', formData.username);
+        data.append('firstname', formData.firstname);
+        data.append('lastname', formData.lastname);
+        data.append('email', formData.email);
+        if (formData.profilePic) {
+            data.append('profilePic', formData.profilePic);
+        }
+        data.append('preferredLanguage', formData.preferredLanguage);
+
+        try {
+            const response = await fetch('http://localhost:8000/api/app-users/create/', {
+                method: 'POST',
+                body: data,
+            });
+
+            if (!response.ok) {
+                throw new Error('Error creating user');
+            }
+
+            const datares = await response.json();
+            console.log('User created:', datares);
+            navigate('https://localhost:8080/login');
+        
+        } catch (err) {
+            console.error(err);
+            setErreur(err.message);
+        }
     }
 
     return (
@@ -87,24 +126,30 @@ function Signup() {
                     />
                     </div>
                     <div className="grid gap-2">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password">Profile Picture</Label>
                     <Input
-                        id="password"
-                        type="password"
-                        name="password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        required 
+                        id="profilePic"
+                        type="file"
+                        name="profilePic"
+                        accept="image/*"
+                        value={formData.profilePic}
+                        onChange={handleFileChange} 
                     />
                     </div>
+                    <div className="grid gap-2">
+                    <Label htmlFor="password">Language</Label>
+                    <NativeSelect name="preferredLanguage" value={formData.preferredLanguage} onChange={handleChange}>
+                        <option value="en">English</option>
+                        <option value="fr">Français</option>
+                        <option value="es">Español</option>
+                    </NativeSelect>
+                    </div>
+                    <Button type="submit" className="w-full">
+                    Signup
+                    </Button>
                 </div>
                 </form>
             </CardContent>
-            <CardFooter className="flex-col gap-2">
-                <Button type="submit" className="w-full">
-                Create
-                </Button>
-            </CardFooter>
         </Card>
     )
 }
