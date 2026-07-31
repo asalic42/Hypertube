@@ -17,7 +17,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
-    "api",
+    "auth_app",
 ]
 
 MIDDLEWARE = [
@@ -30,7 +30,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "config.urls"
+ROOT_URLCONF = "auth.urls"
 
 TEMPLATES = [
     {
@@ -47,7 +47,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "config.wsgi.application"
+WSGI_APPLICATION = "auth.wsgi.application"
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",

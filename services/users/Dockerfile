@@ -15,4 +15,4 @@ RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r /init/requirements.txt
 
 ENTRYPOINT ["bash", "/init/init.sh"]
-CMD ["gunicorn", "--reload", "--bind", "0.0.0.0:8443", "config.wsgi:application"]
+CMD ["gunicorn", "--reload", "--bind", "0.0.0.0:8443", "users.wsgi:application"]

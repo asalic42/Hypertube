@@ -35,6 +35,7 @@ clean_certs:
 	${RM} services/proxy/certs
 	${RM} services/users/certs
 	${RM} services/auth/certs
+	${RM} ${FILE}
 
 
 clean: clean_certs clean_docker

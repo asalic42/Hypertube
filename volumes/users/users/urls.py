@@ -6,17 +6,17 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 
 def root(request):
-    return JsonResponse({"service": "auth-api", "status": "ok"})
+    return JsonResponse({"service": "users-api", "status": "ok"})
 
 
 urlpatterns = [
     path("", root),
-    path("api/", include("api.urls")),
-    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/users/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
-        "api/swagger/",
+        "api/users/swagger/",
         SpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger-ui",
     ),
-    path("admin/", admin.site.urls),
+    path("api/users/admin/", admin.site.urls),
+    path("api/users/", include("users_app.urls")),
 ]
