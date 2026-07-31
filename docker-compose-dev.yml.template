@@ -29,23 +29,23 @@ services:
       context: .
       dockerfile: services/frontend/Dockerfile
     env_file: .env
-    ports:
-      - '5173:5173'
+    expose:
+      - '5173'
     restart: on-failure
 
-  app_users:
-    image: hypertube-app-users
-    container_name: 'hypertube-app-users'
+  users:
+    image: hypertube-users
+    container_name: 'hypertube-users'
     volumes:
-      - app-users:/code
+      - users:/code
     networks:
       - hypertube
     build:
-      context: services/app-users
+      context: services/users
       dockerfile: Dockerfile
     env_file: .env
-    ports:
-      - '8000:8000'
+    expose:
+      - '8443'
     restart: on-failure
 
   auth:
@@ -59,8 +59,8 @@ services:
       context: services/auth
       dockerfile: Dockerfile
     env_file: .env
-    ports:
-      - '8001:8001'
+    expose:
+      - '8443'
     restart: on-failure
 
   db:
@@ -110,13 +110,13 @@ volumes:
       o: 'bind'
       device: placeholder/volumes/frontend
 
-  app-users:
-    name: app-users
+  users:
+    name: users
     driver: local
     driver_opts:
       type: 'none'
       o: 'bind'
-      device: placeholder/volumes/app-users
+      device: placeholder/volumes/users
 
   auth:
     name: auth
@@ -141,7 +141,7 @@ networks:
 #chown -R $(id -u):$(id -g) db
 #exit
 #total 12
-#drwxr-xr-x.  4 0 0   66 Jul  7 18:10 app-users
+#drwxr-xr-x.  4 0 0   66 Jul  7 18:10 users
 #drwx------. 19 0 0 4096 Jul  7 19:22 db
 #-rw-r--r--.  1 0 0  203 Jul  7 11:08 django_env.sh
 #drwxr-xr-x.  2 0 0   24 Jul  7 11:08 frontend

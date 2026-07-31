@@ -16,5 +16,5 @@ user_urlpatterns = [
 
 urlpatterns = [
     path("health/", HealthView.as_view(), name="health"),
-    path("app-users/", include((user_urlpatterns, "api"))),
+    path("users/", include((user_urlpatterns, "api"))),
 ]
