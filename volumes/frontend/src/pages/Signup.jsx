@@ -53,7 +53,6 @@ function Signup() {
                 throw new Error('Error creating user');
             }
 
-            const datares = await response.json();
             toast.add({
                 title: "Account created",
                 description: "Account successfully created !",
