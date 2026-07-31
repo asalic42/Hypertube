@@ -1,10 +1,13 @@
 from django.urls import include, path
 
 from .views import HealthView
-from . import views 
+from .views import RegisterView
+from . import views
 
 
 user_urlpatterns = [
+    path("register/", RegisterView.as_view(), name="register"),
+    # path("login/", LoginView.as_view(), name="login"),
 ]
 
 

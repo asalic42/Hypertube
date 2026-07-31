@@ -17,9 +17,18 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { toast } from "@/components/ui/toast";
 
 
-function Signup() {
+export default function Signup() {
     const navigate = useNavigate();
-    const [formData, setFormData] = useState({email: '', username: '', lastname: '', firstname: '', profilePic: null, preferredLanguage: ''});
+    const [formData, setFormData] = useState({
+        email: '',
+        username: '',
+        password: '',
+        confirm_password: '',
+        lastname: '',
+        firstname: '',
+        profilePic: null,
+        preferredLanguage: ''
+    });
 
     function handleChange(e) {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -35,6 +44,8 @@ function Signup() {
 
         const data = new FormData();
         data.append('username', formData.username);
+        data.append('password', formData.password)
+        data.append('confirm_password', formData.confirm_password)
         data.append('firstname', formData.firstname);
         data.append('lastname', formData.lastname);
         data.append('email', formData.email);
@@ -44,7 +55,11 @@ function Signup() {
         data.append('preferredLanguage', formData.preferredLanguage);
 
         try {
-            const response = await fetch('http://localhost:8000/api/app-users/create/', {
+            // const response = await fetch('http://localhost:8000/api/app-users/create/', {
+            //     method: 'POST',
+            //     body: data,
+            // });
+            const response = await fetch('http://localhost:8001/api/auth/register/', {
                 method: 'POST',
                 body: data,
             });
@@ -52,6 +67,7 @@ function Signup() {
             if (!response.ok) {
                 throw new Error('Error creating user');
             }
+            console.log(response)
 
             toast.add({
                 title: "Account created",
@@ -75,95 +91,129 @@ function Signup() {
             <CardHeader>
                 <CardTitle>Create account</CardTitle>
                 <CardDescription>
-                Enter your information to create an account
+                    Enter your information to create an account
                 </CardDescription>
                 <CardAction>
-                <Button asChild variant="link">
-                    <Link to="/login">Login</Link>
-                </Button>
+                    <Button asChild variant="link">
+                        <Link to="/login">Login</Link>
+                    </Button>
                 </CardAction>
             </CardHeader>
+
             <CardContent>
                 <form id="signup-form" onSubmit={handleSubmit}>
-                <div className="flex flex-col gap-6">
-                    <div className="grid gap-2">
-                    <Label htmlFor="username">User name</Label>
-                    <Input
-                        id="username"
-                        type="text"
-                        name="username"
-                        value={formData.username}
-                        onChange={handleChange}
-                        required
-                    />
+                    <div className="flex flex-col gap-6">
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="username">Username</Label>
+                            <Input
+                                id="username"
+                                type="text"
+                                name="username"
+                                value={formData.username}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="password">Password</Label>
+                            <Input
+                                id="password"
+                                type="password"
+                                name="password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="confirm_password">Password confirmation</Label>
+                            <Input
+                                id="confirm_password"
+                                type="password"
+                                name="confirm_password"
+                                value={formData.confirm_password}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="firstname">First name</Label>
+                            <Input
+                                id="firstname"
+                                type="text"
+                                name="firstname"
+                                value={formData.firstname}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="lastname">Last name</Label>
+                            <Input
+                                id="lastname"
+                                type="text"
+                                name="lastname"
+                                value={formData.lastname}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="email">Email</Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                name="email"
+                                placeholder="m@example.com"
+                                value={formData.email}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="password">Profile Picture</Label>
+                            <Input
+                                id="profilePic"
+                                type="file"
+                                name="profilePic"
+                                accept="image/*"
+                                onChange={handleFileChange} 
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="password">Language</Label>
+                            <NativeSelect
+                                name="preferredLanguage"
+                                value={formData.preferredLanguage}
+                                onChange={handleChange}
+                            >
+                                <option value="en">English</option>
+                                <option value="fr">French</option>
+                                <option value="es">Spanish</option>
+                                <option value="de">German</option>
+                                <option value="it">Italian</option>
+                                <option value="pt">Portuguese</option>
+                                <option value="ru">Russian</option>
+                                <option value="zh">Chinese</option>
+                                <option value="ja">Japanese</option>
+                                <option value="ko">Korean</option>
+                            </NativeSelect>
+                        </div>
+
+                        <Button type="submit" className="w-full">
+                            Signup
+                        </Button>
                     </div>
-                    <div className="grid gap-2">
-                    <Label htmlFor="firstname">First name</Label>
-                    <Input
-                        id="firstname"
-                        type="text"
-                        name="firstname"
-                        value={formData.firstname}
-                        onChange={handleChange}
-                        required
-                    />
-                    </div>
-                    <div className="grid gap-2">
-                    <Label htmlFor="lastname">Last name</Label>
-                    <Input
-                        id="lastname"
-                        type="text"
-                        name="lastname"
-                        value={formData.lastname}
-                        onChange={handleChange}
-                        required
-                    />
-                    </div>
-                    <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                        id="email"
-                        type="email"
-                        name="email"
-                        placeholder="m@example.com"
-                        value={formData.email}
-                        onChange={handleChange}
-                        required
-                    />
-                    </div>
-                    <div className="grid gap-2">
-                    <Label htmlFor="password">Profile Picture</Label>
-                    <Input
-                        id="profilePic"
-                        type="file"
-                        name="profilePic"
-                        accept="image/*"
-                        onChange={handleFileChange} 
-                    />
-                    </div>
-                    <div className="grid gap-2">
-                    <Label htmlFor="password">Language</Label>
-                    <NativeSelect name="preferredLanguage" value={formData.preferredLanguage} onChange={handleChange}>
-                        <option value="en">English</option>
-                        <option value="fr">French</option>
-                        <option value="es">Spanish</option>
-                        <option value="de">German</option>
-                        <option value="it">Italian</option>
-                        <option value="pt">Portuguese</option>
-                        <option value="ru">Russian</option>
-                        <option value="zh">Chinese</option>
-                        <option value="ja">Japanese</option>
-                        <option value="ko">Korean</option>
-                    </NativeSelect>
-                    </div>
-                    <Button type="submit" className="w-full">
-                    Signup
-                    </Button>
-                </div>
                 </form>
             </CardContent>
         </Card>
     )
 }
-
-export default Signup;
