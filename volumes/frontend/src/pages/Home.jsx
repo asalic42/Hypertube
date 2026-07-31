@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import FilmCard from '../components/FilmCard'
+import { toast } from "@/components/ui/toast";
 
 function Home() {
     const [films, setFilms] = useState([]);
@@ -22,14 +23,17 @@ function Home() {
                 const data = await response.json();
                 setFilms(data.results);
             } catch (err) {
-                setError(err.message);
+                console.error(err);
+                toast.add({
+                    title: "Error",
+                    description: err.message,
+                    type: "error",
+                });
             }
         }
 
         getFilms();
     }, []);
-    
-    if (erreur) return <p>Erreur : {erreur}</p>;
 
     return (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4">
