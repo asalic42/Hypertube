@@ -141,7 +141,6 @@ function Signup() {
                         type="file"
                         name="profilePic"
                         accept="image/*"
-                        value={formData.profilePic}
                         onChange={handleFileChange} 
                     />
                     </div>
