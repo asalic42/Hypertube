@@ -80,7 +80,7 @@ export default function Signup() {
                 description: "Account successfully created !",
                 type : "success",
             });
-            navigate('https://localhost:8080/login');
+            navigate('/login');
         
         } catch (err) {
             console.error(err);
