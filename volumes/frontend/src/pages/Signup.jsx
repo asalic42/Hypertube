@@ -55,19 +55,25 @@ export default function Signup() {
         data.append('preferredLanguage', formData.preferredLanguage);
 
         try {
-            // const response = await fetch('http://localhost:8000/api/app-users/create/', {
-            //     method: 'POST',
-            //     body: data,
-            // });
-            const response = await fetch('http://localhost:8001/api/auth/register/', {
+            const response_reg = await fetch('http://localhost:8001/api/auth/register/', {
+                method: 'POST',
+                body: data,
+            });
+            
+            if (!response_reg.ok) {
+                const errorData = await response_reg.json();
+                console.error('Détail de l\'erreur :', errorData);
+                throw new Error('Error register user');
+            }
+
+            const response_cr = await fetch('http://localhost:8000/api/app-users/create/', {
                 method: 'POST',
                 body: data,
             });
 
-            if (!response.ok) {
+            if (!response_cr.ok) {
                 throw new Error('Error creating user');
             }
-            console.log(response)
 
             toast.add({
                 title: "Account created",
