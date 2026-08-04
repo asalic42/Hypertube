@@ -72,3 +72,14 @@ class ArchiveDownloadProgressView(APIView):
 
         response_serializer = ArchiveDownloadProgressResponseSerializer(payload)
         return Response(response_serializer.data)
+
+class ArchiveRetrieveDownloadsView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request):
+        from api.services.archive import _get_jobs
+
+        jobs = _get_jobs()
+        response_serializer = ArchiveDownloadProgressResponseSerializer(jobs, many=True)
+        return Response(response_serializer.data)

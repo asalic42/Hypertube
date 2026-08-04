@@ -18,20 +18,14 @@ except ImportError:  # pragma: no cover - handled explicitly at runtime
     lt = None
 
 
-BITTORRENT_SOURCE_PAGE = "https://media.xiph.org/"
-BITTORRENT_SOURCE_LABEL = "Xiph / Blender Open Movie"
+BITTORRENT_SOURCE_PAGE = "https://archive.org/details/ElephantsDream"
+BITTORRENT_SOURCE_LABEL = "Internet Archive / Elephants Dream"
 BITTORRENT_TORRENTS = [
     {
-        "identifier": "elephants_dream_360p",
-        "title": "Elephants Dream 360p PNG sequence",
-        "torrent_url": "https://media.xiph.org/ED/ED-360-png.torrent",
-        "file_name": "ED-360-png",
-    },
-    {
-        "identifier": "elephants_dream_1080p",
-        "title": "Elephants Dream 1080p PNG sequence",
-        "torrent_url": "https://media.xiph.org/ED/ED-1080-png.torrent",
-        "file_name": "ED-1080-png",
+        "identifier": "GrazieNonnaLoverBoy1975FullMovieItalian",
+        "title": "Grazie Nonna Lover Boy ( 1975) Full Movie Italian",
+        "torrent_url": "https://archive.org/download/GrazieNonnaLoverBoy1975FullMovieItalian/GrazieNonnaLoverBoy1975FullMovieItalian_archive.torrent",
+        "file_name": "GrazieNonnaLoverBoy1975FullMovieItalian.mp4",
     },
 ]
 PREFERRED_VIDEO_EXTENSIONS = (".mp4", ".mkv", ".webm", ".ogv", ".avi", ".mov")
@@ -110,6 +104,10 @@ def _get_job(job_id: str) -> DownloadJob:
 
     return job
 
+def _get_jobs() -> list[DownloadJob]:
+    with _DOWNLOAD_JOBS_LOCK:
+        return list(_DOWNLOAD_JOBS.values())
+
 
 def _require_libtorrent() -> None:
     if lt is None:
@@ -159,6 +157,9 @@ def start_archive_video_download(identifier: str, destination_dir: str | os.Path
 
 
 def _run_archive_video_download(job_id: str) -> None:
+    """ 
+        Lance le téléchargement BitTorrent dans un thread séparé et met à jour l'état du job.
+    """
     try:
         _require_libtorrent()
         job = _get_job(job_id)
