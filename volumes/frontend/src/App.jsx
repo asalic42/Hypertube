@@ -8,6 +8,7 @@ import Profile from './pages/Profile';
 import Header from './components/Header'
 import Footer from './components/Footer'
 import { Toaster } from "@/components/ui/toast";
+import Watch from './pages/Watch'
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/home" element={<Home />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/watch" element={<Watch />} />
           </Routes>
         </main>
         <Footer />
