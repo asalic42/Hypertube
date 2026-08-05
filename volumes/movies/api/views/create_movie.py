@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from drf_spectacular.utils import extend_schema
 from api.models import Movie
-from api.serializers import MovieSerializer, MovieCreateSerializer
+from api.serializers import MovieSerializer
 
 
 class MovieCreateView(APIView):
@@ -14,13 +14,12 @@ class MovieCreateView(APIView):
 
     @extend_schema(
         tags=["Movies"],
-        request=MovieCreateSerializer,
+        request=MovieSerializer,
         responses={201: MovieSerializer},
         description="Create a new movie in the database.",
     )
-
     def post(self, request):
-        serializer = MovieCreateSerializer(data=request.data)
+        serializer = MovieSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
