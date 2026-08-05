@@ -1,22 +1,22 @@
 #!/bin/bash
 
-# Generate the TLS certificate used by the Nginx reverse proxy.
-# This certificate is presented to browsers during the HTTPS handshake.
+# Generate the TLS certificate used by the PostgreSQL server.
+# The certificate is signed by the project's Certificate Authority.
 
 if [ -z "$1" ]; then
-    echo "tls_proxy.sh: certificate authority path required"
+    echo "tls_db.sh: certificate authority path required"
     exit 1
 fi
 
 if [ -z "$2" ]; then
-    echo "tls_proxy.sh: global cert dir required"
+    echo "tls_db.sh: global cert dir required"
     exit 1
 fi
 
 CERT_DIR="$2"
 AUTH_DIR="${CERT_DIR}/$1"
 
-SERVICE_NAME=proxy
+SERVICE_NAME=db
 SERVICE_CERTS_DIR="${CERT_DIR}/${SERVICE_NAME}"
 
 mkdir -p "${SERVICE_CERTS_DIR}"
@@ -40,9 +40,10 @@ $GEN_CRT \
     -CA "${AUTH_DIR}/ca.crt" \
     -CAkey "${AUTH_DIR}/ca.key"
 
+
+
 # Copy the database certificate and private key into the PostgreSQL
 # service directory so they can be mounted inside the container.
-mkdir -p "services/${SERVICE_NAME}/certs"
-
-cp "${SERVICE_CERTS_DIR}/${SERVICE_NAME}.key" "services/${SERVICE_NAME}/certs"
-cp "${SERVICE_CERTS_DIR}/${SERVICE_NAME}.crt" "services/${SERVICE_NAME}/certs"
+mkdir -p "${SERVICE_NAME}/certs"
+cp "${SERVICE_CERTS_DIR}/${SERVICE_NAME}.key" "${SERVICE_NAME}/certs"
+cp "${SERVICE_CERTS_DIR}/${SERVICE_NAME}.crt" "${SERVICE_NAME}/certs"

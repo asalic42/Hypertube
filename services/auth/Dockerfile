@@ -9,8 +9,10 @@ WORKDIR /code
 
 RUN pip install --upgrade pip
 
-COPY services/auth/init/ /init/
-COPY volumes/auth/ /code/
+COPY init/ /init/
+
+RUN mkdir -p /certs
+COPY certs/ca.crt /certs/
 
 RUN pip install --no-cache-dir -r /init/requirements.txt
 
