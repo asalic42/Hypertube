@@ -108,14 +108,14 @@ services:
     volumes:
       - dbgate-data:/root/.dbgate
     environment:
-      CONNECTIONS: con2
-      LABEL_con2: Hypertube Database
-      SERVER_con2: hypertube-db
-      DATABASE_con2: $DB_NAME
-      USER_con2: $DB_USER
-      PASSWORD_con2: $DB_PASSWORD
-      PORT_con2: $DB_PORT
-      ENGINE_con2: postgres@dbgate-plugin-postgres
+      CONNECTIONS: con1
+      LABEL_con1: Hypertube Database
+      SERVER_con1: hypertube-db
+      DATABASE_con1: $DB_NAME
+      USER_con1: $DB_USER
+      PASSWORD_con1: $DB_PASSWORD
+      PORT_con1: $DB_PORT
+      ENGINE_con1: postgres@dbgate-plugin-postgres
 
 
 volumes:
