@@ -12,4 +12,5 @@ env
 */node_modules
 example_users_django
 
+volumes/movies/films
 volumes/app-users/media
