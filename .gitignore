@@ -11,3 +11,5 @@ env
 
 */node_modules
 example_users_django
+
+volumes/app-users/media
