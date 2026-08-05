@@ -71,11 +71,11 @@ services:
     networks:
       - hypertube
     build:
-      context: .
-      dockerfile: services/movies/Dockerfile
+      context: services/movies
+      dockerfile: Dockerfile
     env_file: .env
-    ports:
-      - '8002:8002'
+    expose:
+      - '8443'
     restart: on-failure
 
   db:

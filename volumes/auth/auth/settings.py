@@ -18,7 +18,6 @@ INSTALLED_APPS = [
     "rest_framework",
     "drf_spectacular",
     "auth_app",
-    "api",
     "corsheaders",
 ]
 

@@ -42,6 +42,7 @@ openssl req \
 DJANGO_SERVICES=(
     "users"
     "auth"
+    "movies"
 )
 
 for SERVICE in "${DJANGO_SERVICES[@]}"; do

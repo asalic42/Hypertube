@@ -17,7 +17,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
-    "api",
+    "movies_app",
 ]
 
 MIDDLEWARE = [
@@ -30,7 +30,11 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "config.urls"
+ROOT_URLCONF = "movies.urls"
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "https://localhost:8080"
+]
 
 TEMPLATES = [
     {
@@ -47,7 +51,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "config.wsgi.application"
+WSGI_APPLICATION = "movies.wsgi.application"
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -68,6 +72,10 @@ DATABASES = {
         "PASSWORD": os.getenv("MOVIES_PASSWORD"),
         "HOST": os.getenv("DB_HOST"),
         "PORT": os.getenv("DB_PORT"),
+	"OPTIONS": {
+		"sslmode": "verify-full",
+		"sslrootcert": "/certs/ca.crt",
+	},
     }
 }
 
@@ -79,4 +87,8 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

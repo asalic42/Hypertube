@@ -2,8 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from drf_spectacular.utils import extend_schema
-from api.models import Movie
-from api.serializers import MovieSerializer
+from movies_app.models import Movie
+from movies_app.serializers import MovieSerializer
 
 
 class MovieCreateView(APIView):

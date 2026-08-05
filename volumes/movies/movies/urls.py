@@ -11,12 +11,12 @@ def root(request):
 
 urlpatterns = [
     path("", root),
-    path("api/", include("api.urls")),
-    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/movies/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
-        "api/swagger/",
+        "api/movies/swagger/",
         SpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger-ui",
     ),
-    path("admin/", admin.site.urls),
+    path("api/movies/admin", admin.site.urls),
+    path("api/movies", include("movies_app.urls")),
 ]

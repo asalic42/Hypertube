@@ -2,7 +2,7 @@ import uuid
 
 from django.db import models
 
-from api.validators import validate_profile_picture_upload
+from users_app.validators import validate_profile_picture_upload
 
 
 def profile_picture_upload_to(instance, filename):
