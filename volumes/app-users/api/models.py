@@ -1,6 +1,13 @@
+import uuid
+
 from django.db import models
 
 from api.validators import validate_profile_picture_upload
+
+
+def profile_picture_upload_to(instance, filename):
+    extension = filename.rsplit('.', 1)[-1].lower() if '.' in filename else 'png'
+    return f"profile_pics/{uuid.uuid4().hex[:8]}-avatar.{extension}"
 
 
 class PublicUser(models.Model):
@@ -9,7 +16,7 @@ class PublicUser(models.Model):
     lastname = models.CharField(max_length=128, blank=True)
     email = models.EmailField(unique=True)
     profilePic = models.ImageField(
-        upload_to='profile_pics/',
+        upload_to=profile_picture_upload_to,
         blank=True,
         null=True,
         validators=[validate_profile_picture_upload],
