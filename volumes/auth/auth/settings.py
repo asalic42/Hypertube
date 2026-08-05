@@ -18,9 +18,12 @@ INSTALLED_APPS = [
     "rest_framework",
     "drf_spectacular",
     "auth_app",
+    "api",
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -31,6 +34,10 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "auth.urls"
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "https://localhost:8080"
+]
 
 TEMPLATES = [
     {
@@ -75,7 +82,23 @@ DATABASES = {
     }
 }
 
-AUTH_PASSWORD_VALIDATORS = []
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {
+            "min_length": 8,
+        },
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+    },
+]
 
 LANGUAGE_CODE = "fr-fr"
 TIME_ZONE = "Europe/Paris"

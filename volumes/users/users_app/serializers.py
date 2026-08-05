@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from users_app.models import PublicUser
+from users_app.validators import validate_profile_picture_upload
 
 
 class PublicUserSerializer(serializers.ModelSerializer):
@@ -36,7 +37,10 @@ class PublicUserUpdateSerializer(serializers.ModelSerializer):
 
 
 class PublicUserAvatarUpdateSerializer(serializers.Serializer):
-    profilePic = serializers.URLField(required=True)
+    profilePic = serializers.ImageField(
+        required=True,
+        validators=[validate_profile_picture_upload],
+    )
 
 
 class MessageSerializer(serializers.Serializer):

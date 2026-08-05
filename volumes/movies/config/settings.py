@@ -17,12 +17,10 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
-    "users_app.apps.UsersAppConfig",
-    "corsheaders",
+    "api",
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -32,11 +30,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "users.urls"
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "https://localhost:8080"
-]
+ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
     {
@@ -53,15 +47,15 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "users.wsgi.application"
+WSGI_APPLICATION = "config.wsgi.application"
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "users API",
-    "DESCRIPTION": "API de gestion des utilisateurs.",
+    "TITLE": "Movies API",
+    "DESCRIPTION": "API de gestion des films.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
@@ -70,14 +64,10 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.getenv("DB_NAME"),
-        "USER": os.getenv("APP_USERS_USER"),
-        "PASSWORD": os.getenv("APP_USERS_PASSWORD"),
+        "USER": os.getenv("MOVIES_USER"),
+        "PASSWORD": os.getenv("MOVIES_PASSWORD"),
         "HOST": os.getenv("DB_HOST"),
         "PORT": os.getenv("DB_PORT"),
-	"OPTIONS": {
-		"sslmode": "verify-full",
-		"sslrootcert": "/certs/ca.crt",
-	},
     }
 }
 
@@ -87,14 +77,6 @@ LANGUAGE_CODE = "fr-fr"
 TIME_ZONE = "Europe/Paris"
 USE_I18N = True
 USE_TZ = True
-STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-MAX_UPLOAD_SIZE = 5 * 1024 * 1024

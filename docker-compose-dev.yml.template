@@ -63,6 +63,21 @@ services:
       - '8443'
     restart: on-failure
 
+  movies:
+    image: hypertube-movies
+    container_name: 'hypertube-movies'
+    volumes:
+      - movies:/code
+    networks:
+      - hypertube
+    build:
+      context: .
+      dockerfile: services/movies/Dockerfile
+    env_file: .env
+    ports:
+      - '8002:8002'
+    restart: on-failure
+
   db:
     image: hypertube-db
     container_name: 'hypertube-db'
@@ -125,6 +140,14 @@ volumes:
       type: 'none'
       o: 'bind'
       device: placeholder/volumes/auth
+
+  movies:
+    name: movies
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: placeholder/volumes/movies
 
   postgres-data:
     name: postgres-data
