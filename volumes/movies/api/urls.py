@@ -5,6 +5,7 @@ from . import views
 
 
 user_urlpatterns = [
+    path("create/", views.MovieCreateView.as_view(), name="movie-create"),
 ]
 
 
