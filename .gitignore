@@ -12,5 +12,7 @@ staticfiles/
 */node_modules
 example_users_django
 
+dbgate-data
+
 volumes/movies/films
 volumes/users/media
