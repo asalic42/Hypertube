@@ -65,13 +65,25 @@ export default function Signup() {
                 console.error('Détail de l\'erreur :', errorData);
                 throw new Error('Error register user');
             }
-
+            
+            
             const response_cr = await fetch('https://localhost:8080/api/users/create/', {
                 method: 'POST',
                 body: data,
             });
-
+            
             if (!response_cr.ok) {
+                const result_reg = await response_reg.json();
+                const user_id = result_reg.id;
+                console.log("user id :", user_id);
+                const del = await fetch(`https://localhost:8080/api/auth/delete/${user_id}/`, {
+                    method: 'DELETE',
+                });
+
+                if (!del.ok) {
+                    throw new Error('Error deleting user');
+                }
+
                 throw new Error('Error creating user');
             }
 
