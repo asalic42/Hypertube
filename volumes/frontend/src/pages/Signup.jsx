@@ -55,7 +55,7 @@ export default function Signup() {
         data.append('preferredLanguage', formData.preferredLanguage);
 
         try {
-            const response_reg = await fetch('http://localhost:8001/api/auth/register/', {
+            const response_reg = await fetch('https://localhost:8080/api/auth/register/', {
                 method: 'POST',
                 body: data,
             });
@@ -66,7 +66,7 @@ export default function Signup() {
                 throw new Error('Error register user');
             }
 
-            const response_cr = await fetch('http://localhost:8000/api/app-users/create/', {
+            const response_cr = await fetch('https://localhost:8080/api/users/create/', {
                 method: 'POST',
                 body: data,
             });
