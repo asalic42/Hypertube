@@ -13,3 +13,5 @@ env
 example_users_django
 
 volumes/app-users/media
+
+dbgate-data

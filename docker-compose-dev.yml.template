@@ -106,7 +106,7 @@ services:
     ports:
       - 5051:3000
     volumes:
-      - dbgate-data:/root/.dbgate
+      - ./dbgate-data:/root/.dbgate
     environment:
       CONNECTIONS: con1
       LABEL_con1: Hypertube Database
@@ -146,26 +146,8 @@ volumes:
   postgres-data:
     name: postgres-data
 
-  dbgate-data:
-    name: dbgate-data
-    driver: local
-    device: placeholder/volumes/dbgate-data
-
 
 networks:
   hypertube:
     name: hypertube
     driver: bridge
-
-
-#➜  volumes git:(micro-service-setup) ✗ podman unshare bash
-#➜  volumes git:(micro-service-setup) ✗ ls -ln
-#chown -R $(id -u):$(id -g) db
-#exit
-#total 12
-#drwxr-xr-x.  4 0 0   66 Jul  7 18:10 app-users
-#drwx------. 19 0 0 4096 Jul  7 19:22 db
-#-rw-r--r--.  1 0 0  203 Jul  7 11:08 django_env.sh
-#drwxr-xr-x.  2 0 0   24 Jul  7 11:08 frontend
-#-rw-r--r--.  1 0 0   30 Jul  7 11:08 requirements.txt
-#➜  volumes git:(micro-service-setup) ✗ rm -rf db
