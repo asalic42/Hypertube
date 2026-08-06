@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button"
 import { 
   Card, 
@@ -15,6 +15,7 @@ import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { NativeSelect } from "@/components/ui/native-select";
 import { toast } from "@/components/ui/toast";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 
 export default function Signup() {
@@ -29,14 +30,28 @@ export default function Signup() {
         profilePic: null,
         preferredLanguage: ''
     });
+    const [preview, setPreview] = useState(null);
+
+    useEffect(() => {
+        return () => {
+            if (preview) {
+                URL.revokeObjectURL(preview);
+            }
+        };
+    }, [preview]);
+
+    function handleFileChange(e) {
+        const file = e.target.files[0];
+        setFormData({ ...formData, profilePic: file });
+
+        if (file) {
+            const previewUrl = URL.createObjectURL(file);
+            setPreview(previewUrl);
+        }
+    }
 
     function handleChange(e) {
         setFormData({ ...formData, [e.target.name]: e.target.value });
-    }
-
-    function handleFileChange(e) {
-    const file = e.target.files[0]; // le premier (et seul) fichier sélectionné
-    setFormData({ ...formData, profilePic: file });
     }
 
     async function handleSubmit(e) {
@@ -197,6 +212,12 @@ export default function Signup() {
 
                         <div className="grid gap-2">
                             <Label htmlFor="password">Profile Picture</Label>
+                            <div className="flex justify-center">
+                                {preview && <Avatar className="size-42">
+                                    <AvatarImage src={preview} alt="Preview" />
+                                    <AvatarFallback>?</AvatarFallback>
+                                </Avatar>}
+                            </div>
                             <Input
                                 id="profilePic"
                                 type="file"
