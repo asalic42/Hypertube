@@ -120,8 +120,6 @@ services:
     restart: always
     ports:
       - 5051:3000
-    volumes:
-      - ./dbgate-data:/root/.dbgate
     environment:
       CONNECTIONS: con1
       LABEL_con1: Hypertube Database
