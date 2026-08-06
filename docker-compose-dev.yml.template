@@ -29,23 +29,23 @@ services:
       context: .
       dockerfile: services/frontend/Dockerfile
     env_file: .env
-    ports:
-      - '5173:5173'
+    expose:
+      - '5173'
     restart: on-failure
 
-  app_users:
-    image: hypertube-app-users
-    container_name: 'hypertube-app-users'
+  users:
+    image: hypertube-users
+    container_name: 'hypertube-users'
     volumes:
-      - app-users:/code
+      - users:/code
     networks:
       - hypertube
     build:
-      context: services/app-users
+      context: services/users
       dockerfile: Dockerfile
     env_file: .env
-    ports:
-      - '8000:8000'
+    expose:
+      - '8443'
     restart: on-failure
 
   auth:
@@ -59,8 +59,23 @@ services:
       context: services/auth
       dockerfile: Dockerfile
     env_file: .env
-    ports:
-      - '8001:8001'
+    expose:
+      - '8443'
+    restart: on-failure
+
+  movies:
+    image: hypertube-movies
+    container_name: 'hypertube-movies'
+    volumes:
+      - movies:/code
+    networks:
+      - hypertube
+    build:
+      context: services/movies
+      dockerfile: Dockerfile
+    env_file: .env
+    expose:
+      - '8443'
     restart: on-failure
 
   db:
@@ -127,13 +142,13 @@ volumes:
       o: 'bind'
       device: placeholder/volumes/frontend
 
-  app-users:
-    name: app-users
+  users:
+    name: users
     driver: local
     driver_opts:
       type: 'none'
       o: 'bind'
-      device: placeholder/volumes/app-users
+      device: placeholder/volumes/users
 
   auth:
     name: auth
@@ -142,6 +157,14 @@ volumes:
       type: 'none'
       o: 'bind'
       device: placeholder/volumes/auth
+
+  movies:
+    name: movies
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: placeholder/volumes/movies
 
   postgres-data:
     name: postgres-data

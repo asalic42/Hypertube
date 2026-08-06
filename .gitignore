@@ -6,12 +6,13 @@ env
 *.key
 *.csr
 *.pem
-
+*/migrations/*
 **/__pycache__
-
+staticfiles/
 */node_modules
 example_users_django
 
-volumes/app-users/media
-
 dbgate-data
+
+volumes/movies/films
+volumes/users/media

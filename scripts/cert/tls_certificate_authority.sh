@@ -40,8 +40,9 @@ openssl req \
 # presented by its PostgreSQL database.
 
 DJANGO_SERVICES=(
-    "app-users"
+    "users"
     "auth"
+    "movies"
 )
 
 for SERVICE in "${DJANGO_SERVICES[@]}"; do
