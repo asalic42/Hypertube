@@ -115,6 +115,20 @@ services:
     volumes:
       - ./servers.json:/pgadmin4/servers.json
 
+  file-storage:
+    image: rustfs/rustfs:latest
+    container_name: hypertube-rustfs
+    environment:
+      RUSTFS_ACCESS_KEY: file_storage
+      RUSTFS_SECRET_KEY: file_storage123
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - 9000:9000 # S3 API
+      - 9001:9001 # Web interface
+    volumes:
+      - ./rustfs-data:/data/rustfs0
+    restart: unless-stopped
+
 
 volumes:
   data-frontend:
