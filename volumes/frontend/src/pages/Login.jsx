@@ -33,8 +33,8 @@ export default function Login() {
                 Enter your email below to login to your account
                 </CardDescription>
                 <CardAction>
-                <Button asChild variant="link">
-                    <Link to="/signup">Sign Up</Link>
+                <Button render={<Link to="/signup" />} nativeButton={false} variant="link">
+                    Sign Up
                 </Button>
                 </CardAction>
             </CardHeader>

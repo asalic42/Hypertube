@@ -112,8 +112,8 @@ export default function Signup() {
                     Enter your information to create an account
                 </CardDescription>
                 <CardAction>
-                    <Button asChild variant="link">
-                        <Link to="/login">Login</Link>
+                    <Button render={<Link to="/login" />} nativeButton={false} variant="link">
+                        Login
                     </Button>
                 </CardAction>
             </CardHeader>
