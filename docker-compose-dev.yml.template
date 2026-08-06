@@ -117,20 +117,40 @@ services:
 
   file-storage:
     image: rustfs/rustfs:latest
-    container_name: hypertube-rustfs
-    environment:
-      RUSTFS_ACCESS_KEY: file_storage
-      RUSTFS_SECRET_KEY: file_storage123
-      RUSTFS_CONSOLE_ENABLE: "true"
+    container_name: hypertube-fs
+    volumes:
+      - file-storage:/data/rustfs0
+    networks:
+      - hypertube
+    env_file: .env
     ports:
       - 9000:9000 # S3 API
       - 9001:9001 # Web interface
-    volumes:
-      - rustfs-data:/data/rustfs0
     restart: unless-stopped
-    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://file-storage:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  file-storage-init:
+    image: hypertube-fs-init
+    container_name: hypertube-fs-init
+    env_file: .env
+    networks:
+      - hypertube
+    build:
+      context: services/file-storage
+      dockerfile: Dockerfile
+    depends_on:
+      file-storage:
+        condition: service_healthy
+
   dbgate:
     image: dbgate/dbgate
+    container_name: hypertube-dbgate
+    networks:
+      - hypertube
     restart: always
     ports:
       - 5051:3000
@@ -181,13 +201,13 @@ volumes:
   postgres-data:
     name: postgres-data
 
-  rustfs-data:
-    name: rustfs-data
+  file-storage:
+    name: file-storage
     driver: local
     driver_opts:
       type: 'none'
       o: 'bind'
-      device: /goinfre/aducobu/Hypertube/volumes/rustfs-data
+      device: /goinfre/aducobu/Hypertube/volumes/file-storage
 
 
 networks:
