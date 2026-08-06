@@ -126,7 +126,7 @@ services:
       - 9000:9000 # S3 API
       - 9001:9001 # Web interface
     volumes:
-      - ./rustfs-data:/data/rustfs0
+      - rustfs-data:/data/rustfs0
     restart: unless-stopped
 
 
@@ -165,6 +165,14 @@ volumes:
 
   postgres-data:
     name: postgres-data
+
+  rustfs-data:
+    name: rustfs-data
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: /goinfre/aducobu/Hypertube/volumes/rustfs-data
 
 
 networks:
