@@ -3,7 +3,7 @@ CERT_DIR := certs
 RM := rm -rf
 
 all: cert compose
-	docker compose -f ${FILE} up -d --build
+	docker compose -f ${FILE} up -d --build 
 
 compose :
 	@if [ ! -f "$(FILE)" ]; then \
@@ -33,8 +33,9 @@ clean_certs:
 	${RM} certs
 	${RM} db/certs
 	${RM} services/proxy/certs
-	${RM} services/app-users/certs
+	${RM} services/users/certs
 	${RM} services/auth/certs
+	${RM} ${FILE}
 
 
 clean: clean_certs clean_docker

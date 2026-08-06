@@ -6,11 +6,11 @@ env
 *.key
 *.csr
 *.pem
-
+*/migrations/*
 **/__pycache__
-
+staticfiles/
 */node_modules
 example_users_django
 
 volumes/movies/films
-volumes/app-users/media
+volumes/users/media
