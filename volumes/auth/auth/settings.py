@@ -17,7 +17,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
-    "auth_app",
+    "auth_app.apps.AuthAppConfig",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
 ]
 
@@ -33,6 +34,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "auth.urls"
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "https://localhost:8080"
@@ -54,6 +56,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "auth.wsgi.application"
+ASGI_APPLICATION = "auth.asgi.application"
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -81,6 +84,8 @@ DATABASES = {
     }
 }
 
+AUTH_USER_MODEL = "auth_app.User"
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -98,6 +103,83 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
+
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication."
+        "JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions."
+        "IsAuthenticated",
+    ),
+    "DEFAULT_SCHEMA_CLASS":
+        "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling."
+        "AnonRateThrottle",
+        "rest_framework.throttling."
+        "UserRateThrottle",
+        "rest_framework.throttling."
+        "ScopedRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "60/minute",
+        "user": "600/minute",
+        "register": "5/minute",
+        "login": "10/minute",
+        "refresh": "30/minute",
+        "verify": "60/minute",
+    },
+}
+
+
+JWT_PRIVATE_KEY = read_required_file(
+    "JWT_PRIVATE_KEY_PATH"
+)
+
+JWT_PUBLIC_KEY = read_required_file(
+    "JWT_PUBLIC_KEY_PATH"
+)
+
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME":
+        timedelta(minutes=10),
+    "REFRESH_TOKEN_LIFETIME":
+        timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS":
+        True,
+    "BLACKLIST_AFTER_ROTATION":
+        True,
+    "UPDATE_LAST_LOGIN":
+        False,
+    "ALGORITHM":
+        "RS256",
+    "SIGNING_KEY":
+        JWT_PRIVATE_KEY,
+    "VERIFYING_KEY":
+        JWT_PUBLIC_KEY,
+    "ISSUER":
+        "auth-service",
+    "AUDIENCE":
+        "hypertube",
+    "AUTH_HEADER_TYPES": (
+        "Bearer",
+    ),
+    "USER_ID_FIELD":
+        "id",
+    "USER_ID_CLAIM":
+        "sub",
+    "TOKEN_TYPE_CLAIM":
+        "token_type",
+    "JTI_CLAIM":
+        "jti",
+    "LEEWAY":
+        5,
+}
+
 
 LANGUAGE_CODE = "fr-fr"
 TIME_ZONE = "Europe/Paris"

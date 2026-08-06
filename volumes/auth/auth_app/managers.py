@@ -1,4 +1,4 @@
-# auth_app/managers.py
+from typing import Any
 
 from django.contrib.auth.base_user import BaseUserManager
 
@@ -11,7 +11,7 @@ class UserManager(BaseUserManager):
         email: str,
         username: str,
         password: str | None = None,
-        **extra_fields,
+        **extra_fields: Any,
     ):
         if not email:
             raise ValueError("Email is required.")
