@@ -1,27 +1,27 @@
 -- Création des schémas
-CREATE SCHEMA app_users;
+CREATE SCHEMA users;
 CREATE SCHEMA auth;
 CREATE SCHEMA movies;
 
 
 -- Création des utilisateurs des microservices
 
-CREATE USER app_users_service WITH PASSWORD 'app_users_password';
+CREATE USER users_service WITH PASSWORD 'users_password';
 CREATE USER auth_service WITH PASSWORD 'auth_password';
 CREATE USER movies_service WITH PASSWORD 'movies_password';
 
 
 -- Droits sur les schémas
 
-GRANT USAGE, CREATE ON SCHEMA app_users TO app_users_service;
+GRANT USAGE, CREATE ON SCHEMA users TO users_service;
 GRANT USAGE, CREATE ON SCHEMA auth TO auth_service;
 GRANT USAGE, CREATE ON SCHEMA movies TO movies_service;
 
 
 -- Chaque service utilise son propre schéma par défaut
 
-ALTER USER app_users_service
-SET search_path TO app_users;
+ALTER USER users_service
+SET search_path TO users;
 
 ALTER USER auth_service
 SET search_path TO auth;

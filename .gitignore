@@ -13,4 +13,4 @@ staticfiles/
 example_users_django
 
 volumes/movies/films
-volumes/app-users/media
+volumes/users/media
