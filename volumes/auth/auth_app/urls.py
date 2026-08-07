@@ -1,8 +1,14 @@
 from django.urls import include, path
 
-from .views import HealthView
-from .views import RegisterView
-from . import views
+from .views import (
+    HealthView,
+    LoginView,
+    LogoutView,
+    MeView,
+    RefreshView,
+    RegisterView,
+    VerifyView,
+)
 
 
 auth_urlpatterns = [

@@ -6,28 +6,14 @@ from auth_app.models import User
 from auth_app.serializers import RegisterSerializer
 
 
-class RegisterView(APIView):
-
+@extend_schema(
+    tags=["Authentication"],
+    operation_id="auth_register",
+)
+class RegisterView(CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = RegisterSerializer
+    permission_classes = [AllowAny]
     authentification_classes = []
-    permission_classes = []
-    
-    def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+    throttle_scope = "register"
 
-        validated_data = serializer.validated_data
-        validated_data.pop('confirm_password')
-        user = User.objects.create_user(
-            username=serializer.validated_data["username"],
-            email=serializer.validated_data["email"],
-            password=serializer.validated_data["password"],
-        )
-
-        return Response(
-            {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-            },
-            status=status.HTTP_201_CREATED,
-        )

@@ -23,10 +23,6 @@ class User(AbstractBaseUser):
         unique=True,
     )
 
-    is_active = models.BooleanField(
-        default=True,
-    )
-
     date_joined = models.DateTimeField(
         default=timezone.now,
     )
