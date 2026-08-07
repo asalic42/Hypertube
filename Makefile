@@ -20,7 +20,7 @@ ${CERT_DIR}:
 
 cert: ${CERT_DIR}
 
-re : down clean all
+re : down all
 
 clean_docker:
 	docker stop $$(docker ps -qa);\
