@@ -6,9 +6,9 @@ import os
 def create_bucket(bucket_name):
     s3 = boto3.client(
         's3',
-        endpoint_url='http://file-storage:9000',
-        aws_access_key_id=os.environ["RUSTFS_ACCESS_KEY"],
-        aws_secret_access_key=os.environ["RUSTFS_SECRET_KEY"],
+        endpoint_url=os.environ["AWS_S3_ENDPOINT_URL"],
+        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
         region_name='eu-west-1',
         config=Config(
             signature_version='s3v4',

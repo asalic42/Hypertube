@@ -1,2 +1,2 @@
-profil-pics
+profile-pics
 movies

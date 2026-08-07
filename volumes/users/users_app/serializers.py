@@ -1,7 +1,9 @@
 from rest_framework import serializers
 
-from users_app.models import PublicUser
+from users_app.models import PublicUser, profile_picture_upload_to
 from users_app.validators import validate_profile_picture_upload
+
+from django.core.files.storage import default_storage
 
 
 class PublicUserSerializer(serializers.ModelSerializer):
@@ -28,6 +30,16 @@ class PublicUserCreateSerializer(serializers.ModelSerializer):
             "profilePic",
             "preferredLanguage",
         ]
+
+    def create(self, validated_data):
+        file = validated_data.pop("profilePic", None)
+        user = PublicUser.objects.create(**validated_data)
+        if file:
+            key = profile_picture_upload_to(user, file.name)
+            default_storage.save(key, file) # bucket s3 storage
+            user.profilePic.name = key # save storage key to user model
+            user.save()
+        return user
 
 
 class PublicUserUpdateSerializer(serializers.ModelSerializer):

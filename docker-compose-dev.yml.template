@@ -123,6 +123,10 @@ services:
     networks:
       - hypertube
     env_file: .env
+    environment:
+      - RUSTFS_CONSOLE_ENABLE=${RUSTFS_CONSOLE_ENABLE}
+      - RUSTFS_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
+      - RUSTFS_SECRET_KEY=${AWS_SECRET_ACCESS_KEY}
     ports:
       - 9000:9000 # S3 API
       - 9001:9001 # Web interface
