@@ -1,8 +1,9 @@
 FILE := ./docker-compose-dev.yml
 CERT_DIR := certs
+JWT_DIR := jwt
 RM := rm -rf
 
-all: cert compose
+all: cert jwt compose
 	docker compose -f ${FILE} up -d --build 
 
 compose :
@@ -14,6 +15,12 @@ compose :
 
 down:
 	docker compose -f ${FILE} down -t 10
+
+
+${JWT_DIR}:
+	bash scripts/jwt/set_up.sh
+
+jwt: ${JWT_DIR}
 
 ${CERT_DIR}:
 	bash scripts/cert/set_up.sh
@@ -35,10 +42,16 @@ clean_certs:
 	${RM} services/proxy/certs
 	${RM} services/users/certs
 	${RM} services/auth/certs
+
+clean_jwt:
+	${RM} services/proxy/jwt
+	${RM} services/users/jwt
+	${RM} services/auth/jwt
+	${RM} jwt
+
+clean: down clean_certs clean_docker
 	${RM} ${FILE}
 
-
-clean: clean_certs clean_docker
 
 prune: down clean
 	echo "y" | docker system prune -a

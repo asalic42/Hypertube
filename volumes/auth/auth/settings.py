@@ -40,6 +40,11 @@ CORS_ALLOWED_ORIGINS = [
     "https://localhost:8080"
 ]
 
+CSRF_TRUSTED_ORIGINS = environment_list(
+    "CSRF_TRUSTED_ORIGINS",
+    "https://localhost:8080,https://127.0.0.1:8080",
+)
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -181,6 +186,14 @@ SIMPLE_JWT = {
 }
 
 
+SPECTACULAR_SETTINGS = {
+    "TITLE": "auth API",
+    "DESCRIPTION":
+        "Authentication service for Hypertube",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+}
+
 LANGUAGE_CODE = "fr-fr"
 TIME_ZONE = "Europe/Paris"
 USE_I18N = True
@@ -189,4 +202,7 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_PROXY_SSL_HEADER = (
+    "HTTP_X_FORWARDED_PROTO",
+    "https",
+)
