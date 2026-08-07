@@ -32,8 +32,8 @@ export default function ForgotPassword() {
                 Enter your email to reset your password 
                 </CardDescription>
                 <CardAction>
-                <Button asChild variant="link">
-                    <Link to="/login">Login</Link>
+                <Button render={<Link to="/login" />} nativeButton={false} variant="link">
+                    Login
                 </Button>
                 </CardAction>
             </CardHeader>
