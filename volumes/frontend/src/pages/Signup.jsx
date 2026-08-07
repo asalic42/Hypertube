@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button"
 import { 
   Card, 
@@ -31,22 +31,36 @@ export default function Signup() {
         preferredLanguage: ''
     });
     const [preview, setPreview] = useState(null);
+    const fileInputRef = useRef(null);
 
+    // nettoyage memoire au demontage du composant
     useEffect(() => {
         return () => {
             if (preview) {
                 URL.revokeObjectURL(preview);
             }
         };
-    }, [preview]);
+    }, []);
 
     function handleFileChange(e) {
         const file = e.target.files[0];
+        if (preview) {
+            URL.revokeObjectURL(preview);
+        }
         setFormData({ ...formData, profilePic: file });
-
         if (file) {
-            const previewUrl = URL.createObjectURL(file);
-            setPreview(previewUrl);
+            setPreview(URL.createObjectURL(file));
+        }
+    }
+
+    function handleRemovePhoto() {
+        if (preview) {
+            URL.revokeObjectURL(preview);
+        }
+        setFormData({ ...formData, profilePic: null });
+        setPreview(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
         }
     }
 
@@ -81,7 +95,7 @@ export default function Signup() {
                 throw new Error('Error register user');
             }
             
-            
+
             const response_cr = await fetch('https://localhost:8080/api/users/create/', {
                 method: 'POST',
                 body: data,
@@ -212,18 +226,27 @@ export default function Signup() {
 
                         <div className="grid gap-2">
                             <Label htmlFor="password">Profile Picture</Label>
-                            <div className="flex justify-center">
-                                {preview && <Avatar className="size-42">
+                            {preview && (
+                            <div className="flex justify-center gap-2">
+                                <Avatar className="size-40">
                                     <AvatarImage src={preview} alt="Preview" />
                                     <AvatarFallback>?</AvatarFallback>
-                                </Avatar>}
+                                </Avatar>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleRemovePhoto}
+                                >x</Button>
                             </div>
+                            )}
                             <Input
+                                ref={fileInputRef}
                                 id="profilePic"
                                 type="file"
                                 name="profilePic"
                                 accept="image/*"
-                                onChange={handleFileChange} 
+                                onChange={handleFileChange}
                             />
                         </div>
 
