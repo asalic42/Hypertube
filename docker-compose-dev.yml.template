@@ -119,7 +119,7 @@ services:
     image: rustfs/rustfs:latest
     container_name: hypertube-fs
     volumes:
-      - file-storage:/data/rustfs0
+      - file-storage:/data
     networks:
       - hypertube
     env_file: .env
@@ -203,12 +203,7 @@ volumes:
 
   file-storage:
     name: file-storage
-    driver: local
-    driver_opts:
-      type: 'none'
-      o: 'bind'
-      device: /goinfre/aducobu/Hypertube/volumes/file-storage
-
+ 
 
 networks:
   hypertube:
