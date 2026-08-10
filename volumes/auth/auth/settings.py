@@ -64,13 +64,6 @@ TEMPLATES = [
 WSGI_APPLICATION = "auth.wsgi.application"
 ASGI_APPLICATION = "auth.asgi.application"
 
-SPECTACULAR_SETTINGS = {
-    "TITLE": "auth API",
-    "DESCRIPTION": "API de gestion de l'authentification.",
-    "VERSION": "1.0.0",
-    "SERVE_INCLUDE_SCHEMA": False,
-}
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
