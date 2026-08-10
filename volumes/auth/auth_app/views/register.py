@@ -14,6 +14,6 @@ class RegisterView(CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
-    authentification_classes = []
+    authentication_classes = []
     throttle_scope = "register"
 
