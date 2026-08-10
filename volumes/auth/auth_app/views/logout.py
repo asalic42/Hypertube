@@ -35,7 +35,7 @@ class LogoutView(APIView):
         token_user_id = refresh_token.get("sub")
 
         if str(token_user_id) != str(request.user.pk):
-            return Reponse(
+            return Response(
                 {
                     "detail":"The refresh token does not belong to this user."
                 },
