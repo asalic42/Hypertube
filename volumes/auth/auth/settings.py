@@ -64,10 +64,6 @@ TEMPLATES = [
 WSGI_APPLICATION = "auth.wsgi.application"
 ASGI_APPLICATION = "auth.asgi.application"
 
-REST_FRAMEWORK = {
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-}
-
 SPECTACULAR_SETTINGS = {
     "TITLE": "auth API",
     "DESCRIPTION": "API de gestion de l'authentification.",
