@@ -130,10 +130,10 @@ REST_FRAMEWORK = {
 }
 
 
- def read_required_file(env_variable: str) -> str:
-     path = os.getenv(env_variable)
-     if not path:
-         raise RuntimeError(f"Missing {env_variable}")
+def read_required_file(env_variable: str) -> str:
+    path = os.getenv(env_variable)
+    if not path:
+        raise RuntimeError(f"Missing {env_variable}")
     return Path(path).read_text(encoding="utf-8")
 
 JWT_PRIVATE_KEY = read_required_file("JWT_PRIVATE_KEY_PATH")
