@@ -25,7 +25,7 @@ class LoginView(TokenObtainPairView):
 )
 class RefreshView(TokenRefreshView):
     permission_classes = [AllowAny]
-    authentification_classes = []
+    authentication_classes = []
     throttle_scope = "refresh"    
 
 
