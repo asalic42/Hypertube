@@ -38,7 +38,7 @@ class User(AbstractBaseUser):
     EMAIL_FIELD = "email"
 
     class Meta:
-        db_table = "auth_users"
+        db_table = "auth"
         ordering = ("-date_joined",)
 
     def __str__(self) -> str:

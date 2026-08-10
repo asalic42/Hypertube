@@ -23,7 +23,7 @@ class LoginView(TokenObtainPairView):
     tags=["Authentication"],
     operation_id="auth_refresh",
 )
-class RefreshView(TokenObtainPairView):
+class RefreshView(TokenRefreshView):
     permission_classes = [AllowAny]
     authentification_classes = []
     throttle_scope = "refresh"    
@@ -33,7 +33,7 @@ class RefreshView(TokenObtainPairView):
     tags=["Authentication"],
     operation_id="auth_verify",
 )
-class VeirfyView(TokenVerifyView):
+class VerifyView(TokenVerifyView):
     permission_classes = [AllowAny]
     authentification_classes = []
     throttle_scope = "verify"

@@ -9,7 +9,7 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        field = (
+        fields = (
             "id",
             "username",
             "email",
@@ -19,12 +19,12 @@ class UserSerializer(serializers.ModelSerializer):
     
 
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializer.CharField(
+    password = serializers.CharField(
         write_only=True,
         trim_whitespace=False,
     )
 
-    password_confirmation = serializer.CharField(
+    password_confirmation = serializers.CharField(
         write_only=True,
         trim_whitespace=False,
     )
@@ -104,7 +104,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
 
 class LogoutSerializer(serializers.Serializer):
-    refresh = serializers.Charfield()
+    refresh = serializers.CharField()
 
 class HealthSerializer(serializers.Serializer):
     status = serializers.CharField()

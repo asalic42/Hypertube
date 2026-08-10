@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import timedelta
 import os
 
 
@@ -40,10 +41,10 @@ CORS_ALLOWED_ORIGINS = [
     "https://localhost:8080"
 ]
 
-CSRF_TRUSTED_ORIGINS = environment_list(
-    "CSRF_TRUSTED_ORIGINS",
-    "https://localhost:8080,https://127.0.0.1:8080",
-)
+CSRF_TRUSTED_ORIGINS = [
+    "https://localhost:8080",
+    "https://127.0.0.1:8080",
+]
 
 TEMPLATES = [
     {
@@ -140,13 +141,15 @@ REST_FRAMEWORK = {
 }
 
 
-JWT_PRIVATE_KEY = read_required_file(
-    "JWT_PRIVATE_KEY_PATH"
-)
+def read_required_file(env_variable):
+    path = os.getenv(env_variable)
+    return Path(path).read_text(encoding="utf-8")
 
-JWT_PUBLIC_KEY = read_required_file(
-    "JWT_PUBLIC_KEY_PATH"
-)
+
+JWT_PRIVATE_KEY = read_required_file("JWT_PRIVATE_KEY_PATH")
+
+
+JWT_PUBLIC_KEY = read_required_file("JWT_PUBLIC_KEY_PATH")
 
 
 SIMPLE_JWT = {

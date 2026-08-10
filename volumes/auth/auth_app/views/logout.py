@@ -13,13 +13,13 @@ class LogoutView(APIView):
 
     @extend_schema(
         request=LogoutSerializer,
-        reponse = {204: None,}
-        tags="Authentication",
+        responses = {204: None,},
+        tags=["Authentication"],
         operation_id="auth_logout"
     )
     def post(self, request):
         serializer = LogoutSerializer(data=request.data)
-        serializer.is_valide(raise_exception=True)
+        serializer.is_valid(raise_exception=True)
         raw_refresh_token = serializer.validated_data["refresh"]
 
         try:
