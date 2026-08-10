@@ -1,35 +1,111 @@
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.db import transaction
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+User = get_user_model()
 
-class RegisterSerializer(serializers.Serializer):
-    username = serializers.CharField(max_length=20)
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, min_length=8)
-    confirm_password = serializers.CharField(write_only=True, min_length=8)
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "username",
+            "email",
+            "date_joined",
+        )
+        read_only_fields = fields
+    
+
+class RegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+    )
+
+    password_confirmation = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+    )
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "username",
+            "email",
+            "password",
+            "password_confirmation",
+        )
+        read_only_fields = (
+            "id",
+        )
 
     def validate_username(self, value):
         if User.objects.filter(username=value).exists():
             raise serializers.ValidationError(
                 "This username already exists"
             )
-        return value
+        return value.strip()
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError(
                 "This email already has an account"
             )
-        return value
+        return value.strip().lower()
 
-    def validate_password(self, value):
-        validate_password(value)
-        return value
 
-    def validate(self, data):
-        if data['password'] != data['confirm_password']:
-            raise serializers.ValidationError(
-                {"confirm_password": "Password do not match"}
+    def validate(self, attributes):
+        password = attributes.get("password")
+        password_confirmation = attributes.pop(
+            "password_confirmation"
+            , None,
+        )
+
+        if password != password_confirmation:
+            raise serializers.ValidationError (
+                {
+                    "password_confirmation":
+                        "Passwords do not match."
+                }
             )
+        
+        candidate_user = User(
+            email=attributes.get("email"),
+            username=attributes.get("username"),
+        )
+
+        validate_password(
+            password,
+            user=candidate_user,
+        )
+
+        return attributes
+    
+    @transaction.atomic
+    def create(self, validated_data):
+        return User.objects.create_user(
+            **validated_data,
+        )
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token["username"] = user.username
+        return token
+
+    def validate(self, attributes):
+        data = super().validate(attributes)
+        data["user"] = UserSerializer(self.user).data
         return data
+
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+
+class HealthSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    service = serializers.CharField()
