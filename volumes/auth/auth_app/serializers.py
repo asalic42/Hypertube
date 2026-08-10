@@ -67,7 +67,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         if password != password_confirmation:
             raise serializers.ValidationError (
                 {
-                    "password_condifrmation":
+                    "password_confirmation":
                         "Passwords do not match."
                 }
             )
