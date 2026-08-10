@@ -7,6 +7,9 @@ from django.utils import timezone
 from .managers import UserManager
 
 
+# TO DO : THINK ABOUT ADMIN FIELD FOR USER MODEL IF WE 
+# KEEP THE DJANGO ADMIN VIEW AVAILABLE FROM THE FRONTEND
+
 class User(AbstractBaseUser):
     id = models.UUIDField(
         primary_key=True,
