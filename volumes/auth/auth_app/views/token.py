@@ -35,5 +35,5 @@ class RefreshView(TokenRefreshView):
 )
 class VerifyView(TokenVerifyView):
     permission_classes = [AllowAny]
-    authentification_classes = []
+    authentication_classes = []
     throttle_scope = "verify"
