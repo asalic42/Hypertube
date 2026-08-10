@@ -15,7 +15,7 @@ from auth_app.serializers import CustomTokenObtainPairSerializer
 class LoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
     permission_classes = [AllowAny]
-    authentification_classes = []
+    authentication_classes = []
     throttle_scope = "login"
 
 
