@@ -15,12 +15,7 @@ class PublicUser(models.Model):
     firstname = models.CharField(max_length=128, blank=True)
     lastname = models.CharField(max_length=128, blank=True)
     email = models.EmailField(unique=True)
-    profilePic = models.ImageField(
-        upload_to=profile_picture_upload_to,
-        blank=True,
-        null=True,
-        validators=[validate_profile_picture_upload],
-    )
+    profilePic = models.CharField(max_length=256, blank=True, default="")
     LANGUAGE_CHOICES = [
         ('en', 'English'),
         ('fr', 'French'),
@@ -34,3 +29,9 @@ class PublicUser(models.Model):
         ('ko', 'Korean'),
     ]
     preferredLanguage = models.CharField(max_length=2, choices=LANGUAGE_CHOICES, default='en')
+
+
+def get_bucket_file_key(username):
+    """ returns the s3 bucket file key for a given username """
+    user = PublicUser.objects.get(username=username)
+    return user.profilePic

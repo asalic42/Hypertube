@@ -12,6 +12,10 @@ from users_app.serializers import (
     PublicUserSerializer,
     PublicUserUpdateSerializer,
 )
+from django.core.files.storage import default_storage
+from users_app.models import get_bucket_file_key
+from users_app.utils import get_presigned_url
+
 
 class PublicUserList(APIView):
     authentication_classes = []
@@ -20,6 +24,7 @@ class PublicUserList(APIView):
 
     @extend_schema(
         tags=["Public users"],
+        operation_id="list_public_users",
         responses=PublicUserListResponseSerializer,
         description="Retourne la liste des utilisateurs publics.",
     )
@@ -34,6 +39,7 @@ class PublicUserCreate(APIView):
 
     @extend_schema(
         tags=["Public users"],
+        operation_id="create_public_user",
         request=PublicUserCreateSerializer,
         responses={201: MessageSerializer},
         description="Cree un utilisateur public a partir d'un payload JSON.",
@@ -51,6 +57,7 @@ class PublicUserRetrieveDetail(APIView):
 
     @extend_schema(
         tags=["Public users"],
+        operation_id="retrieve_public_user",
         responses=PublicUserDetailResponseSerializer,
         description="Retourne le detail d'un utilisateur public via son username.",
     )
@@ -63,6 +70,42 @@ class PublicUserRetrieveDetail(APIView):
             }
         )
 
+class PublicUserRetrievePic(APIView):
+    authentication_classes = []
+    permission_classes = []
+    """ retrieve a specific user's profile picture from the file database """
+
+    @extend_schema(
+        tags=["Public users"],
+        operation_id="retrieve_public_user_pic",
+        responses=PublicUserDetailResponseSerializer,
+        description="Renvoie l'url temporaire de l'image de profil d'un utilisateur public.",
+    )
+    def get(self, request, username):
+        print(f"Retrieving profile picture for user: {username}")
+        try:
+            url = get_presigned_url(
+                bucket_name=default_storage.bucket_name,
+                object_key=get_bucket_file_key(username),
+                expiration=3600
+            )
+            print(f"Generated presigned URL for {username}: {url}")
+            return Response(
+                {
+                    "message": "User picture retrieved successfully teessesetst",
+                    "profilePic": url,
+                }
+            )
+        except Exception as e:
+            print(f"Error generating presigned URL for {username}: {e}")
+            return Response(
+                {
+                    "message": "Error retrieving user picture",
+                },
+                status=500
+            )
+
+
 class PublicUserUpdate(APIView):
     authentication_classes = []
     permission_classes = []
@@ -70,6 +113,7 @@ class PublicUserUpdate(APIView):
 
     @extend_schema(
         tags=["Public users"],
+        operation_id="update_public_user",
         request=PublicUserUpdateSerializer,
         responses=MessageSerializer,
         description="Met a jour partiellement un utilisateur public (PATCH).",
@@ -88,6 +132,7 @@ class PublicUserUpdateAvatar(APIView):
 
     @extend_schema(
         tags=["Public users"],
+        operation_id="update_public_user_avatar",
         request=PublicUserAvatarUpdateSerializer,
         responses=MessageSerializer,
         description="Met a jour uniquement l'avatar (profilePic).",
@@ -107,6 +152,7 @@ class PublicUserDelete(APIView):
 
     @extend_schema(
         tags=["Public users"],
+        operation_id="delete_public_user",
         responses=MessageSerializer,
         description="Supprime un utilisateur public via son username.",
     )
