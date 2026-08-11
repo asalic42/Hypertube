@@ -43,3 +43,4 @@ if __name__ == "__main__":
             create_bucket(bucket)
     except FileNotFoundError:
         print("⚠️  buckets.txt file not found. No buckets to create. ⚠️")
+    print("---- Initialization complete. ----")
