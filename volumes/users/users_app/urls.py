@@ -10,7 +10,8 @@ user_urlpatterns = [
         path('<str:username>/', views.PublicUserRetrieveDetail.as_view(), name='user-detail'),
         path('<str:username>/pic', views.PublicUserRetrievePic.as_view(), name='user-pic'),
         path('<str:username>/update', views.PublicUserUpdate.as_view(), name='user-update'),
-        path('<str:username>/update_pic', views.PublicUserUpdateAvatar.as_view(), name='user-update-avatar'),
+        path('<str:username>/pic/update', views.PublicUserUpdateAvatar.as_view(), name='user-update-avatar'),
+        path('<str:username>/pic/delete', views.PublicUserDeleteAvatar.as_view(), name='user-delete-avatar'),
         path('delete/<str:username>/', views.PublicUserDelete.as_view(), name='user-delete'),
 ]
 

@@ -6,5 +6,6 @@ from .public_users import (
     PublicUserUpdate,
     PublicUserUpdateAvatar,
     PublicUserDelete,
-    PublicUserRetrievePic
+    PublicUserRetrievePic,
+    PublicUserDeleteAvatar,
 )

@@ -103,19 +103,27 @@ class PublicUserRetrievePic(APIView):
     )
     def get(self, request, username):
         try:
-            url = get_presigned_url(
-                bucket_name=default_storage.bucket_name,
-                object_key=get_bucket_file_key(username),
-                expiration=3600
+            key = get_bucket_file_key(username)
+            if key:
+                url = get_presigned_url(
+                    bucket_name=default_storage.bucket_name,
+                    object_key=key,
+                    expiration=3600
+                )
+                response_serializer = PublicUserPictureResponseSerializer(
+                    data={
+                        "message": "User picture retrieved successfully.",
+                        "picture_url": url,
+                    }
+                )
+                response_serializer.is_valid(raise_exception=True)
+                return Response(response_serializer.validated_data)
+            return Response(
+                {
+                    "message": "User has no profile picture.",
+                },
+                status=404
             )
-            response_serializer = PublicUserPictureResponseSerializer(
-                data={
-                    "message": "User picture retrieved successfully.",
-                    "picture_url": url,
-                }
-            )
-            response_serializer.is_valid(raise_exception=True)
-            return Response(response_serializer.validated_data)
         except Exception as e:
             return Response(
                 {
@@ -174,6 +182,28 @@ class PublicUserUpdateAvatar(APIView):
                 "message": "User avatar updated successfully"
             }
         )
+
+
+class PublicUserDeleteAvatar(APIView):
+    authentication_classes = []
+    permission_classes = []
+    """ delete a specific user's avatar in the database """
+
+    @extend_schema(
+        tags=["Public users"],
+        operation_id="delete_public_user_avatar",
+        responses=MessageSerializer,
+        description="Supprime l'avatar (profilePic).",
+    )
+    def delete(self, request, username):
+        user = get_object_or_404(PublicUser, username=username)
+        if user.profilePic:
+            default_storage.delete(user.profilePic)
+            user.profilePic = ""
+            user.save(update_fields=["profilePic"])
+            return Response({"message": "User avatar deleted successfully"})
+        else:
+            return Response({"message": "User has no avatar to delete"}, status=400)
 
 
 class PublicUserDelete(APIView):
