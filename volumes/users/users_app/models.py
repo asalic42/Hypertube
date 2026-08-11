@@ -51,3 +51,14 @@ def save_avatar(user, file):
         default_storage.delete(key)
         raise
     return key
+
+
+def delete_avatar(user):
+    """ deletes the profile avatar from the storage and updates the user model 
+        :param user: PublicUser instance
+        :return: None
+    """
+    if user.avatar:
+        default_storage.delete(user.avatar)
+        user.avatar = ""
+        user.save(update_fields=["avatar"])

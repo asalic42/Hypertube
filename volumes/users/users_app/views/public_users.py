@@ -15,7 +15,7 @@ from users_app.serializers import (
     PublicUserAvatarResponseSerializer,
 )
 from django.core.files.storage import default_storage
-from users_app.models import get_bucket_file_key, profile_avatar_upload_to, save_avatar
+from users_app.models import get_bucket_file_key, profile_avatar_upload_to, save_avatar, delete_avatar
 from users_app.utils import get_presigned_url
 
 
@@ -203,9 +203,7 @@ class PublicUserDeleteAvatar(APIView):
     def delete(self, request, username):
         user = get_object_or_404(PublicUser, username=username)
         if user.avatar:
-            default_storage.delete(user.avatar)
-            user.avatar = ""
-            user.save(update_fields=["avatar"])
+            delete_avatar(user)
             return Response({"message": "User avatar deleted successfully"})
         else:
             return Response({"message": "User has no avatar to delete"}, status=400)
@@ -224,5 +222,6 @@ class PublicUserDelete(APIView):
     )
     def delete(self, request, username):
         user = get_object_or_404(PublicUser, username=username)
+        delete_avatar(user)
         user.delete()
         return Response({"message": "User deleted successfully"})
