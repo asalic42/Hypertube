@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from users_app.models import PublicUser
@@ -11,6 +11,7 @@ from users_app.serializers import (
     PublicUserListResponseSerializer,
     PublicUserSerializer,
     PublicUserUpdateSerializer,
+    PublicUserCreateResponseSerializer,
 )
 from django.core.files.storage import default_storage
 from users_app.models import get_bucket_file_key
@@ -30,7 +31,12 @@ class PublicUserList(APIView):
     )
     def get(self, request):
         users = PublicUser.objects.all()
-        return Response({"users": PublicUserSerializer(users, many=True).data})
+        return Response(
+            {
+                "users": PublicUserSerializer(users, many=True).data
+            }
+        )
+
 
 class PublicUserCreate(APIView):
     authentication_classes = []
@@ -40,15 +46,27 @@ class PublicUserCreate(APIView):
     @extend_schema(
         tags=["Public users"],
         operation_id="create_public_user",
-        request=PublicUserCreateSerializer,
-        responses={201: MessageSerializer},
-        description="Cree un utilisateur public a partir d'un payload JSON.",
+        request={"multipart/form-data": PublicUserCreateSerializer},
+        responses={
+            201: PublicUserCreateResponseSerializer,
+            400: OpenApiResponse(
+                response=PublicUserSerializer,
+                description="Invalid user data",
+            ),},
+        description="Crée un utilisateur public a partir d'un payload JSON.",
     )
     def post(self, request):
         serializer = PublicUserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({"message": "User created successfully"}, status=201)
+        return Response(
+            {
+                "message": "User created successfully", 
+                "user": PublicUserSerializer(serializer.instance).data
+            }, 
+            status=201
+        )
+
 
 class PublicUserRetrieveDetail(APIView):
     authentication_classes = []
@@ -69,6 +87,7 @@ class PublicUserRetrieveDetail(APIView):
                 "user": PublicUserSerializer(user).data,
             }
         )
+
 
 class PublicUserRetrievePic(APIView):
     authentication_classes = []
@@ -116,7 +135,7 @@ class PublicUserUpdate(APIView):
         operation_id="update_public_user",
         request=PublicUserUpdateSerializer,
         responses=MessageSerializer,
-        description="Met a jour partiellement un utilisateur public (PATCH).",
+        description="Met a jour partiellement un utilisateur public.",
     )
     def patch(self, request, username):
         user = get_object_or_404(PublicUser, username=username)
@@ -124,6 +143,7 @@ class PublicUserUpdate(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"message": "User updated successfully"})
+
 
 class PublicUserUpdateAvatar(APIView):
     authentication_classes = []
@@ -144,6 +164,7 @@ class PublicUserUpdateAvatar(APIView):
         user.profilePic = serializer.validated_data["profilePic"]
         user.save()
         return Response({"message": "User avatar updated successfully"})
+
 
 class PublicUserDelete(APIView):
     authentication_classes = []

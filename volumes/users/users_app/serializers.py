@@ -10,6 +10,7 @@ class PublicUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = PublicUser
         fields = [
+            "id",
             "username",
             "firstname",
             "lastname",
@@ -20,6 +21,12 @@ class PublicUserSerializer(serializers.ModelSerializer):
 
 
 class PublicUserCreateSerializer(serializers.ModelSerializer):
+    profilePic = serializers.FileField(
+        required=False,
+        validators=[validate_profile_picture_upload],
+        write_only=True
+    )
+
     class Meta:
         model = PublicUser
         fields = [
@@ -27,8 +34,8 @@ class PublicUserCreateSerializer(serializers.ModelSerializer):
             "firstname",
             "lastname",
             "email",
-            "profilePic",
             "preferredLanguage",
+            "profilePic",
         ]
 
     def create(self, validated_data):
@@ -37,15 +44,26 @@ class PublicUserCreateSerializer(serializers.ModelSerializer):
         if file:
             key = profile_picture_upload_to(user, file.name)
             default_storage.save(key, file) # bucket s3 storage
-            user.profilePic.name = key # save storage key to user model
-            user.save()
+            user.profilePic = key # save storage key to user model
+            user.save(update_fields=["profilePic"])
         return user
+
+
+class PublicUserCreateResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    user = PublicUserSerializer()
 
 
 class PublicUserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = PublicUser
-        fields = ["firstname", "lastname", "email", "profilePic", "preferredLanguage"]
+        fields = [
+            "firstname", 
+            "lastname", 
+            "email", 
+            "profilePic", 
+            "preferredLanguage"
+        ]
 
 
 class PublicUserAvatarUpdateSerializer(serializers.Serializer):
