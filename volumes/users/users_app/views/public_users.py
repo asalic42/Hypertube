@@ -12,6 +12,7 @@ from users_app.serializers import (
     PublicUserSerializer,
     PublicUserUpdateSerializer,
     PublicUserCreateResponseSerializer,
+    PublicUserPictureResponseSerializer,
 )
 from django.core.files.storage import default_storage
 from users_app.models import get_bucket_file_key
@@ -97,29 +98,28 @@ class PublicUserRetrievePic(APIView):
     @extend_schema(
         tags=["Public users"],
         operation_id="retrieve_public_user_pic",
-        responses=PublicUserDetailResponseSerializer,
+        responses=PublicUserPictureResponseSerializer,
         description="Renvoie l'url temporaire de l'image de profil d'un utilisateur public.",
     )
     def get(self, request, username):
-        print(f"Retrieving profile picture for user: {username}")
         try:
             url = get_presigned_url(
                 bucket_name=default_storage.bucket_name,
                 object_key=get_bucket_file_key(username),
                 expiration=3600
             )
-            print(f"Generated presigned URL for {username}: {url}")
-            return Response(
-                {
-                    "message": "User picture retrieved successfully teessesetst",
-                    "profilePic": url,
+            response_serializer = PublicUserPictureResponseSerializer(
+                data={
+                    "message": "User picture retrieved successfully.",
+                    "picture_url": url,
                 }
             )
+            response_serializer.is_valid(raise_exception=True)
+            return Response(response_serializer.validated_data)
         except Exception as e:
-            print(f"Error generating presigned URL for {username}: {e}")
             return Response(
                 {
-                    "message": "Error retrieving user picture",
+                    "message": "Error retrieving user picture.",
                 },
                 status=500
             )

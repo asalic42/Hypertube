@@ -54,6 +54,11 @@ class PublicUserCreateResponseSerializer(serializers.Serializer):
     user = PublicUserSerializer()
 
 
+class PublicUserPictureResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    picture_url = serializers.URLField()
+
+
 class PublicUserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = PublicUser
