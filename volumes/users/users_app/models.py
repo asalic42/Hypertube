@@ -1,7 +1,6 @@
 import uuid
-
 from django.db import models
-
+from django.core.files.storage import default_storage
 from users_app.validators import validate_profile_picture_upload
 
 
@@ -35,3 +34,20 @@ def get_bucket_file_key(username):
     """ returns the s3 bucket file key for a given username """
     user = PublicUser.objects.get(username=username)
     return user.profilePic
+
+
+def save_profile_picture(user, file):
+    """ saves the profile picture to the storage and updates the user model 
+        :param user: PublicUser instance
+        :param file: file object to be saved
+        :return: the storage key of the saved file
+    """
+    key = profile_picture_upload_to(user, file.name)
+    default_storage.save(key, file)
+    try:
+        user.profilePic = key
+        user.save(update_fields=["profilePic"])
+    except Exception:
+        default_storage.delete(key)
+        raise
+    return key

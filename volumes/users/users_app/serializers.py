@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from users_app.models import PublicUser, profile_picture_upload_to
+from users_app.models import PublicUser, profile_picture_upload_to, save_profile_picture
 from users_app.validators import validate_profile_picture_upload
 
 from django.core.files.storage import default_storage
@@ -42,10 +42,7 @@ class PublicUserCreateSerializer(serializers.ModelSerializer):
         file = validated_data.pop("profilePic", None)
         user = PublicUser.objects.create(**validated_data)
         if file:
-            key = profile_picture_upload_to(user, file.name)
-            default_storage.save(key, file) # bucket s3 storage
-            user.profilePic = key # save storage key to user model
-            user.save(update_fields=["profilePic"])
+            save_profile_picture(user, file)
         return user
 
 
@@ -72,9 +69,10 @@ class PublicUserUpdateSerializer(serializers.ModelSerializer):
 
 
 class PublicUserAvatarUpdateSerializer(serializers.Serializer):
-    profilePic = serializers.ImageField(
+    profilePic = serializers.FileField(
         required=True,
         validators=[validate_profile_picture_upload],
+        write_only=True
     )
 
 

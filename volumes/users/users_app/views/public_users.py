@@ -15,7 +15,7 @@ from users_app.serializers import (
     PublicUserPictureResponseSerializer,
 )
 from django.core.files.storage import default_storage
-from users_app.models import get_bucket_file_key
+from users_app.models import get_bucket_file_key, profile_picture_upload_to, save_profile_picture
 from users_app.utils import get_presigned_url
 
 
@@ -153,17 +153,27 @@ class PublicUserUpdateAvatar(APIView):
     @extend_schema(
         tags=["Public users"],
         operation_id="update_public_user_avatar",
-        request=PublicUserAvatarUpdateSerializer,
+        request={"multipart/form-data": PublicUserAvatarUpdateSerializer},
         responses=MessageSerializer,
-        description="Met a jour uniquement l'avatar (profilePic).",
+        description="Met a jour l'avatar (profilePic).",
     )
     def patch(self, request, username):
-        user = get_object_or_404(PublicUser, username=username)
         serializer = PublicUserAvatarUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user.profilePic = serializer.validated_data["profilePic"]
-        user.save()
-        return Response({"message": "User avatar updated successfully"})
+        user = get_object_or_404(PublicUser, username=username)
+        file = serializer.validated_data["profilePic"]
+
+        old_key = user.profilePic if user.profilePic else None
+        new_key = save_profile_picture(user, file)
+
+        if old_key and old_key != new_key:
+            default_storage.delete(old_key)
+
+        return Response(
+            {
+                "message": "User avatar updated successfully"
+            }
+        )
 
 
 class PublicUserDelete(APIView):
