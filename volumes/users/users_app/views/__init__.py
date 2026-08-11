@@ -2,10 +2,10 @@ from .health import HealthView
 from .public_users import (
     PublicUserList,
     PublicUserCreate,
-    PublicUserRetrieveDetail,
+    PublicUserGetDetail,
     PublicUserUpdate,
     PublicUserUpdateAvatar,
     PublicUserDelete,
-    PublicUserRetrievePic,
+    PublicUserGetAvatar,
     PublicUserDeleteAvatar,
 )

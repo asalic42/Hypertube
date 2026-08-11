@@ -26,7 +26,7 @@ export default function Signup() {
         confirm_password: '',
         lastname: '',
         firstname: '',
-        profilePic: null,
+        avatar: null,
         preferredLanguage: ''
     });
 
@@ -36,7 +36,7 @@ export default function Signup() {
 
     function handleFileChange(e) {
     const file = e.target.files[0]; // le premier (et seul) fichier sélectionné
-    setFormData({ ...formData, profilePic: file });
+    setFormData({ ...formData, avatar: file });
     }
 
     async function handleSubmit(e) {
@@ -49,8 +49,8 @@ export default function Signup() {
         data.append('firstname', formData.firstname);
         data.append('lastname', formData.lastname);
         data.append('email', formData.email);
-        if (formData.profilePic) {
-            data.append('profilePic', formData.profilePic);
+        if (formData.avatar) {
+            data.append('avatar', formData.avatar);
         }
         data.append('preferredLanguage', formData.preferredLanguage);
 
@@ -184,11 +184,11 @@ export default function Signup() {
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="password">Profile Picture</Label>
+                            <Label htmlFor="password">Avatar</Label>
                             <Input
-                                id="profilePic"
+                                id="avatar"
                                 type="file"
-                                name="profilePic"
+                                name="avatar"
                                 accept="image/*"
                                 onChange={handleFileChange} 
                             />

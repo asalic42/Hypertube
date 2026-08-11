@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
-from users_app.models import PublicUser, profile_picture_upload_to, save_profile_picture
-from users_app.validators import validate_profile_picture_upload
+from users_app.models import PublicUser, profile_avatar_upload_to, save_avatar
+from users_app.validators import validate_avatar_upload
 
 from django.core.files.storage import default_storage
 
@@ -15,15 +15,15 @@ class PublicUserSerializer(serializers.ModelSerializer):
             "firstname",
             "lastname",
             "email",
-            "profilePic",
+            "avatar",
             "preferredLanguage",
         ]
 
 
 class PublicUserCreateSerializer(serializers.ModelSerializer):
-    profilePic = serializers.FileField(
+    avatar = serializers.FileField(
         required=False,
-        validators=[validate_profile_picture_upload],
+        validators=[validate_avatar_upload],
         write_only=True
     )
 
@@ -35,14 +35,14 @@ class PublicUserCreateSerializer(serializers.ModelSerializer):
             "lastname",
             "email",
             "preferredLanguage",
-            "profilePic",
+            "avatar",
         ]
 
     def create(self, validated_data):
-        file = validated_data.pop("profilePic", None)
+        file = validated_data.pop("avatar", None)
         user = PublicUser.objects.create(**validated_data)
         if file:
-            save_profile_picture(user, file)
+            save_avatar(user, file)
         return user
 
 
@@ -51,9 +51,9 @@ class PublicUserCreateResponseSerializer(serializers.Serializer):
     user = PublicUserSerializer()
 
 
-class PublicUserPictureResponseSerializer(serializers.Serializer):
+class PublicUserAvatarResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
-    picture_url = serializers.URLField()
+    avatar_url = serializers.URLField()
 
 
 class PublicUserUpdateSerializer(serializers.ModelSerializer):
@@ -63,15 +63,15 @@ class PublicUserUpdateSerializer(serializers.ModelSerializer):
             "firstname", 
             "lastname", 
             "email", 
-            "profilePic", 
+            "avatar", 
             "preferredLanguage"
         ]
 
 
 class PublicUserAvatarUpdateSerializer(serializers.Serializer):
-    profilePic = serializers.FileField(
+    avatar = serializers.FileField(
         required=True,
-        validators=[validate_profile_picture_upload],
+        validators=[validate_avatar_upload],
         write_only=True
     )
 

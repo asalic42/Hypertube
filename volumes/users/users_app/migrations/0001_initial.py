@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
                 ('firstname', models.CharField(blank=True, max_length=128)),
                 ('lastname', models.CharField(blank=True, max_length=128)),
                 ('email', models.EmailField(max_length=254, unique=True)),
-                ('profilePic', models.ImageField(blank=True, null=True, upload_to=users_app.models.profile_picture_upload_to, validators=[users_app.validators.validate_profile_picture_upload])),
+                ('profilePic', models.ImageField(blank=True, null=True, upload_to=users_app.models.profile_avatar_upload_to, validators=[users_app.validators.validate_avatar_upload])),
                 ('preferredLanguage', models.CharField(choices=[('en', 'English'), ('fr', 'French'), ('es', 'Spanish'), ('de', 'German'), ('it', 'Italian'), ('pt', 'Portuguese'), ('ru', 'Russian'), ('zh', 'Chinese'), ('ja', 'Japanese'), ('ko', 'Korean')], default='en', max_length=2)),
             ],
         ),
