@@ -11,7 +11,7 @@ from users_app.serializers import (
     PublicUserListResponseSerializer,
     PublicUserSerializer,
     PublicUserUpdateSerializer,
-    PublicUserCreateResponseSerializer,
+    PublicUserResponseSerializer,
     PublicUserAvatarResponseSerializer,
 )
 from django.core.files.storage import default_storage
@@ -49,7 +49,7 @@ class PublicUserCreate(APIView):
         operation_id="create_public_user",
         request={"multipart/form-data": PublicUserCreateSerializer},
         responses={
-            201: PublicUserCreateResponseSerializer,
+            201: PublicUserResponseSerializer,
             400: OpenApiResponse(
                 response=PublicUserSerializer,
                 description="Invalid user data",
@@ -141,8 +141,8 @@ class PublicUserUpdate(APIView):
     @extend_schema(
         tags=["Public users"],
         operation_id="update_public_user",
-        request=PublicUserUpdateSerializer,
-        responses=MessageSerializer,
+        request={"multipart/form-data": PublicUserUpdateSerializer},
+        responses=PublicUserResponseSerializer,
         description="Met a jour partiellement un utilisateur public.",
     )
     def patch(self, request, username):
@@ -150,7 +150,12 @@ class PublicUserUpdate(APIView):
         serializer = PublicUserUpdateSerializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({"message": "User updated successfully"})
+        return Response(
+            {
+                "message": "User updated successfully",
+                "user": PublicUserSerializer(user).data
+            }
+        )
 
 
 class PublicUserUpdateAvatar(APIView):

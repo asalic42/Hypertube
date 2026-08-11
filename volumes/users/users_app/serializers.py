@@ -46,7 +46,7 @@ class PublicUserCreateSerializer(serializers.ModelSerializer):
         return user
 
 
-class PublicUserCreateResponseSerializer(serializers.Serializer):
+class PublicUserResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
     user = PublicUserSerializer()
 
@@ -62,8 +62,6 @@ class PublicUserUpdateSerializer(serializers.ModelSerializer):
         fields = [
             "firstname", 
             "lastname", 
-            "email", 
-            "avatar", 
             "preferredLanguage"
         ]
 
