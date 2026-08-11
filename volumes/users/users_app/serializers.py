@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from users_app.models import PublicUser, profile_avatar_upload_to, save_avatar
+from users_app.models import PublicUser
+from users_app.services.avatars import create_avatar_key, save_avatar
 from users_app.validators import validate_avatar_upload
 
 from django.core.files.storage import default_storage

@@ -15,8 +15,7 @@ from users_app.serializers import (
     PublicUserAvatarResponseSerializer,
 )
 from django.core.files.storage import default_storage
-from users_app.models import get_bucket_file_key, profile_avatar_upload_to, save_avatar, delete_avatar
-from users_app.utils import get_presigned_url
+from users_app.services.avatars import get_bucket_file_key, create_avatar_key, save_avatar, delete_avatar, get_presigned_url
 
 
 class PublicUserList(APIView):
