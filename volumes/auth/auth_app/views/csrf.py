@@ -1,13 +1,11 @@
+from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
-from django.http import JsonResponse
-from django.middleware.csrf import get_token
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import serializers
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from auth_app.serializers import CsrfTokenSerializer
 
 
 @method_decorator(
@@ -19,13 +17,20 @@ class CsrfTokenView(APIView):
     authentication_classes = []
 
     @extend_schema(
-        responses=CsrfTokenSerializer,
+        responses=inline_serializer(
+            name="CsrfResponse",
+            fields={
+                "detail": serializers.CharField(),
+            },
+        ),
         tags=["Authentication"],
         operation_id="auth_csrf",
     )
     def get(self, request):
         return Response(
-            {"detail": "CSRF cookie set."}
+            {
+                "detail": "CSRF cookie set.",
+            }
         )
 
 
