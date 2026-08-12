@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework.exceptions import APIException
 
 from users_app.models import PublicUser
 from users_app.services.avatars import save_avatar
@@ -10,6 +11,12 @@ class AvatarImageField(serializers.ImageField):
         kwargs.setdefault("write_only", True)
         kwargs.setdefault("validators", [validate_avatar_upload])
         super().__init__(**kwargs)
+
+
+class AvatarSaveError(APIException):
+    status_code = 500
+    default_detail = {"avatar": "Failed to save avatar."}
+    default_code = "avatar_save_error"
 
 
 class PublicUserSerializer(serializers.ModelSerializer):
@@ -44,7 +51,11 @@ class PublicUserCreateSerializer(serializers.ModelSerializer):
         file = validated_data.pop("avatar", None)
         user = PublicUser.objects.create(**validated_data)
         if file:
-            save_avatar(user, file)
+            try:
+                save_avatar(user, file)
+            except Exception:
+                user.delete()
+                raise AvatarSaveError()
         return user
 
 

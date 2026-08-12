@@ -117,7 +117,6 @@ class PublicUserGetAvatar(APIView):
         description="Renvoie l'url temporaire de l'image de profil d'un utilisateur public.",
     )
     def get(self, request, username):
-        print(f"Retrieved key for user {username}")
         key = get_bucket_file_key(username)
         if key:
             try:
