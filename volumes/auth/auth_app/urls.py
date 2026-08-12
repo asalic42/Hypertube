@@ -8,7 +8,6 @@ from .views import (
     RefreshView,
     RegisterView,
     VerifyView,
-    DeleteUserView,
 )
 
 
@@ -19,7 +18,6 @@ auth_urlpatterns = [
     path("verify/", VerifyView.as_view(), name="verify"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("me/", MeView.as_view(), name="me"),
-    path("delete/<int:user_id>/", DeleteUserView.as_view(), name="delete_user"),
 ]
 
 

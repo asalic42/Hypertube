@@ -103,8 +103,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data["user"] = UserSerializer(self.user).data
         return data
 
-class LogoutSerializer(serializers.Serializer):
-    refresh = serializers.CharField()
 
 class HealthSerializer(serializers.Serializer):
     status = serializers.CharField()

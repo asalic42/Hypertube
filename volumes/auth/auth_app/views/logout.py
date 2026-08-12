@@ -6,42 +6,31 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from auth_app.serializers import LogoutSerializer
+from auth_app.cookies import delete_refresh_cookie
+from django.conf import settings
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
-        request=LogoutSerializer,
+        request=None,
         responses = {204: None,},
         tags=["Authentication"],
         operation_id="auth_logout"
     )
     def post(self, request):
-        serializer = LogoutSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        raw_refresh_token = serializer.validated_data["refresh"]
-
-        try:
-            refresh_token = RefreshToken(raw_refresh_token)
-        except TokenError:
-            return Response(
-                {
-                    "detail":"The refresh token is invalid or revoked."
-                },
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+        raw_refresh_token = request.COOKIES.get(settings.REFRESH_COOKIE_NAME)
         
-        token_user_id = refresh_token.get("sub")
-
-        if str(token_user_id) != str(request.user.pk):
-            return Response(
-                {
-                    "detail":"The refresh token does not belong to this user."
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        if raw_refresh_token:
+            try:
+                refresh_token = RefreshToken(raw_refresh_token)
+                token_uder_id = refresh_token.get("sub")
         
-        refresh_token.blacklist()
-
-        return Response(status=status.HTTP_204_NO_CONTENT)
+                if str(token_uder_id) == str(request.user.pk):
+                    refresh_token.blacklist()
+            except TokenError:
+                pass
+        
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        delete_refresh_cookie(response)
+        return response
