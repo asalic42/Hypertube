@@ -47,7 +47,7 @@ def get_presigned_url(bucket_name, object_key, expiration=3600):
 def create_avatar_key(instance, filename):
     """ creates a key string for the profile avatar"""
     extension = filename.rsplit('.', 1)[-1].lower() if '.' in filename else 'png'
-    return f"avatars/{uuid.uuid4().hex[:8]}-avatar.{extension}"
+    return f"avatars/{uuid.uuid4().hex}-avatar.{extension}"
 
 
 def get_bucket_file_key(username):
