@@ -17,6 +17,13 @@ REFRESH_COOKIE_SECURE = True
 REFRESH_COOKIE_HTTPONLY = True
 REFRESH_COOKIE_SAMESITE = "Lax"
 
+# CSRF cookie configuration:
+
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_PATH = "/api/auth/"
+CSRF_FAILURE_VIEW = "auth_app.views.csrf.csrf_failure"
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",

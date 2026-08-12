@@ -8,10 +8,12 @@ from .views import (
     RefreshView,
     RegisterView,
     VerifyView,
+    CsrfTokenView,
 )
 
 
 auth_urlpatterns = [
+    path("csrf/", CsrfTokenView.as_view(), name="csrf"),
     path("register/", RegisterView.as_view(), name="register"),
     path("login/", LoginView.as_view(), name="login"),
     path("refresh/", RefreshView.as_view(), name="refresh"),

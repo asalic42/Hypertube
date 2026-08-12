@@ -1,8 +1,11 @@
+from django.conf import settings
 from drf_spectacular.utils import (
     extend_schema,
     extend_schema_view,
 
 )
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.serializers import TokenVerifySerializer
@@ -17,10 +20,12 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-from django.conf import settings
 from auth_app.cookies import set_refresh_cookie
+
 from auth_app.serializers import CustomTokenObtainPairSerializer
 
+
+@method_decorator(csrf_protect, name="dispatch")
 @extend_schema_view(
     post=extend_schema(
         tags=["Authentication"],
@@ -41,6 +46,7 @@ class LoginView(TokenObtainPairView):
         return response
 
 
+@method_decorator(csrf_protect, name="dispatch")
 @extend_schema_view(
     post=extend_schema(
         request=None,

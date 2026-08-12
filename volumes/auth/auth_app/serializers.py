@@ -107,3 +107,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 class HealthSerializer(serializers.Serializer):
     status = serializers.CharField()
     service = serializers.CharField()
+
+
+class CsrfTokenSerializer(serializers.Serializer):
+    csrf_token = serializers.CharField()
