@@ -1,10 +1,15 @@
 from rest_framework import serializers
 
 from users_app.models import PublicUser
-from users_app.services.avatars import create_avatar_key, save_avatar
+from users_app.services.avatars import save_avatar
 from users_app.validators import validate_avatar_upload
 
-from django.core.files.storage import default_storage
+
+class AvatarImageField(serializers.ImageField):
+    def __init__(self, **kwargs):
+        kwargs.setdefault("write_only", True)
+        kwargs.setdefault("validators", [validate_avatar_upload])
+        super().__init__(**kwargs)
 
 
 class PublicUserSerializer(serializers.ModelSerializer):
@@ -22,11 +27,7 @@ class PublicUserSerializer(serializers.ModelSerializer):
 
 
 class PublicUserCreateSerializer(serializers.ModelSerializer):
-    avatar = serializers.FileField(
-        required=False,
-        validators=[validate_avatar_upload],
-        write_only=True
-    )
+    avatar = AvatarImageField(required=False)
 
     class Meta:
         model = PublicUser
@@ -68,11 +69,7 @@ class PublicUserUpdateSerializer(serializers.ModelSerializer):
 
 
 class PublicUserAvatarUpdateSerializer(serializers.Serializer):
-    avatar = serializers.FileField(
-        required=True,
-        validators=[validate_avatar_upload],
-        write_only=True
-    )
+    avatar = AvatarImageField(required=True)
 
 
 class MessageSerializer(serializers.Serializer):
