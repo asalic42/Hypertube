@@ -1,6 +1,7 @@
+import os
 import boto3
 from botocore.client import Config
-import os
+from botocore.exceptions import ClientError
 
 
 def create_bucket(bucket_name):
@@ -9,7 +10,7 @@ def create_bucket(bucket_name):
         endpoint_url=os.environ["AWS_S3_ENDPOINT_URL"],
         aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
         aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-        region_name='eu-west-1',
+        region_name=os.environ["AWS_S3_REGION_NAME"],
         config=Config(
             signature_version='s3v4',
             s3={'addressing_style': 'path'},
