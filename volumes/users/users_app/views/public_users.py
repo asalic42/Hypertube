@@ -1,3 +1,5 @@
+import logging
+
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 from rest_framework.response import Response
@@ -15,7 +17,17 @@ from users_app.serializers import (
     PublicUserAvatarResponseSerializer,
 )
 from django.core.files.storage import default_storage
-from users_app.services.avatars import get_bucket_file_key, create_avatar_key, save_avatar, delete_avatar, get_presigned_url
+from users_app.services.avatars import (
+    PresignedUrlError,
+    get_bucket_file_key,
+    create_avatar_key,
+    save_avatar,
+    delete_avatar,
+    get_presigned_url,
+)
+
+
+logger = logging.getLogger(__name__)
 
 
 class PublicUserList(APIView):
@@ -97,39 +109,42 @@ class PublicUserGetAvatar(APIView):
     @extend_schema(
         tags=["Public users"],
         operation_id="get_public_user_avatar",
-        responses=PublicUserAvatarResponseSerializer,
+        responses={
+            200: PublicUserAvatarResponseSerializer, 
+            404: OpenApiResponse(description="User has no profile avatar."),
+            503: OpenApiResponse(description="Unable to retrieve user avatar right now."),
+        },
         description="Renvoie l'url temporaire de l'image de profil d'un utilisateur public.",
     )
     def get(self, request, username):
-        try:
-            key = get_bucket_file_key(username)
-            if key:
+        print(f"Retrieved key for user {username}")
+        key = get_bucket_file_key(username)
+        if key:
+            try:
                 url = get_presigned_url(
                     bucket_name=default_storage.bucket_name,
                     object_key=key,
                     expiration=3600
                 )
-                response_serializer = PublicUserAvatarResponseSerializer(
-                    data={
-                        "message": "User avatar retrieved successfully.",
-                        "avatar_url": url,
-                    }
+            except PresignedUrlError:
+                return Response(
+                    {"message": "Unable to retrieve user avatar right now."},
+                    status=503,
                 )
-                response_serializer.is_valid(raise_exception=True)
-                return Response(response_serializer.validated_data)
-            return Response(
-                {
-                    "message": "User has no profile avatar.",
-                },
-                status=404
+            response_serializer = PublicUserAvatarResponseSerializer(
+                data={
+                    "message": "User avatar retrieved successfully.",
+                    "avatar_url": url,
+                }
             )
-        except Exception as e:
-            return Response(
-                {
-                    "message": "Error retrieving user avatar.",
-                },
-                status=500
-            )
+            response_serializer.is_valid(raise_exception=True)
+            return Response(response_serializer.validated_data)
+        return Response(
+            {
+                "message": "User has no profile avatar.",
+            },
+            status=404
+        )
 
 
 class PublicUserUpdate(APIView):

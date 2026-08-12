@@ -1,9 +1,19 @@
+import logging
 import uuid
 import boto3
 from botocore.client import Config
+from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
 from django.core.files.storage import default_storage
 from users_app.models import PublicUser
+from django.shortcuts import get_object_or_404
+
+
+logger = logging.getLogger(__name__)
+
+
+class PresignedUrlError(Exception):
+    pass
 
 
 def get_boto3_client():
@@ -37,10 +47,8 @@ def get_presigned_url(bucket_name, object_key, expiration=3600):
             Params={"Bucket": bucket_name, "Key": object_key},
             ExpiresIn=expiration,
         )
-    except Exception as e:
-        print(f"Error generating presigned URL: {e}")
-        return None
-
+    except (ClientError, BotoCoreError) as e:
+        raise PresignedUrlError("Error generating presigned URL.") from e
     return response
 
 
@@ -52,8 +60,8 @@ def create_avatar_key(instance, filename):
 
 def get_bucket_file_key(username):
     """ returns the s3 bucket file key for a given username """
-    user = PublicUser.objects.get(username=username)
-    return user.avatar if user.avatar else None
+    user = get_object_or_404(PublicUser, username=username)
+    return user.avatar
 
 
 def save_avatar(user, file):
