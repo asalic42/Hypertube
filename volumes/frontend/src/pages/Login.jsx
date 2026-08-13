@@ -14,9 +14,11 @@ import { Label } from "@/components/ui/label"
 import { Link } from "react-router-dom";
 import { toast } from "@/components/ui/toast";
 import { ensureCsrfToken } from "@/lib/csrf";
+import { useNavigate } from "react-router-dom";
 
 
-export default function Login() {
+export default function Login({ onLoginSuccess }) {
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({email: '', password: ''});
 
     function handleChange(e) {
@@ -25,7 +27,6 @@ export default function Login() {
 
     async function handleSubmit(e) {
         e.preventDefault();
-        console.log(formData);
 
         try {
             const csrfToken = await ensureCsrfToken();
@@ -52,6 +53,8 @@ export default function Login() {
                 type: "error",
             });
         }
+        onLoginSuccess();
+        navigate('/home');
     }
 
     return (

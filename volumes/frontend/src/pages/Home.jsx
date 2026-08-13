@@ -11,27 +11,30 @@ function Home() {
         Authorization: `Bearer ${TMDB_API}`
     }};
 
-    async function getFilms() {
-        try {
-            const response = await fetch('https://api.themoviedb.org/3/movie/popular?language=en-US&page=1', options);
+    useEffect (() => {
 
-            if (!response.ok) {
-                throw new Error('Error fetch movies');
+        async function getFilms() {
+            try {
+                const response = await fetch('https://api.themoviedb.org/3/movie/popular?language=en-US&page=1', options);
+    
+                if (!response.ok) {
+                    throw new Error('Error fetch movies');
+                }
+    
+                const data = await response.json();
+                setFilms(data.results);
+            } catch (err) {
+                console.error(err);
+                toast.add({
+                    title: "Error",
+                    description: err.message,
+                    type: "error",
+                });
             }
-
-            const data = await response.json();
-            setFilms(data.results);
-        } catch (err) {
-            console.error(err);
-            toast.add({
-                title: "Error",
-                description: err.message,
-                type: "error",
-            });
         }
-    }
+        getFilms();
+    }, []);
 
-    getFilms();
 
     return (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4">
