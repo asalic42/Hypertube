@@ -25,7 +25,10 @@ from users_app.services.avatars import (
     delete_avatar,
     get_presigned_url,
 )
-
+from rest_framework.generics import (
+    ListAPIView,
+    RetrieveAPIView
+)
 
 class PublicUserView(APIView):
     authentication_classes = []
@@ -39,7 +42,7 @@ class PublicUserView(APIView):
         description="Retourne le detail d'un utilisateur public via son username.",
     )
     def get(self, request, username):
-        user = get_object_or_404(PublicUser, username=username)
+        user = get_object_or_404(PublicUser, id=user_id)
         response_serializer = PublicUserResponseSerializer(
             instance={
                 "message": "User retrieved successfully",
@@ -57,7 +60,7 @@ class PublicUserView(APIView):
         description="Met a jour partiellement un utilisateur public.",
     )
     def patch(self, request, username):
-        user = get_object_or_404(PublicUser, username=username)
+        user = get_object_or_404(PublicUser, id=user_id)
         serializer = PublicUserUpdateSerializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -82,53 +85,55 @@ class PublicUserView(APIView):
         description="Supprime un utilisateur public via son username.",
     )
     def delete(self, request, username):
-        user = get_object_or_404(PublicUser, username=username)
+        user = get_object_or_404(PublicUser, id=user_id)
         delete_avatar(user)
         user.delete()
         return Response({"message": "User deleted successfully"})
 
 
-class PublicUserListCreate(APIView):
+class PublicUserListView(ListAPIView):
+    queryset = PublicUser.objects.all()
+    serializer_class = PublicUserSerializer
     authentication_classes = []
     permission_classes = []
 
-    # GET
-    @extend_schema(
-        tags=["Public users"],
-        operation_id="list_public_users",
-        responses=PublicUserListResponseSerializer,
-        description="Retourne la liste des utilisateurs publics.",
-    )
-    def get(self, request):
-        users = PublicUser.objects.all()
-        return Response(
-            {
-                "users": PublicUserSerializer(users, many=True).data
-            }
-        )
+    # # GET
+    # @extend_schema(
+    #     tags=["Public users"],
+    #     operation_id="list_public_users",
+    #     responses=PublicUserListResponseSerializer,
+    #     description="Retourne la liste des utilisateurs publics.",
+    # )
+    # def get(self, request):
+    #     users = PublicUser.objects.all()
+    #     return Response(
+    #         {
+    #             "users": PublicUserSerializer(users, many=True).data
+    #         }
+    #     )
 
-    # POST
-    @extend_schema(
-        tags=["Public users"],
-        operation_id="create_public_user",
-        request={"multipart/form-data": PublicUserCreateSerializer},
-        responses={
-            201: PublicUserResponseSerializer,
-            400: OpenApiResponse(description="Validation error")
-        },
-        description="Crée un utilisateur public a partir d'un payload JSON.",
-    )
-    def post(self, request):
-        serializer = PublicUserCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        response_serializer = PublicUserResponseSerializer(
-            instance={
-                "message": "User created successfully",
-                "user": PublicUserSerializer(serializer.instance).data
-            }
-        )
-        return Response(response_serializer.data, status=201)
+    # # POST
+    # @extend_schema(
+    #     tags=["Public users"],
+    #     operation_id="create_public_user",
+    #     request={"multipart/form-data": PublicUserCreateSerializer},
+    #     responses={
+    #         201: PublicUserResponseSerializer,
+    #         400: OpenApiResponse(description="Validation error")
+    #     },
+    #     description="Crée un utilisateur public a partir d'un payload JSON.",
+    # )
+    # def post(self, request):
+    #     serializer = PublicUserCreateSerializer(data=request.data)
+    #     serializer.is_valid(raise_exception=True)
+    #     serializer.save()
+    #     response_serializer = PublicUserResponseSerializer(
+    #         instance={
+    #             "message": "User created successfully",
+    #             "user": PublicUserSerializer(serializer.instance).data
+    #         }
+    #     )
+    #     return Response(response_serializer.data, status=201)
 
 
 class PublicUserAvatarView(APIView):
@@ -146,8 +151,8 @@ class PublicUserAvatarView(APIView):
         },
         description="Renvoie l'url temporaire de l'image de profil d'un utilisateur public.",
     )
-    def get(self, request, username):
-        key = get_bucket_file_key(username)
+    def get(self, request, user_id):
+        key = get_bucket_file_key(user_id)
         if key:
             try:
                 url = get_presigned_url(
@@ -178,10 +183,10 @@ class PublicUserAvatarView(APIView):
         responses=MessageSerializer,
         description="Met a jour l'avatar.",
     )
-    def patch(self, request, username):
+    def patch(self, request, user_id):
         serializer = PublicUserAvatarUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = get_object_or_404(PublicUser, username=username)
+        user = get_object_or_404(PublicUser, id=user_id)
         file = serializer.validated_data["avatar"]
 
         old_key = user.avatar if user.avatar else None
@@ -206,8 +211,8 @@ class PublicUserAvatarView(APIView):
         },
         description="Supprime l'avatar.",
     )
-    def delete(self, request, username):
-        user = get_object_or_404(PublicUser, username=username)
+    def delete(self, request, user_id):
+        user = get_object_or_404(PublicUser, id=user_id)
         if user.avatar:
             delete_avatar(user)
             return Response({"message": "User avatar deleted successfully"})

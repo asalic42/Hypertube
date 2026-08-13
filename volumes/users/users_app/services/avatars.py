@@ -55,9 +55,9 @@ def create_avatar_key(instance, filename):
     return f"avatars/{uuid.uuid4().hex}-avatar.{extension}"
 
 
-def get_bucket_file_key(username):
-    """ returns the s3 bucket file key for a given username """
-    user = get_object_or_404(PublicUser, username=username)
+def get_bucket_file_key(user_id):
+    """ returns the s3 bucket file key for a given user id """
+    user = get_object_or_404(PublicUser, id=user_id)
     return user.avatar
 
 

@@ -24,10 +24,8 @@ class PublicUserSerializer(serializers.ModelSerializer):
         model = PublicUser
         fields = [
             "id",
-            "username",
             "firstname",
             "lastname",
-            "email",
             "avatar",
             "preferredLanguage",
         ]
@@ -39,24 +37,10 @@ class PublicUserCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = PublicUser
         fields = [
-            "username",
             "firstname",
             "lastname",
-            "email",
             "preferredLanguage",
-            "avatar",
         ]
-
-    def create(self, validated_data):
-        file = validated_data.pop("avatar", None)
-        user = PublicUser.objects.create(**validated_data)
-        if file:
-            try:
-                save_avatar(user, file)
-            except Exception:
-                user.delete()
-                raise AvatarSaveError()
-        return user
 
 
 class PublicUserResponseSerializer(serializers.Serializer):
