@@ -74,7 +74,6 @@ def save_avatar(user, file):
     default_storage.save(key, file)
     try:
         user.avatar = key
-        raise Exception("Simulated error")  # Simulate an error for testing purposes
         user.save(update_fields=["avatar"])
     except Exception:
         default_storage.delete(key)

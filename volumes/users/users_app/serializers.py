@@ -89,8 +89,3 @@ class MessageSerializer(serializers.Serializer):
 
 class PublicUserListResponseSerializer(serializers.Serializer):
     users = PublicUserSerializer(many=True)
-
-
-class PublicUserDetailResponseSerializer(serializers.Serializer):
-    message = serializers.CharField()
-    user = PublicUserSerializer()

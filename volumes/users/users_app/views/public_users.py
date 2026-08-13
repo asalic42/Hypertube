@@ -9,7 +9,6 @@ from users_app.serializers import (
     MessageSerializer,
     PublicUserAvatarUpdateSerializer,
     PublicUserCreateSerializer,
-    PublicUserDetailResponseSerializer,
     PublicUserListResponseSerializer,
     PublicUserSerializer,
     PublicUserUpdateSerializer,
@@ -88,17 +87,19 @@ class PublicUserGetDetail(APIView):
     @extend_schema(
         tags=["Public users"],
         operation_id="get_public_user",
-        responses=PublicUserDetailResponseSerializer,
+        responses=PublicUserResponseSerializer,
         description="Retourne le detail d'un utilisateur public via son username.",
     )
     def get(self, request, username):
         user = get_object_or_404(PublicUser, username=username)
-        return Response(
-            {
+        response_serializer = PublicUserResponseSerializer(
+            data={
                 "message": "User retrieved successfully",
                 "user": PublicUserSerializer(user).data,
             }
         )
+        response_serializer.is_valid(raise_exception=True)
+        return Response(response_serializer.validated_data)
 
 
 class PublicUserGetAvatar(APIView):
@@ -138,12 +139,7 @@ class PublicUserGetAvatar(APIView):
             )
             response_serializer.is_valid(raise_exception=True)
             return Response(response_serializer.validated_data)
-        return Response(
-            {
-                "message": "User has no profile avatar.",
-            },
-            status=404
-        )
+        return Response({"message": "User has no profile avatar."}, status=404)
 
 
 class PublicUserUpdate(APIView):
@@ -163,12 +159,14 @@ class PublicUserUpdate(APIView):
         serializer = PublicUserUpdateSerializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(
-            {
+        response_serializer = PublicUserResponseSerializer(
+            data={
                 "message": "User updated successfully",
-                "user": PublicUserSerializer(user).data
+                "user": PublicUserSerializer(user).data,
             }
         )
+        response_serializer.is_valid(raise_exception=True)
+        return Response(response_serializer.validated_data)
 
 
 class PublicUserUpdateAvatar(APIView):
