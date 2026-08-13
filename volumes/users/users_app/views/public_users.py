@@ -212,4 +212,4 @@ class PublicUserAvatarView(APIView):
             delete_avatar(user)
             return Response({"message": "User avatar deleted successfully"})
         else:
-            return Response({"message": "User has no avatar to delete"}, status=400)
+            return Response({"message": "User has no avatar to delete"}, status=404)
