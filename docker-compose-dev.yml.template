@@ -44,6 +44,11 @@ services:
       context: services/users
       dockerfile: Dockerfile
     env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      file-storage-init:
+        condition: service_completed_successfully
     expose:
       - '8443'
     restart: on-failure
@@ -59,6 +64,9 @@ services:
       context: services/auth
       dockerfile: Dockerfile
     env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
     expose:
       - '8443'
     restart: on-failure
@@ -74,6 +82,9 @@ services:
       context: services/movies
       dockerfile: Dockerfile
     env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
     expose:
       - '8443'
     restart: on-failure
@@ -95,6 +106,8 @@ services:
     env_file: .env
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "hypertube"]
     restart: on-failure
   
   pgAdmin:
@@ -108,15 +121,55 @@ services:
     ports:
       - "5050:80"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - hypertube
     restart: on-failure
     volumes:
       - ./servers.json:/pgadmin4/servers.json
 
+  file-storage:
+    image: rustfs/rustfs:rc-glibc
+    container_name: hypertube-fs
+    volumes:
+      - file-storage:/data
+    networks:
+      - hypertube
+    env_file: .env
+    environment:
+      - RUSTFS_CONSOLE_ENABLE=${RUSTFS_CONSOLE_ENABLE}
+      - RUSTFS_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
+      - RUSTFS_SECRET_KEY=${AWS_SECRET_ACCESS_KEY}
+    ports:
+      - 9000:9000 # S3 API
+      - 9001:9001 # Web interface
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://file-storage:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  file-storage-init:
+    image: hypertube-fs-init
+    container_name: hypertube-fs-init
+    env_file: .env
+    networks:
+      - hypertube
+    build:
+      context: services/file-storage
+      dockerfile: Dockerfile
+    depends_on:
+      file-storage:
+        condition: service_healthy
+    restart: "no"
+
   dbgate:
     image: dbgate/dbgate
+    container_name: hypertube-dbgate
+    networks:
+      - hypertube
     restart: always
     ports:
       - 5051:3000
@@ -167,6 +220,9 @@ volumes:
   postgres-data:
     name: postgres-data
 
+  file-storage:
+    name: file-storage
+ 
 
 networks:
   hypertube:

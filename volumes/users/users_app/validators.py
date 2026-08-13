@@ -9,7 +9,7 @@ ALLOWED_IMAGE_CONTENT_TYPES = {
 }
 
 
-def validate_profile_picture_upload(uploaded_file):
+def validate_avatar_upload(uploaded_file):
     content_type = getattr(uploaded_file, "content_type", "")
     if content_type not in ALLOWED_IMAGE_CONTENT_TYPES:
         raise ValidationError(

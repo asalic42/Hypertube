@@ -27,7 +27,7 @@ export default function Signup() {
         confirm_password: '',
         lastname: '',
         firstname: '',
-        profilePic: null,
+        avatar: null,
         preferredLanguage: ''
     });
     const [preview, setPreview] = useState(null);
@@ -47,7 +47,7 @@ export default function Signup() {
         if (preview) {
             URL.revokeObjectURL(preview);
         }
-        setFormData({ ...formData, profilePic: file });
+        setFormData({ ...formData, avatar: file });
         if (file) {
             setPreview(URL.createObjectURL(file));
         }
@@ -57,7 +57,7 @@ export default function Signup() {
         if (preview) {
             URL.revokeObjectURL(preview);
         }
-        setFormData({ ...formData, profilePic: null });
+        setFormData({ ...formData, avatar: null });
         setPreview(null);
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
@@ -78,8 +78,8 @@ export default function Signup() {
         data.append('firstname', formData.firstname);
         data.append('lastname', formData.lastname);
         data.append('email', formData.email);
-        if (formData.profilePic) {
-            data.append('profilePic', formData.profilePic);
+        if (formData.avatar) {
+            data.append('avatar', formData.avatar);
         }
         data.append('preferredLanguage', formData.preferredLanguage);
 
@@ -225,7 +225,7 @@ export default function Signup() {
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="password">Profile Picture</Label>
+                            <Label htmlFor="password">Avatar</Label>
                             {preview && (
                             <div className="flex justify-center gap-2">
                                 <Avatar className="size-40">
@@ -244,7 +244,7 @@ export default function Signup() {
                                 ref={fileInputRef}
                                 id="profilePic"
                                 type="file"
-                                name="profilePic"
+                                name="avatar"
                                 accept="image/*"
                                 onChange={handleFileChange}
                             />
