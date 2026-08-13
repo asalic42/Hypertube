@@ -24,7 +24,7 @@ export default function Signup() {
         email: '',
         username: '',
         password: '',
-        confirm_password: '',
+        password_confirmation: '',
         lastname: '',
         firstname: '',
         avatar: null,
@@ -74,7 +74,7 @@ export default function Signup() {
         const data = new FormData();
         data.append('username', formData.username);
         data.append('password', formData.password)
-        data.append('confirm_password', formData.confirm_password)
+        data.append('password_confirmation', formData.password_confirmation)
         data.append('firstname', formData.firstname);
         data.append('lastname', formData.lastname);
         data.append('email', formData.email);
@@ -82,6 +82,8 @@ export default function Signup() {
             data.append('avatar', formData.avatar);
         }
         data.append('preferredLanguage', formData.preferredLanguage);
+
+        console.log(data);
 
         try {
             const response_reg = await fetch('https://localhost:8080/api/auth/register/', {
@@ -96,13 +98,14 @@ export default function Signup() {
             }
             
 
-            const response_cr = await fetch('https://localhost:8080/api/users/create/', {
+            const response_cr = await fetch('https://localhost:8080/api/users/', {
                 method: 'POST',
                 body: data,
             });
             
             if (!response_cr.ok) {
                 const result_reg = await response_reg.json();
+                console.log(result_reg);
                 const user_id = result_reg.id;
                 console.log("user id :", user_id);
                 const del = await fetch(`https://localhost:8080/api/auth/delete/${user_id}/`, {
@@ -164,30 +167,6 @@ export default function Signup() {
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="password">Password</Label>
-                            <Input
-                                id="password"
-                                type="password"
-                                name="password"
-                                value={formData.password}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="confirm_password">Password confirmation</Label>
-                            <Input
-                                id="confirm_password"
-                                type="password"
-                                name="confirm_password"
-                                value={formData.confirm_password}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
-
-                        <div className="grid gap-2">
                             <Label htmlFor="firstname">First name</Label>
                             <Input
                                 id="firstname"
@@ -206,6 +185,30 @@ export default function Signup() {
                                 type="text"
                                 name="lastname"
                                 value={formData.lastname}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="password">Password</Label>
+                            <Input
+                                id="password"
+                                type="password"
+                                name="password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="password_confirmation">Password confirmation</Label>
+                            <Input
+                                id="password_confirmation"
+                                type="password"
+                                name="password_confirmation"
+                                value={formData.password_confirmation}
                                 onChange={handleChange}
                                 required
                             />
