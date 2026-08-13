@@ -9,9 +9,6 @@ from users_app.models import PublicUser
 from django.shortcuts import get_object_or_404
 
 
-logger = logging.getLogger(__name__)
-
-
 class PresignedUrlError(Exception):
     pass
 

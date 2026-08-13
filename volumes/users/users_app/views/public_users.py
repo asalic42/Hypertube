@@ -15,6 +15,7 @@ from users_app.serializers import (
     PublicUserResponseSerializer,
     PublicUserAvatarResponseSerializer,
 )
+from rest_framework import serializers
 from django.core.files.storage import default_storage
 from users_app.services.avatars import (
     PresignedUrlError,
@@ -26,14 +27,72 @@ from users_app.services.avatars import (
 )
 
 
-logger = logging.getLogger(__name__)
-
-
-class PublicUserList(APIView):
+class PublicUserView(APIView):
     authentication_classes = []
     permission_classes = []
-    """ retrieve a list of all users from the database """
+    
+    # GET
+    @extend_schema(
+        tags=["Public users"],
+        operation_id="get_public_user",
+        responses=PublicUserResponseSerializer,
+        description="Retourne le detail d'un utilisateur public via son username.",
+    )
+    def get(self, request, username):
+        user = get_object_or_404(PublicUser, username=username)
+        response_serializer = PublicUserResponseSerializer(
+            instance={
+                "message": "User retrieved successfully",
+                "user": PublicUserSerializer(user).data,
+            }
+        )
+        return Response(response_serializer.data)
 
+    # PATCH
+    @extend_schema(
+        tags=["Public users"],
+        operation_id="update_public_user",
+        request={"multipart/form-data": PublicUserUpdateSerializer},
+        responses=PublicUserResponseSerializer,
+        description="Met a jour partiellement un utilisateur public.",
+    )
+    def patch(self, request, username):
+        user = get_object_or_404(PublicUser, username=username)
+        serializer = PublicUserUpdateSerializer(user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        response_serializer = PublicUserResponseSerializer(
+            instance={
+                "message": "User updated successfully",
+                "user": PublicUserSerializer(user).data,
+            }
+        )
+        return Response(response_serializer.data)
+
+    # DELETE
+    @extend_schema(
+        tags=["Public users"],
+        operation_id="delete_public_user",
+        responses={
+            200: MessageSerializer,
+            404: OpenApiResponse(
+                description="User not found",
+            ),
+        },
+        description="Supprime un utilisateur public via son username.",
+    )
+    def delete(self, request, username):
+        user = get_object_or_404(PublicUser, username=username)
+        delete_avatar(user)
+        user.delete()
+        return Response({"message": "User deleted successfully"})
+
+
+class PublicUserListCreate(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    # GET
     @extend_schema(
         tags=["Public users"],
         operation_id="list_public_users",
@@ -48,65 +107,35 @@ class PublicUserList(APIView):
             }
         )
 
-
-class PublicUserCreate(APIView):
-    authentication_classes = []
-    permission_classes = []
-    """ create a new user in the database """
-
+    # POST
     @extend_schema(
         tags=["Public users"],
         operation_id="create_public_user",
         request={"multipart/form-data": PublicUserCreateSerializer},
         responses={
             201: PublicUserResponseSerializer,
-            400: OpenApiResponse(
-                response=PublicUserSerializer,
-                description="Invalid user data",
-            ),},
+            400: OpenApiResponse(description="Validation error")
+        },
         description="Crée un utilisateur public a partir d'un payload JSON.",
     )
     def post(self, request):
         serializer = PublicUserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(
-            {
-                "message": "User created successfully", 
-                "user": PublicUserSerializer(serializer.instance).data
-            }, 
-            status=201
-        )
-
-
-class PublicUserGetDetail(APIView):
-    authentication_classes = []
-    permission_classes = []
-    """ retrieve a specific user from the database """
-
-    @extend_schema(
-        tags=["Public users"],
-        operation_id="get_public_user",
-        responses=PublicUserResponseSerializer,
-        description="Retourne le detail d'un utilisateur public via son username.",
-    )
-    def get(self, request, username):
-        user = get_object_or_404(PublicUser, username=username)
         response_serializer = PublicUserResponseSerializer(
-            data={
-                "message": "User retrieved successfully",
-                "user": PublicUserSerializer(user).data,
+            instance={
+                "message": "User created successfully",
+                "user": PublicUserSerializer(serializer.instance).data
             }
         )
-        response_serializer.is_valid(raise_exception=True)
-        return Response(response_serializer.validated_data)
+        return Response(response_serializer.data, status=201)
 
 
-class PublicUserGetAvatar(APIView):
+class PublicUserAvatarView(APIView):
     authentication_classes = []
     permission_classes = []
-    """ retrieve a specific user's avatar from the file database """
-
+    
+    # GET
     @extend_schema(
         tags=["Public users"],
         operation_id="get_public_user_avatar",
@@ -141,39 +170,7 @@ class PublicUserGetAvatar(APIView):
             return Response(response_serializer.validated_data)
         return Response({"message": "User has no profile avatar."}, status=404)
 
-
-class PublicUserUpdate(APIView):
-    authentication_classes = []
-    permission_classes = []
-    """ update a specific user in the database """
-
-    @extend_schema(
-        tags=["Public users"],
-        operation_id="update_public_user",
-        request={"multipart/form-data": PublicUserUpdateSerializer},
-        responses=PublicUserResponseSerializer,
-        description="Met a jour partiellement un utilisateur public.",
-    )
-    def patch(self, request, username):
-        user = get_object_or_404(PublicUser, username=username)
-        serializer = PublicUserUpdateSerializer(user, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        response_serializer = PublicUserResponseSerializer(
-            data={
-                "message": "User updated successfully",
-                "user": PublicUserSerializer(user).data,
-            }
-        )
-        response_serializer.is_valid(raise_exception=True)
-        return Response(response_serializer.validated_data)
-
-
-class PublicUserUpdateAvatar(APIView):
-    authentication_classes = []
-    permission_classes = []
-    """ update a specific user's avatar in the database """
-
+    # PATCH
     @extend_schema(
         tags=["Public users"],
         operation_id="update_public_user_avatar",
@@ -199,16 +196,14 @@ class PublicUserUpdateAvatar(APIView):
             }
         )
 
-
-class PublicUserDeleteAvatar(APIView):
-    authentication_classes = []
-    permission_classes = []
-    """ delete a specific user's avatar in the database """
-
+    # DELETE
     @extend_schema(
         tags=["Public users"],
         operation_id="delete_public_user_avatar",
-        responses=MessageSerializer,
+        responses={
+            200: MessageSerializer,
+            404: OpenApiResponse(description="User has no avatar to delete"),
+        },
         description="Supprime l'avatar.",
     )
     def delete(self, request, username):
@@ -218,21 +213,3 @@ class PublicUserDeleteAvatar(APIView):
             return Response({"message": "User avatar deleted successfully"})
         else:
             return Response({"message": "User has no avatar to delete"}, status=400)
-
-
-class PublicUserDelete(APIView):
-    authentication_classes = []
-    permission_classes = []
-    """ delete a specific user from the database """
-
-    @extend_schema(
-        tags=["Public users"],
-        operation_id="delete_public_user",
-        responses=MessageSerializer,
-        description="Supprime un utilisateur public via son username.",
-    )
-    def delete(self, request, username):
-        user = get_object_or_404(PublicUser, username=username)
-        delete_avatar(user)
-        user.delete()
-        return Response({"message": "User deleted successfully"})
