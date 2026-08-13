@@ -20,7 +20,7 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-from auth_app.cookies import set_refresh_cookie
+from auth_app.cookies import set_refresh_cookie, delete_refresh_cookie
 
 from auth_app.serializers import CustomTokenObtainPairSerializer
 
@@ -70,10 +70,17 @@ class RefreshView(TokenRefreshView):
             )
         
         serializer = self.get_serializer(data={"refresh":raw_refresh_token,})
+        
         try:
             serializer.is_valid(raise_exception=True)
         except TokenError as exc:
-            raise InvalidToken(exc.args[0]) from exc
+            response = Response(
+                {"detail": "The refresh token is invalid or revoked."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+            delete_refresh_cookie(response)
+            return response
+
         data = dict(serializer.validated_data)
         new_refresh_token = data.pop("refresh", None)
         response = Response(data, status=status.HTTP_200_OK)
