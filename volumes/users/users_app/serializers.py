@@ -89,3 +89,8 @@ class MessageSerializer(serializers.Serializer):
 
 class PublicUserListResponseSerializer(serializers.Serializer):
     users = PublicUserSerializer(many=True)
+
+
+class HealthSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    service = serializers.CharField()

@@ -33,3 +33,8 @@ class RegisterSerializer(serializers.Serializer):
                 {"confirm_password": "Password do not match"}
             )
         return data
+
+
+class HealthSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    service = serializers.CharField()
