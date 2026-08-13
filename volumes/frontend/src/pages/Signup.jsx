@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button"
 import { 
   Card, 
@@ -15,6 +15,7 @@ import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { NativeSelect } from "@/components/ui/native-select";
 import { toast } from "@/components/ui/toast";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 
 export default function Signup() {
@@ -29,14 +30,42 @@ export default function Signup() {
         avatar: null,
         preferredLanguage: ''
     });
+    const [preview, setPreview] = useState(null);
+    const fileInputRef = useRef(null);
+
+    // nettoyage memoire au demontage du composant
+    useEffect(() => {
+        return () => {
+            if (preview) {
+                URL.revokeObjectURL(preview);
+            }
+        };
+    }, []);
+
+    function handleFileChange(e) {
+        const file = e.target.files[0];
+        if (preview) {
+            URL.revokeObjectURL(preview);
+        }
+        setFormData({ ...formData, avatar: file });
+        if (file) {
+            setPreview(URL.createObjectURL(file));
+        }
+    }
+
+    function handleRemovePhoto() {
+        if (preview) {
+            URL.revokeObjectURL(preview);
+        }
+        setFormData({ ...formData, avatar: null });
+        setPreview(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    }
 
     function handleChange(e) {
         setFormData({ ...formData, [e.target.name]: e.target.value });
-    }
-
-    function handleFileChange(e) {
-    const file = e.target.files[0]; // le premier (et seul) fichier sélectionné
-    setFormData({ ...formData, avatar: file });
     }
 
     async function handleSubmit(e) {
@@ -65,13 +94,25 @@ export default function Signup() {
                 console.error('Détail de l\'erreur :', errorData);
                 throw new Error('Error register user');
             }
+            
 
             const response_cr = await fetch('https://localhost:8080/api/users/create/', {
                 method: 'POST',
                 body: data,
             });
-
+            
             if (!response_cr.ok) {
+                const result_reg = await response_reg.json();
+                const user_id = result_reg.id;
+                console.log("user id :", user_id);
+                const del = await fetch(`https://localhost:8080/api/auth/delete/${user_id}/`, {
+                    method: 'DELETE',
+                });
+
+                if (!del.ok) {
+                    throw new Error('Error deleting user');
+                }
+
                 throw new Error('Error creating user');
             }
 
@@ -100,8 +141,8 @@ export default function Signup() {
                     Enter your information to create an account
                 </CardDescription>
                 <CardAction>
-                    <Button asChild variant="link">
-                        <Link to="/login">Login</Link>
+                    <Button render={<Link to="/login" />} nativeButton={false} variant="link">
+                        Login
                     </Button>
                 </CardAction>
             </CardHeader>
@@ -185,12 +226,27 @@ export default function Signup() {
 
                         <div className="grid gap-2">
                             <Label htmlFor="password">Avatar</Label>
+                            {preview && (
+                            <div className="flex justify-center gap-2">
+                                <Avatar className="size-40">
+                                    <AvatarImage src={preview} alt="Preview" />
+                                    <AvatarFallback>?</AvatarFallback>
+                                </Avatar>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleRemovePhoto}
+                                >x</Button>
+                            </div>
+                            )}
                             <Input
-                                id="avatar"
+                                ref={fileInputRef}
+                                id="profilePic"
                                 type="file"
                                 name="avatar"
                                 accept="image/*"
-                                onChange={handleFileChange} 
+                                onChange={handleFileChange}
                             />
                         </div>
 

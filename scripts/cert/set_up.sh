@@ -33,3 +33,4 @@ mkdir -p "${CERT_DIR}"
 
 # Generate the PostgreSQL server certificate.
 "${SCRIPT_DIR}/tls_db.sh" "${CERT_AUTHORITY_DIR}" "${CERT_DIR}"
+

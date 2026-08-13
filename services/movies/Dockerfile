@@ -5,9 +5,11 @@ ENV PYTHONUNBUFFERED=1
 RUN mkdir -p /code
 RUN mkdir -p /init
 RUN mkdir -p /certs
+RUN mkdir -p /jwt
 
 COPY certs/ca.crt /certs/
 COPY init/* /init/
+COPY jwt/jwt_public.pem /jwt/
 
 WORKDIR /code
 
