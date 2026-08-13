@@ -8,18 +8,18 @@ from .views import (
     RefreshView,
     RegisterView,
     VerifyView,
-    DeleteUserView,
+    CsrfTokenView,
 )
 
 
 auth_urlpatterns = [
+    path("csrf/", CsrfTokenView.as_view(), name="csrf"),
     path("register/", RegisterView.as_view(), name="register"),
     path("login/", LoginView.as_view(), name="login"),
     path("refresh/", RefreshView.as_view(), name="refresh"),
     path("verify/", VerifyView.as_view(), name="verify"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("me/", MeView.as_view(), name="me"),
-    path("delete/<int:user_id>/", DeleteUserView.as_view(), name="delete_user"),
 ]
 
 
