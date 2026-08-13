@@ -21,7 +21,7 @@ REFRESH_COOKIE_SAMESITE = "Lax"
 
 CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_PATH = "/api/auth/"
+CSRF_COOKIE_PATH = "/"
 CSRF_FAILURE_VIEW = "auth_app.views.csrf.csrf_failure"
 
 INSTALLED_APPS = [
