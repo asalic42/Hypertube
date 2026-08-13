@@ -130,7 +130,7 @@ services:
       - ./servers.json:/pgadmin4/servers.json
 
   file-storage:
-    image: rustfs/rustfs:latest
+    image: rustfs/rustfs:rc-glibc
     container_name: hypertube-fs
     volumes:
       - file-storage:/data
