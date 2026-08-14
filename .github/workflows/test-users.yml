@@ -36,6 +36,8 @@ jobs:
       DB_PORT: 5432
       DB_USER: hypertube
       DB_PASSWORD: hypertube
+      DB_SSLMODE: disable
+      DB_SSLROOTCERT: ""
       USERS_USER: users_test
       USERS_PASSWORD: users_password
       DJANGO_SECRET_KEY: test-secret-key

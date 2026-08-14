@@ -87,6 +87,14 @@ SPECTACULAR_SETTINGS = {
     'COMPONENT_SPLIT_REQUEST': True,
 }
 
+DB_SSLMODE = os.getenv("DB_SSLMODE", "verify-full")
+DB_SSLROOTCERT = os.getenv("DB_SSLROOTCERT", "/certs/ca.crt")
+
+DATABASE_OPTIONS = {}
+if DB_SSLMODE != "disable":
+    DATABASE_OPTIONS["sslmode"] = DB_SSLMODE
+    DATABASE_OPTIONS["sslrootcert"] = DB_SSLROOTCERT
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -95,10 +103,7 @@ DATABASES = {
         "PASSWORD": os.getenv("USERS_PASSWORD"),
         "HOST": os.getenv("DB_HOST"),
         "PORT": os.getenv("DB_PORT"),
-	"OPTIONS": {
-		"sslmode": "verify-full",
-		"sslrootcert": "/certs/ca.crt",
-	},
+        "OPTIONS": DATABASE_OPTIONS,
     }
 }
 
