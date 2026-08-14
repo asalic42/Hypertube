@@ -1,14 +1,15 @@
 name: Users service tests
 
 on:
-  push:
-    branches:
-      - main
-      - tests
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
+    # push:
+    #   branches:
+    #     - main
+    #     - tests
+    # pull_request:
+    #   branches:
+    #     - main
+    
 
 jobs:
   test-users:
