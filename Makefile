@@ -27,6 +27,9 @@ ${CERT_DIR}:
 
 cert: ${CERT_DIR}
 
+test-users :
+	./scripts/test_users.sh
+
 re : down all
 
 clean_docker:
