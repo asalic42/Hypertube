@@ -1,0 +1,66 @@
+name: Users service tests
+
+on:
+  push:
+    branches:
+      - main
+      - tests
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-users:
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:16
+        env:
+          POSTGRES_DB: hypertube
+          POSTGRES_USER: hypertube
+          POSTGRES_PASSWORD: hypertube
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U hypertube -d hypertube"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DB_NAME: hypertube
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: hypertube
+      DB_PASSWORD: hypertube
+      USERS_USER: users_test
+      USERS_PASSWORD: users_password
+      DJANGO_SECRET_KEY: test-secret-key
+      DJANGO_DEBUG: "1"
+      DJANGO_ALLOWED_HOSTS: "*"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          cd volumes/users
+          python -m pip install --upgrade pip
+          pip install -r /home/runner/work/Hypertube/Hypertube/services/users/init/requirements.txt
+
+      - name: Create test DB role
+        run: |
+          PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -U ${DB_USER} -d ${DB_NAME} -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'users_test') THEN CREATE ROLE users_test WITH LOGIN PASSWORD 'users_password' CREATEDB; ELSE ALTER ROLE users_test WITH LOGIN PASSWORD 'users_password' CREATEDB; END IF; END \$\$;"
+          PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -U ${DB_USER} -d ${DB_NAME} -c "GRANT USAGE, CREATE ON SCHEMA public TO users_test; GRANT USAGE, CREATE ON SCHEMA users TO users_test; GRANT ALL PRIVILEGES ON DATABASE hypertube TO users_test;"
+
+      - name: Run users tests
+        working-directory: ./volumes/users
+        run: |
+          python manage.py test users_app.tests
