@@ -8,8 +8,7 @@ on:
   pull_request:
     branches:
       - main
-  on:
-    workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
   test-users:
