@@ -2,13 +2,13 @@ name: Users service tests
 
 on:
   workflow_dispatch:
-    # push:
-    #   branches:
-    #     - main
-    #     - tests
-    # pull_request:
-    #   branches:
-    #     - main
+  push:
+    branches:
+      - main
+      - tests
+  pull_request:
+    branches:
+      - main
     
 
 jobs:
@@ -59,6 +59,7 @@ jobs:
 
       - name: Create test DB role
         run: |
+          PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -U ${DB_USER} -d ${DB_NAME} -c "CREATE SCHEMA IF NOT EXISTS users;"
           PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -U ${DB_USER} -d ${DB_NAME} -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'users_test') THEN CREATE ROLE users_test WITH LOGIN PASSWORD 'users_password' CREATEDB; ELSE ALTER ROLE users_test WITH LOGIN PASSWORD 'users_password' CREATEDB; END IF; END \$\$;"
           PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -U ${DB_USER} -d ${DB_NAME} -c "GRANT USAGE, CREATE ON SCHEMA public TO users_test; GRANT USAGE, CREATE ON SCHEMA users TO users_test; GRANT ALL PRIVILEGES ON DATABASE hypertube TO users_test;"
 
