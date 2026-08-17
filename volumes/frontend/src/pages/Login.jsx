@@ -52,6 +52,9 @@ export default function Login({ onLoginSuccess }) {
 
             localStorage.setItem('access_token', accessToken);
 
+            onLoginSuccess();
+            navigate('/home');
+            
         } catch (err) {
             toast.add({
                 title: "Error",
@@ -59,8 +62,6 @@ export default function Login({ onLoginSuccess }) {
                 type: "error",
             });
         }
-        onLoginSuccess();
-        navigate('/home');
     }
 
     return (

@@ -16,7 +16,7 @@ function Header({ onLogout }) {
                 credentials: 'include',
             });
             if(!response.ok) {
-                throw new Error('Error logout');
+                throw new Error(`Erreur ${response.status} lors de la déconnexion`);
             }
         } catch (err) {
             console.log(err);
