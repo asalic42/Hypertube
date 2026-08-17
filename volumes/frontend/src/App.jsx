@@ -19,7 +19,11 @@ function App() {
   useEffect(() => {
     async function checkAuth() {
       try {
+        const accessToken = localStorage.getItem('access_token');
         const response = await fetch('https://localhost:8080/api/auth/me/', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
           credentials: 'include',
         });
         setIsAuthenticated(response.ok);
@@ -37,7 +41,7 @@ function App() {
   return (
     <BrowserRouter>
       <div className='flex flex-col min-h-screen'>
-        <Header />
+        <Header onLogout={() => setIsAuthenticated(false)}/>
         <main className="flex-1 flex items-center justify-center">
           <Routes>
             <Route path="/login" element={<Login onLoginSuccess={() => setIsAuthenticated(true)} />} />
@@ -54,7 +58,13 @@ function App() {
                 }
             />
             
-            <Route path="/profile" element={<Profile />} />
+            <Route path="/profile"
+              element={
+                <ProtectedRoute isAuthenticated={isAuthenticated}>
+                  <Profile />
+                </ProtectedRoute>
+                }
+            />
           </Routes>
         </main>
         <Footer />

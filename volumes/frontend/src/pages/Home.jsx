@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import FilmCard from '../components/FilmCard'
 import { toast } from "@/components/ui/toast";
 
+
 function Home() {
     const [films, setFilms] = useState([]);
     const [erreur, setError] = useState(null);

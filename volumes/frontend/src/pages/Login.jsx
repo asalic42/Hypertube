@@ -46,6 +46,12 @@ export default function Login({ onLoginSuccess }) {
                 console.error('Détail de l\'erreur :', errorData);
                 throw new Error(errorData.detail);
             }
+            
+            const data = await response.json();
+            const accessToken = data.access;
+
+            localStorage.setItem('access_token', accessToken);
+
         } catch (err) {
             toast.add({
                 title: "Error",
