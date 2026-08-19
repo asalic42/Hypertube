@@ -7,13 +7,14 @@ import Home from './pages/Home';
 import Profile from './pages/Profile';
 import Header from './components/Header'
 import Footer from './components/Footer'
+import { Toaster } from "@/components/ui/toast";
 
 function App() {
   return (
     <BrowserRouter>
-      <div className='app'>
+      <div className='flex flex-col min-h-screen'>
         <Header />
-        <main className='content'>
+        <main className="flex-1 flex items-center justify-center">
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -24,6 +25,7 @@ function App() {
           </Routes>
         </main>
         <Footer />
+        <Toaster />
       </div>
     </BrowserRouter>
   );

@@ -10,6 +10,8 @@ services:
       context: services/proxy
       dockerfile: Dockerfile
     env_file: .env
+    volumes:
+      - ./services/proxy/certs:/etc/nginx/certs
     ports:
       - '8080:8080'
     restart: on-failure
@@ -27,23 +29,28 @@ services:
       context: .
       dockerfile: services/frontend/Dockerfile
     env_file: .env
-    ports:
-      - '5173:5173'
+    expose:
+      - '5173'
     restart: on-failure
 
-  app_users:
-    image: hypertube-app-users
-    container_name: 'hypertube-app-users'
+  users:
+    image: hypertube-users
+    container_name: 'hypertube-users'
     volumes:
-      - app-users:/code
+      - users:/code
     networks:
       - hypertube
     build:
-      context: .
-      dockerfile: services/app-users/Dockerfile
+      context: services/users
+      dockerfile: Dockerfile
     env_file: .env
-    ports:
-      - '8000:8000'
+    depends_on:
+      db:
+        condition: service_healthy
+      file-storage-init:
+        condition: service_completed_successfully
+    expose:
+      - '8443'
     restart: on-failure
 
   auth:
@@ -54,11 +61,14 @@ services:
     networks:
       - hypertube
     build:
-      context: .
-      dockerfile: services/auth/Dockerfile
+      context: services/auth
+      dockerfile: Dockerfile
     env_file: .env
-    ports:
-      - '8001:8001'
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - '8443'
     restart: on-failure
 
   movies:
@@ -69,11 +79,14 @@ services:
     networks:
       - hypertube
     build:
-      context: .
-      dockerfile: services/movies/Dockerfile
+      context: services/movies
+      dockerfile: Dockerfile
     env_file: .env
-    ports:
-      - '8002:8002'
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - '8443'
     restart: on-failure
 
   db:
@@ -86,9 +99,15 @@ services:
     build:
       context: ./db
       dockerfile: Dockerfile
+    environment:
+      POSTGRES_DB: hypertube
+      POSTGRES_USER: hypertube
+      POSTGRES_PASSWORD: hypertube
     env_file: .env
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "hypertube"]
     restart: on-failure
   
   pgAdmin:
@@ -102,12 +121,67 @@ services:
     ports:
       - "5050:80"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - hypertube
     restart: on-failure
     volumes:
       - ./servers.json:/pgadmin4/servers.json
+
+  file-storage:
+    image: rustfs/rustfs:rc-glibc
+    container_name: hypertube-fs
+    volumes:
+      - file-storage:/data
+    networks:
+      - hypertube
+    env_file: .env
+    environment:
+      - RUSTFS_CONSOLE_ENABLE=${RUSTFS_CONSOLE_ENABLE}
+      - RUSTFS_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
+      - RUSTFS_SECRET_KEY=${AWS_SECRET_ACCESS_KEY}
+    ports:
+      - 9000:9000 # S3 API
+      - 9001:9001 # Web interface
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://file-storage:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  file-storage-init:
+    image: hypertube-fs-init
+    container_name: hypertube-fs-init
+    env_file: .env
+    networks:
+      - hypertube
+    build:
+      context: services/file-storage
+      dockerfile: Dockerfile
+    depends_on:
+      file-storage:
+        condition: service_healthy
+    restart: "no"
+
+  dbgate:
+    image: dbgate/dbgate
+    container_name: hypertube-dbgate
+    networks:
+      - hypertube
+    restart: always
+    ports:
+      - 5051:3000
+    environment:
+      CONNECTIONS: con1
+      LABEL_con1: Hypertube Database
+      SERVER_con1: hypertube-db
+      DATABASE_con1: $DB_NAME
+      USER_con1: $DB_USER
+      PASSWORD_con1: $DB_PASSWORD
+      PORT_con1: $DB_PORT
+      ENGINE_con1: postgres@dbgate-plugin-postgres
 
 
 volumes:
@@ -119,13 +193,13 @@ volumes:
       o: 'bind'
       device: placeholder/volumes/frontend
 
-  app-users:
-    name: app-users
+  users:
+    name: users
     driver: local
     driver_opts:
       type: 'none'
       o: 'bind'
-      device: placeholder/volumes/app-users
+      device: placeholder/volumes/users
 
   auth:
     name: auth
@@ -146,21 +220,11 @@ volumes:
   postgres-data:
     name: postgres-data
 
+  file-storage:
+    name: file-storage
+ 
 
 networks:
   hypertube:
     name: hypertube
     driver: bridge
-
-
-#➜  volumes git:(micro-service-setup) ✗ podman unshare bash
-#➜  volumes git:(micro-service-setup) ✗ ls -ln
-#chown -R $(id -u):$(id -g) db
-#exit
-#total 12
-#drwxr-xr-x.  4 0 0   66 Jul  7 18:10 app-users
-#drwx------. 19 0 0 4096 Jul  7 19:22 db
-#-rw-r--r--.  1 0 0  203 Jul  7 11:08 django_env.sh
-#drwxr-xr-x.  2 0 0   24 Jul  7 11:08 frontend
-#-rw-r--r--.  1 0 0   30 Jul  7 11:08 requirements.txt
-#➜  volumes git:(micro-service-setup) ✗ rm -rf db

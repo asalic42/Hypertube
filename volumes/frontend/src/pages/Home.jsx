@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import Card from '../components/Card'
-import './Home.css'
+import FilmCard from '../components/FilmCard'
+import { toast } from "@/components/ui/toast";
 
 function Home() {
     const [films, setFilms] = useState([]);
@@ -11,30 +11,33 @@ function Home() {
         Authorization: `Bearer ${TMDB_API}`
     }};
 
-    useEffect(() => {
-        async function getFilms() {
-            try {
-                const response = await fetch('https://api.themoviedb.org/3/movie/popular?language=en-US&page=1', options);
+    async function getFilms() {
+        try {
+            const response = await fetch('https://api.themoviedb.org/3/movie/popular?language=en-US&page=1', options);
 
-                if (!response.ok) {
-                    throw new Error('Error fetch movies');
-                }
-
-                const data = await response.json();
-                setFilms(data.results);
-            } catch (err) {
-                setError(err.message);
+            if (!response.ok) {
+                throw new Error('Error fetch movies');
             }
-        }
 
-        getFilms();
-    }, []);
-    
-    if (erreur) return <p>Erreur : {erreur}</p>;
+            const data = await response.json();
+            setFilms(data.results);
+        } catch (err) {
+            console.error(err);
+            toast.add({
+                title: "Error",
+                description: err.message,
+                type: "error",
+            });
+        }
+    }
+
+    getFilms();
 
     return (
-        <div className='film-list'>
-            {films.map((film) => (<Card key={film.id} film={film} />))}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4">
+        {films.map((film) => (
+            <FilmCard key={film.id} film={film} />
+        ))}
         </div>
     );
 }
