@@ -11,18 +11,36 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { toast } from "@/components/ui/toast";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Login() {
+    const { login } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
     const [formData, setFormData] = useState({email: '', password: ''});
+    const [submitting, setSubmitting] = useState(false);
 
     function handleChange(e) {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     }
 
-    function handleSubmit(e) {
+    async function handleSubmit(e) {
         e.preventDefault();
-        console.log(formData);
+        setSubmitting(true);
+        try {
+            await login(formData.email, formData.password);
+            navigate(location.state?.from?.pathname || '/home', { replace: true });
+        } catch (err) {
+            toast.add({
+                title: "Login failed",
+                description: err.message,
+                type: "error",
+            });
+        } finally {
+            setSubmitting(false);
+        }
     }
 
     return (
@@ -76,8 +94,8 @@ export default function Login() {
                 </form>
             </CardContent>
             <CardFooter className="flex-col gap-2">
-                <Button type="submit" className="w-full">
-                Login
+                <Button type="submit" form="login-form" className="w-full" disabled={submitting}>
+                {submitting ? "Logging in..." : "Login"}
                 </Button>
                 <Button variant="outline" className="w-full">
                 Login with Google

@@ -74,7 +74,7 @@ export default function Signup() {
         const data = new FormData();
         data.append('username', formData.username);
         data.append('password', formData.password)
-        data.append('confirm_password', formData.confirm_password)
+        data.append('password_confirmation', formData.confirm_password)
         data.append('firstname', formData.firstname);
         data.append('lastname', formData.lastname);
         data.append('email', formData.email);
@@ -84,7 +84,7 @@ export default function Signup() {
         data.append('preferredLanguage', formData.preferredLanguage);
 
         try {
-            const response_reg = await fetch('https://localhost:8080/api/auth/register/', {
+            const response_reg = await fetch('/api/auth/register/', {
                 method: 'POST',
                 body: data,
             });
@@ -96,7 +96,7 @@ export default function Signup() {
             }
             
 
-            const response_cr = await fetch('https://localhost:8080/api/users/create/', {
+            const response_cr = await fetch('/api/users/', {
                 method: 'POST',
                 body: data,
             });

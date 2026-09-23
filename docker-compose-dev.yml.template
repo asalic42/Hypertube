@@ -76,6 +76,7 @@ services:
     container_name: 'hypertube-movies'
     volumes:
       - movies:/code
+      - movies-downloads:/downloads
     networks:
       - hypertube
     build:
@@ -85,8 +86,31 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      file-storage-init:
+        condition: service_completed_successfully
     expose:
       - '8443'
+    restart: on-failure
+
+  movies-worker:
+    image: hypertube-movies
+    container_name: 'hypertube-movies-worker'
+    volumes:
+      - movies:/code
+      - movies-downloads:/downloads
+    networks:
+      - hypertube
+    env_file: .env
+    # The web container owns the migrations, the worker waits for the schema.
+    entrypoint: ["python3", "manage.py", "torrent_worker"]
+    depends_on:
+      movies:
+        condition: service_started
+      file-storage-init:
+        condition: service_completed_successfully
+    ports:
+      - '6881:6881'
+      - '6881:6881/udp'
     restart: on-failure
 
   db:
@@ -216,6 +240,9 @@ volumes:
       type: 'none'
       o: 'bind'
       device: placeholder/volumes/movies
+
+  movies-downloads:
+    name: movies-downloads
 
   postgres-data:
     name: postgres-data

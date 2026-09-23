@@ -4,6 +4,8 @@ from django.urls import include, path
 
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from movies_app.urls import comments_urlpatterns
+
 
 def root(request):
     return JsonResponse({"service": "movies-api", "status": "ok"})
@@ -19,4 +21,5 @@ urlpatterns = [
     ),
     path("api/movies/admin/", admin.site.urls),
     path("api/movies/", include("movies_app.urls")),
+    path("api/comments/", include(comments_urlpatterns)),
 ]
