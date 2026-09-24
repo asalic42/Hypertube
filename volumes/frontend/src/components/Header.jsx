@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { ensureCsrfToken } from "@/lib/csrf";
 import { toast } from "@/components/ui/toast";
+import { fetchWithAuth } from '@/lib/refreshFlow';
 
 
 function Header({ onLogout }) {
@@ -13,14 +14,12 @@ function Header({ onLogout }) {
     async function handleLogout() {
         try{
             const csrfToken = await ensureCsrfToken();
-            const accessToken = localStorage.getItem('access_token');
 
-            const response = await fetch('https://localhost:8080/api/auth/logout/', {
+            const response = await fetchWithAuth('https://localhost:8080/api/auth/logout/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': csrfToken,
-                    'Authorization': `Bearer ${accessToken}`,
                 },
                 credentials: 'include',
             });
