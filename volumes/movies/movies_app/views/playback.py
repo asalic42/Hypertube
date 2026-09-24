@@ -4,21 +4,26 @@ from django.http import HttpResponse, StreamingHttpResponse
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTStatelessUserAuthentication
 
 from movies_app.authentication import IgnoreClientContentNegotiation, StreamTokenAuthentication
-from movies_app.models import Download, Movie, Subtitle, WatchRecord
+from movies_app.models import Download, Movie, Rendition, Subtitle, WatchRecord
 from movies_app.serializers import DownloadRequestSerializer, DownloadSerializer, SubtitleSerializer
-from movies_app.services import catalog, media, storage, streaming, users
+from movies_app.services import catalog, media, renditions, storage, streaming, users
 
 from .common import get_movie_or_404
 
 SUBTITLE_RETRY_DELAY = timedelta(days=1)
 WATCH_UPDATE_INTERVAL = timedelta(minutes=1)
 TOKEN_PARAMETER = OpenApiParameter("token", str, description="Stream token found in the download resource.")
+QUALITY_PARAMETER = OpenApiParameter(
+    "quality",
+    int,
+    description="Height in pixels of one of the `qualities` of the download resource. Default: the source file.",
+)
 
 
 def _serialize(download, request, status_code=status.HTTP_200_OK):
@@ -96,8 +101,13 @@ class MovieDownloadView(APIView):
                     "buffered_bytes": 0,
                     "local_path": "",
                     "requested_offset": None,
+                    "width": None,
+                    "height": None,
+                    "renditions_planned": False,
                 },
             )
+            # A previous attempt left nothing worth keeping.
+            renditions.remove_stored(download)
 
         _request_subtitles(movie, language)
         download = Download.objects.select_related("movie").get(pk=download.pk)
@@ -121,25 +131,37 @@ class MovieStreamView(MediaView):
     @extend_schema(
         tags=["Playback"],
         operation_id="stream_movie",
-        parameters=[TOKEN_PARAMETER],
+        parameters=[TOKEN_PARAMETER, QUALITY_PARAMETER],
         responses={
             (200, "video/mp4"): bytes,
             (206, "video/mp4"): bytes,
+            404: OpenApiResponse(description="This resolution is not available."),
             409: OpenApiResponse(description="Not enough data has been downloaded yet."),
             416: OpenApiResponse(description="Range not satisfiable."),
         },
-        description="The video, with HTTP range support. Non browser-ready formats are converted on the fly.",
+        description=(
+            "The video, with HTTP range support. Non browser-ready formats are converted on the fly. "
+            "`quality` selects one of the lower resolutions encoded once the movie is stored."
+        ),
     )
     def get(self, request, movie_id):
         movie = get_movie_or_404(movie_id)
+        quality = _quality(request)
         download = Download.objects.filter(movie=movie).first()
         if download is None:
             raise NotFound("This movie has not been requested yet.")
+        rendition = None
+        if quality is not None and quality != download.height:
+            rendition = Rendition.objects.filter(download=download, height=quality, status=Rendition.Status.READY).first()
+            if rendition is None:
+                raise NotFound("This resolution is not available.")
         if not streaming.is_playable(download):
             return Response({"detail": "Not enough data has been downloaded yet."}, status=status.HTTP_409_CONFLICT)
         _mark_watched(request.user.id, movie.pk)
 
         try:
+            if rendition is not None:
+                return self._respond_stored(request, rendition.storage_key, rendition.storage_size, rendition.content_type)
             return self._respond(request, download)
         except media.MediaError:
             raise NotFound("The video file is missing.") from None
@@ -148,20 +170,30 @@ class MovieStreamView(MediaView):
 
     def _respond(self, request, download):
         ready = download.status == Download.Status.READY
-        if not ready and download.needs_transcode:
+        if ready:
+            return self._respond_stored(request, download.storage_key, download.storage_size, download.content_type)
+        if download.needs_transcode:
             # The length of a live conversion is unknown: no ranges, the player reads it front to back.
             body = () if request.method == "HEAD" else streaming.iter_transcoded(download)
             response = StreamingHttpResponse(body, content_type="video/mp4")
             response["Accept-Ranges"] = "none"
             response["Cache-Control"] = "no-store"
             return response
+        content_type = "video/webm" if download.local_path.lower().endswith(".webm") else "video/mp4"
+        return self._respond_ranges(
+            request, download.file_size, content_type, lambda start, end: streaming.iter_local(download, start, end)
+        )
 
-        if ready:
-            size, content_type = download.storage_size, download.content_type
-        else:
-            size = download.file_size
-            content_type = "video/webm" if download.local_path.lower().endswith(".webm") else "video/mp4"
+    def _respond_stored(self, request, key, size, content_type):
+        def read(start, end):
+            chunks = streaming.iter_storage(key, start, end)
+            # Reading the first chunk now turns a storage outage into a 503 instead of a broken stream.
+            return _chain(next(chunks, b""), chunks)
 
+        return self._respond_ranges(request, size, content_type, read)
+
+    def _respond_ranges(self, request, size, content_type, read):
+        """Serve [start, end] of a file of known size, as the Range header asks."""
         try:
             byte_range = streaming.parse_range(request.headers.get("Range"), size)
         except streaming.RangeNotSatisfiable:
@@ -169,15 +201,7 @@ class MovieStreamView(MediaView):
             response["Content-Range"] = f"bytes */{size}"
             return response
         start, end = byte_range or (0, size - 1)
-
-        if request.method == "HEAD":
-            body = ()
-        elif ready:
-            chunks = streaming.iter_storage(download.storage_key, start, end)
-            # Reading the first chunk now turns a storage outage into a 503 instead of a broken stream.
-            body = _chain(next(chunks, b""), chunks)
-        else:
-            body = streaming.iter_local(download, start, end)
+        body = () if request.method == "HEAD" else read(start, end)
 
         response = StreamingHttpResponse(
             body,
@@ -190,6 +214,15 @@ class MovieStreamView(MediaView):
         if byte_range:
             response["Content-Range"] = f"bytes {start}-{end}/{size}"
         return response
+
+
+def _quality(request):
+    value = request.query_params.get("quality")
+    if value in (None, ""):
+        return None
+    if not value.isdigit() or int(value) == 0:
+        raise ValidationError({"quality": "Must be a height in pixels."})
+    return int(value)
 
 
 def _chain(first, rest):

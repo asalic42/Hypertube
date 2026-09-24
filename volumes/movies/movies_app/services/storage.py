@@ -32,6 +32,10 @@ def upload_file(path, key, content_type):
     )
 
 
+def download_file(key, path):
+    _client().download_file(settings.AWS_MOVIES_STORAGE_BUCKET_NAME, key, str(path))
+
+
 def upload_bytes(data, key, content_type):
     _client().put_object(
         Bucket=settings.AWS_MOVIES_STORAGE_BUCKET_NAME,

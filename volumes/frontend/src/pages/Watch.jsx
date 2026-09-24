@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/toast";
 import { movies as moviesApi, comments as commentsApi } from "@/lib/api";
@@ -25,6 +26,11 @@ function Badge({ children, variant = "default" }) {
     return <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${styles}`}>{children}</span>;
 }
 
+// Key of a quality in the download resource: the source file, or the height of a lower rendition.
+function qualityKey(quality) {
+    return quality.original ? "original" : String(quality.height);
+}
+
 function Player({ movieId, initialStatus }) {
     const [download, setDownload] = useState(null);
     const [requested, setRequested] = useState(Boolean(initialStatus));
@@ -33,11 +39,30 @@ function Player({ movieId, initialStatus }) {
 
     const [starting, setStarting] = useState(false);
 
+    // The stream URLs are fixed once known: each poll signs a new token, and a
+    // changing src would restart the film.
+    const [sources, setSources] = useState({});
+    const [quality, setQuality] = useState("original");
+    // Position and play state to restore after a change of quality.
+    const resumeRef = useRef(null);
+
+    function follow(data) {
+        setDownload(data);
+        setSources((current) => {
+            const next = { ...current };
+            for (const item of data.qualities) {
+                const key = qualityKey(item);
+                if (item.stream_url && !next[key]) next[key] = item.stream_url;
+            }
+            return next;
+        });
+    }
+
     async function requestDownload() {
         setStarting(true);
         setError(null);
         try {
-            setDownload(await moviesApi.requestDownload(movieId));
+            follow(await moviesApi.requestDownload(movieId));
             setRequested(true);
         } catch (err) {
             setError(err.message);
@@ -46,7 +71,7 @@ function Player({ movieId, initialStatus }) {
         }
     }
 
-    // Follow the download until the video is stored and the subtitles resolved.
+    // Follow the download until the video is stored, the lower resolutions encoded and the subtitles resolved.
     useEffect(() => {
         if (!requested) return undefined;
         let timer;
@@ -55,11 +80,12 @@ function Player({ movieId, initialStatus }) {
             try {
                 const data = await moviesApi.download(movieId);
                 if (cancelled) return;
-                setDownload(data);
+                follow(data);
                 setError(null);
                 const settled = data.status === "ready" || data.status === "failed";
                 const subtitlesPending = data.subtitles.some((subtitle) => subtitle.status === "pending");
-                if (!settled || subtitlesPending) timer = setTimeout(poll, POLL_INTERVAL);
+                const qualitiesPending = data.qualities.some((item) => item.status === "pending");
+                if (!settled || subtitlesPending || qualitiesPending) timer = setTimeout(poll, POLL_INTERVAL);
             } catch (err) {
                 // A transient failure (network, expired token being renewed) must not stop the follow-up.
                 if (cancelled) return;
@@ -74,17 +100,30 @@ function Player({ movieId, initialStatus }) {
         };
     }, [movieId, requested]);
 
-    // The source is fixed once known: later polls must not restart the film.
-    const [source, setSource] = useState(null);
-    if (download?.stream_url && !source) {
-        setSource(download.stream_url);
+    const source = sources[quality] || sources.original || null;
+    const qualities = download?.qualities ?? [];
+    const selectable = qualities.filter((item) => item.status === "ready" && sources[qualityKey(item)]);
+
+    function changeQuality(event) {
+        const video = videoRef.current;
+        if (video) resumeRef.current = { time: video.currentTime, playing: !video.paused && !video.ended };
+        setQuality(event.target.value);
+    }
+
+    function resume() {
+        const video = videoRef.current;
+        const state = resumeRef.current;
+        resumeRef.current = null;
+        if (!video || !state) return;
+        if (state.time > 0 && Number.isFinite(video.duration)) video.currentTime = state.time;
+        if (state.playing) video.play().catch(() => {});
     }
 
     return (
         <div className="flex flex-col gap-3">
             <div className="aspect-video w-full overflow-hidden rounded-lg bg-black flex items-center justify-center">
                 {source ? (
-                    <video ref={videoRef} src={source} controls autoPlay className="h-full w-full" crossOrigin="use-credentials">
+                    <video ref={videoRef} src={source} controls autoPlay className="h-full w-full" crossOrigin="use-credentials" onLoadedMetadata={resume}>
                         {download.subtitles
                             .filter((subtitle) => subtitle.status === "ready")
                             .map((subtitle) => (
@@ -120,12 +159,30 @@ function Player({ movieId, initialStatus }) {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             {download && (
-                <p className="text-xs text-muted-foreground">
-                    {download.status === "ready" ? "Stored on the server." : download.status === "downloading" ? `Download: ${download.progress}%` : null}
-                    {download.subtitles.length > 0 && (
-                        <> · Subtitles: {download.subtitles.map((subtitle) => `${languageName(subtitle.language)} (${subtitle.status})`).join(", ")}</>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    {qualities.length > 1 && (
+                        <label className="flex items-center gap-2">
+                            <span>Quality</span>
+                            <NativeSelect size="sm" value={sources[quality] ? quality : "original"} onChange={changeQuality} disabled={!source}>
+                                {qualities.map((item) => {
+                                    const key = qualityKey(item);
+                                    const ready = selectable.includes(item);
+                                    return (
+                                        <NativeSelectOption key={key} value={key} disabled={!ready}>
+                                            {item.label}{item.original ? " (source)" : ""}{ready ? "" : " – preparing..."}
+                                        </NativeSelectOption>
+                                    );
+                                })}
+                            </NativeSelect>
+                        </label>
                     )}
-                </p>
+                    <p>
+                        {download.status === "ready" ? "Stored on the server." : download.status === "downloading" ? `Download: ${download.progress}%` : null}
+                        {download.subtitles.length > 0 && (
+                            <> · Subtitles: {download.subtitles.map((subtitle) => `${languageName(subtitle.language)} (${subtitle.status})`).join(", ")}</>
+                        )}
+                    </p>
+                </div>
             )}
         </div>
     );

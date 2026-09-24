@@ -7,7 +7,7 @@ from unittest import mock
 from django.test import override_settings
 from rest_framework.test import APITestCase
 
-from movies_app.models import Comment, Download, Movie, SourceItem, Subtitle, Torrent, WatchRecord
+from movies_app.models import Comment, Download, Movie, Rendition, SourceItem, Subtitle, Torrent, WatchRecord
 from movies_app.services import streaming
 
 
@@ -233,6 +233,47 @@ class PlaybackTests(ApiTestCase):
         self.assertTrue(WatchRecord.objects.filter(user_id=self.user.id, movie=self.movie).exists())
         self.movie.refresh_from_db()
         self.assertIsNotNone(self.movie.last_watched_at)
+
+    def test_qualities_follow_the_renditions(self):
+        download = Download.objects.create(movie=self.movie, status=Download.Status.DOWNLOADING, file_size=10**9, buffered_bytes=1000)
+        data = self.client.get(self.url).data
+        self.assertEqual(data["qualities"], [{"height": None, "label": "Source", "original": True, "status": "pending", "stream_url": None}])
+
+        Download.objects.filter(pk=download.pk).update(status=Download.Status.READY, height=1080, storage_key="1/video.mp4", storage_size=10)
+        Rendition.objects.create(download=download, height=720, status=Rendition.Status.READY, storage_key="1/video_720p.mp4", storage_size=5)
+        Rendition.objects.create(download=download, height=480)
+        Rendition.objects.create(download=download, height=360, status=Rendition.Status.FAILED, error="boom")
+        qualities = self.client.get(self.url).data["qualities"]
+        self.assertEqual([(q["label"], q["original"], q["status"]) for q in qualities], [("1080p", True, "ready"), ("720p", False, "ready"), ("480p", False, "pending")])
+        self.assertIn("token=", qualities[0]["stream_url"])
+        self.assertTrue(qualities[1]["stream_url"].endswith("&quality=720"))
+        self.assertIsNone(qualities[2]["stream_url"])
+
+    def test_stream_serves_the_requested_quality(self):
+        download = Download.objects.create(
+            movie=self.movie, status=Download.Status.READY, height=1080, storage_key="1/video.mp4", storage_size=100, content_type="video/mp4"
+        )
+        Rendition.objects.create(download=download, height=720, status=Rendition.Status.READY, storage_key="1/video_720p.mp4", storage_size=50, content_type="video/mp4")
+        Rendition.objects.create(download=download, height=480)
+        stream = f"/api/movies/{self.movie.pk}/stream/"
+        opened = []
+
+        def open_range(key, start, end):
+            opened.append((key, start, end))
+            return mock.Mock(iter_chunks=lambda size: iter([b"x" * (end - start + 1)]), close=lambda: None)
+
+        with mock.patch("movies_app.services.storage.open_range", side_effect=open_range):
+            response = self.client.get(f"{stream}?quality=720", HTTP_RANGE="bytes=0-9")
+            self.assertEqual((response.status_code, response["Content-Range"]), (206, "bytes 0-9/50"))
+            self.assertEqual(b"".join(response.streaming_content), b"x" * 10)
+            # The source's own height and no quality at all both mean the source file.
+            for query in ("", "?quality=1080"):
+                self.assertEqual(self.client.get(f"{stream}{query}").status_code, 200)
+        self.assertEqual([key for key, *_ in opened], ["1/video_720p.mp4", "1/video.mp4", "1/video.mp4"])
+
+        self.assertEqual(self.client.get(f"{stream}?quality=480").status_code, 404)  # still encoding
+        self.assertEqual(self.client.get(f"{stream}?quality=240").status_code, 404)
+        self.assertEqual(self.client.get(f"{stream}?quality=hd").status_code, 400)
 
     def test_subtitle_track(self):
         Subtitle.objects.create(movie=self.movie, language="en", status=Subtitle.Status.READY, storage_key="1/subtitles/en.vtt")

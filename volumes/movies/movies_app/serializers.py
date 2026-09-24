@@ -3,7 +3,7 @@ import re
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from movies_app.models import Comment, Download, Movie, Subtitle
+from movies_app.models import Comment, Download, Movie, Rendition, Subtitle
 from movies_app.services import streaming
 
 SORT_CHOICES = ("name", "-name", "year", "-year", "rating", "-rating", "popularity", "-popularity")
@@ -120,10 +120,21 @@ class SubtitleSerializer(serializers.ModelSerializer):
         return f"/api/movies/{subtitle.movie_id}/subtitles/{subtitle.language}/?token={self.context['token']}"
 
 
+class QualitySerializer(serializers.Serializer):
+    """One resolution of a movie: the source file, or a lower rendition encoded once it is stored."""
+
+    height = serializers.IntegerField(allow_null=True, help_text="Lines of the frame; null while the source is not probed.")
+    label = serializers.CharField()
+    original = serializers.BooleanField()
+    status = serializers.ChoiceField(choices=("ready", "pending"))
+    stream_url = serializers.CharField(allow_null=True)
+
+
 class DownloadSerializer(serializers.ModelSerializer):
     progress = serializers.SerializerMethodField()
     playable = serializers.SerializerMethodField()
     stream_url = serializers.SerializerMethodField()
+    qualities = serializers.SerializerMethodField()
     subtitles = serializers.SerializerMethodField()
 
     class Meta:
@@ -137,6 +148,7 @@ class DownloadSerializer(serializers.ModelSerializer):
             "playable",
             "error",
             "stream_url",
+            "qualities",
             "subtitles",
         )
 
@@ -150,6 +162,32 @@ class DownloadSerializer(serializers.ModelSerializer):
         if not streaming.is_playable(download):
             return None
         return f"/api/movies/{download.movie_id}/stream/?token={self.context['token']}"
+
+    @extend_schema_field(QualitySerializer(many=True))
+    def get_qualities(self, download):
+        """The source first, then the lower resolutions from the highest; failed encodes are not listed."""
+        playable = streaming.is_playable(download)
+        qualities = [
+            {
+                "height": download.height,
+                "label": f"{download.height}p" if download.height else "Source",
+                "original": True,
+                "status": "ready" if playable else "pending",
+                "stream_url": self.get_stream_url(download),
+            }
+        ]
+        for rendition in download.renditions.exclude(status=Rendition.Status.FAILED):
+            ready = rendition.status == Rendition.Status.READY
+            qualities.append(
+                {
+                    "height": rendition.height,
+                    "label": f"{rendition.height}p",
+                    "original": False,
+                    "status": "ready" if ready else "pending",
+                    "stream_url": f"{self.get_stream_url(download)}&quality={rendition.height}" if ready and playable else None,
+                }
+            )
+        return qualities
 
     def get_subtitles(self, download) -> list:
         return SubtitleSerializer(download.movie.subtitles.all(), many=True, context=self.context).data

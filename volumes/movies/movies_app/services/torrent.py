@@ -14,7 +14,7 @@ from django.db import connection
 from django.utils import timezone
 
 from movies_app.models import Download
-from movies_app.services import catalog, http, media, storage
+from movies_app.services import catalog, http, media, renditions, storage
 
 logger = logging.getLogger(__name__)
 
@@ -329,6 +329,8 @@ def finalize(download_id):
             path, content_type = media.prepare_for_storage(source, media.download_directory(download_id))
             key = f"{download.movie_id}/video{path.suffix.lower()}"
             storage.upload_file(path, key, content_type)
+            # The lower resolutions are encoded later by the worker, from the stored file.
+            renditions.plan(download, path)
         except (media.MediaError, OSError, *storage.StorageError) as error:
             logger.exception("download %s could not be stored", download_id)
             Download.objects.filter(pk=download_id).update(

@@ -12,12 +12,13 @@ from django.db.models import F, Q
 from django.utils import timezone
 
 from movies_app.models import Download, Movie, Subtitle
-from movies_app.services import catalog, media, storage, subtitles
+from movies_app.services import catalog, media, renditions, storage, subtitles
 from movies_app.services.torrent import TorrentEngine
 
 logger = logging.getLogger(__name__)
 
 SUBTITLES_INTERVAL = 5
+RENDITIONS_INTERVAL = 10
 CATALOG_INTERVAL = 60
 PURGE_INTERVAL = 3600
 CATALOG_BATCH = 40
@@ -29,6 +30,11 @@ def process_subtitles():
             subtitles.process(subtitle)
         except storage.StorageError as error:
             logger.warning("subtitle %s could not be stored: %s", subtitle.pk, error)
+
+
+def process_renditions():
+    """Encode the lower resolutions of the stored movies, one movie per run."""
+    renditions.process_next()
 
 
 def warm_catalog():
@@ -46,7 +52,7 @@ def purge():
         Q(movie__last_watched_at__lt=limit) | Q(movie__last_watched_at__isnull=True, completed_at__lt=limit)
     )
     for download in stale:
-        storage.delete(download.storage_key)
+        renditions.remove_stored(download)
         download.delete()
         logger.info("movie %s was not watched for %s days: erased", download.movie_id, settings.MOVIE_RETENTION_DAYS)
 
@@ -54,7 +60,12 @@ def purge():
     if root.is_dir():
         active = {str(pk) for pk in Download.objects.filter(status__in=Download.ACTIVE_STATUSES).values_list("pk", flat=True)}
         for directory in root.iterdir():
-            if directory.is_dir() and directory.name not in active:
+            if directory.is_dir() and directory.name.isdigit() and directory.name not in active:
+                shutil.rmtree(directory, ignore_errors=True)
+    encoding = root / media.RENDITIONS_DIR
+    if encoding.is_dir():
+        for directory in encoding.iterdir():
+            if directory.name != str(renditions.in_progress):
                 shutil.rmtree(directory, ignore_errors=True)
 
 
@@ -69,11 +80,14 @@ class Command(BaseCommand):
         self.wait_for_database()
         engine = TorrentEngine(listen_port=settings.TORRENT_LISTEN_PORT)
         background = ThreadPoolExecutor(max_workers=1, thread_name_prefix="background")
+        # Encoding a film takes long: it gets its own thread so that the other jobs keep running.
+        encoder = ThreadPoolExecutor(max_workers=1, thread_name_prefix="renditions")
         tasks = [
-            # [callable, interval, next run, running future]
-            [process_subtitles, SUBTITLES_INTERVAL, 0.0, None],
-            [warm_catalog, CATALOG_INTERVAL, 0.0, None],
-            [purge, PURGE_INTERVAL, 0.0, None],
+            # [callable, interval, next run, running future, executor]
+            [process_subtitles, SUBTITLES_INTERVAL, 0.0, None, background],
+            [warm_catalog, CATALOG_INTERVAL, 0.0, None, background],
+            [purge, PURGE_INTERVAL, 0.0, None, background],
+            [process_renditions, RENDITIONS_INTERVAL, 0.0, None, encoder],
         ]
         self.stdout.write("torrent worker started")
 
@@ -89,14 +103,15 @@ class Command(BaseCommand):
 
             now = time.monotonic()
             for task in tasks:
-                function, interval, next_run, future = task
+                function, interval, next_run, future, executor = task
                 if now >= next_run and (future is None or future.done()):
                     task[2] = now + interval
-                    task[3] = background.submit(self.run_task, function)
+                    task[3] = executor.submit(self.run_task, function)
             time.sleep(1)
 
         engine.shutdown()
         background.shutdown(wait=False, cancel_futures=True)
+        encoder.shutdown(wait=False, cancel_futures=True)
         self.stdout.write("torrent worker stopped")
 
     def stop(self, *args):

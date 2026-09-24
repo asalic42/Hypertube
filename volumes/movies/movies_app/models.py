@@ -167,6 +167,11 @@ class Download(models.Model):
     storage_key = models.CharField(max_length=512, blank=True)
     storage_size = models.BigIntegerField(null=True, blank=True)
     content_type = models.CharField(max_length=64, blank=True)
+    # Frame size of the stored video, read once the file is complete.
+    width = models.PositiveIntegerField(null=True, blank=True)
+    height = models.PositiveIntegerField(null=True, blank=True)
+    # Set once the lower resolutions to encode were decided (possibly none).
+    renditions_planned = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -174,6 +179,35 @@ class Download(models.Model):
 
     def __str__(self):
         return f"{self.movie_id}:{self.status}"
+
+
+class Rendition(models.Model):
+    """A lower resolution copy of a stored movie, encoded by the worker once the download is complete."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending"
+        READY = "ready"
+        FAILED = "failed"
+
+    download = models.ForeignKey(Download, on_delete=models.CASCADE, related_name="renditions")
+    height = models.PositiveIntegerField()
+    width = models.PositiveIntegerField(null=True, blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True)
+    storage_key = models.CharField(max_length=512, blank=True)
+    storage_size = models.BigIntegerField(null=True, blank=True)
+    content_type = models.CharField(max_length=64, blank=True)
+    error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("download", "height"), name="unique_download_rendition"),
+        ]
+        ordering = ("-height",)
+
+    def __str__(self):
+        return f"{self.download_id}:{self.height}p"
 
 
 class Subtitle(models.Model):

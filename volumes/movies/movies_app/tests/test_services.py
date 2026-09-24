@@ -1,10 +1,15 @@
+import json
+import tempfile
+from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+from botocore.exceptions import ClientError
+
 from django.test import SimpleTestCase, TestCase, override_settings
 
-from movies_app.models import Comment, MergedMovie, Movie, SourceItem, Subtitle, Torrent, WatchRecord
-from movies_app.services import catalog, media, streaming, subtitles, tmdb
+from movies_app.models import Comment, Download, MergedMovie, Movie, Rendition, SourceItem, Subtitle, Torrent, WatchRecord
+from movies_app.services import catalog, media, renditions, streaming, subtitles, tmdb
 from movies_app.services.providers import ProviderItem, ProviderTorrent, archive, publicdomaintorrents
 from movies_app.services.titles import clean_title
 
@@ -73,6 +78,108 @@ class MediaPathTests(SimpleTestCase):
             str(media.local_video_path(SimpleNamespace(local_path="1/data/film/film.mp4"))),
             "/downloads/1/data/film/film.mp4",
         )
+
+
+class RenditionLadderTests(SimpleTestCase):
+    @override_settings(MOVIE_RENDITION_HEIGHTS=(1080, 720, 480, 360))
+    def test_only_lower_resolutions_are_made(self):
+        self.assertEqual(media.rendition_heights(1080), [720, 480, 360])
+        self.assertEqual(media.rendition_heights(720), [480, 360])
+        self.assertEqual(media.rendition_heights(2160), [1080, 720, 480, 360])
+        self.assertEqual(media.rendition_heights(360), [])
+        self.assertEqual(media.rendition_heights(None), [])
+
+    def test_probe_ignores_cover_art(self):
+        streams = {
+            "streams": [
+                {"codec_type": "video", "codec_name": "mjpeg", "width": 300, "height": 300},
+                {"codec_type": "video", "codec_name": "h264", "width": 1280, "height": 720},
+                {"codec_type": "audio", "codec_name": "aac"},
+            ]
+        }
+        with mock.patch("movies_app.services.media._run", return_value=SimpleNamespace(stdout=json.dumps(streams).encode())):
+            info = media.probe(Path("/x/video.mp4"))
+        self.assertEqual((info["width"], info["height"]), (1280, 720))
+        self.assertEqual((info["video_codecs"], info["audio_codecs"]), ({"mjpeg", "h264"}, {"aac"}))
+
+
+class RenditionWorkerTests(TestCase):
+    def make_download(self, **fields):
+        movie = Movie.objects.create(title="Charade")
+        fields = {"status": Download.Status.READY, "storage_key": f"{movie.pk}/video.mp4", "storage_size": 10, **fields}
+        return Download.objects.create(movie=movie, **fields)
+
+    @override_settings(MOVIE_RENDITION_HEIGHTS=(1080, 720, 480, 360))
+    def test_planning_records_the_frame_size_and_queues_the_ladder(self):
+        download = self.make_download()
+        with mock.patch("movies_app.services.media.probe", return_value={"width": 1280, "height": 720, "video_codecs": set(), "audio_codecs": set()}):
+            renditions.plan(download, Path("/x/final.mp4"))
+        download.refresh_from_db()
+        self.assertEqual((download.width, download.height, download.renditions_planned), (1280, 720, True))
+        self.assertEqual(list(download.renditions.values_list("height", "status")), [(480, "pending"), (360, "pending")])
+
+    def test_unreadable_file_makes_no_rendition(self):
+        download = self.make_download()
+        with mock.patch("movies_app.services.media.probe", side_effect=media.MediaError("bad")):
+            renditions.plan(download, Path("/x/final.mp4"))
+        download.refresh_from_db()
+        self.assertEqual((download.height, download.renditions_planned, download.renditions.count()), (None, True, 0))
+
+    @override_settings(MOVIE_RENDITION_HEIGHTS=(720, 480))
+    def test_worker_encodes_from_the_stored_file(self):
+        stale = self.make_download(renditions_planned=True)  # nothing pending: never picked
+        download = self.make_download()
+        self.assertEqual(renditions.next_download(), download)
+
+        def fake_encode(source, target, height):
+            target.write_bytes(b"v" * height)
+            return target, "video/mp4"
+
+        with tempfile.TemporaryDirectory() as root, override_settings(MOVIES_DOWNLOAD_DIR=root), \
+                mock.patch("movies_app.services.storage.download_file", side_effect=lambda key, path: Path(path).write_bytes(b"src")), \
+                mock.patch("movies_app.services.storage.upload_file") as upload, \
+                mock.patch("movies_app.services.media.probe", return_value={"width": 1920, "height": 1080, "video_codecs": set(), "audio_codecs": set()}), \
+                mock.patch("movies_app.services.media.encode_rendition", side_effect=fake_encode):
+            self.assertTrue(renditions.process_next())
+            self.assertFalse(Path(root, "renditions").exists() and any(Path(root, "renditions").iterdir()))
+        self.assertEqual([call.args[1] for call in upload.call_args_list], [f"{download.movie_id}/video_720p.mp4", f"{download.movie_id}/video_480p.mp4"])
+        self.assertEqual(
+            list(download.renditions.values_list("height", "status", "storage_size", "width")),
+            [(720, "ready", 720, 1920), (480, "ready", 480, 1920)],
+        )
+        self.assertIsNone(renditions.next_download())
+        self.assertFalse(renditions.process_next())
+        self.assertEqual(stale.renditions.count(), 0)
+
+    def test_encoding_failure_is_recorded_and_not_retried_forever(self):
+        download = self.make_download(renditions_planned=True, height=720)
+        Rendition.objects.create(download=download, height=480)
+        with tempfile.TemporaryDirectory() as root, override_settings(MOVIES_DOWNLOAD_DIR=root), \
+                mock.patch("movies_app.services.storage.download_file", side_effect=lambda key, path: Path(path).write_bytes(b"src")), \
+                mock.patch("movies_app.services.media.encode_rendition", side_effect=media.MediaError("ffmpeg failed")):
+            self.assertTrue(renditions.process_next())
+        rendition = download.renditions.get()
+        self.assertEqual((rendition.status, rendition.error), ("failed", "ffmpeg failed"))
+        self.assertIsNone(renditions.next_download())
+
+    def test_missing_stored_file_gives_up(self):
+        download = self.make_download()
+        error = ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject")
+        with tempfile.TemporaryDirectory() as root, override_settings(MOVIES_DOWNLOAD_DIR=root), \
+                mock.patch("movies_app.services.storage.download_file", side_effect=error):
+            self.assertTrue(renditions.process_next())
+        download.refresh_from_db()
+        self.assertTrue(download.renditions_planned)
+        self.assertIsNone(renditions.next_download())
+
+    def test_removal_erases_every_stored_file(self):
+        download = self.make_download()
+        Rendition.objects.create(download=download, height=480, status=Rendition.Status.READY, storage_key="k/480")
+        Rendition.objects.create(download=download, height=360)
+        with mock.patch("movies_app.services.storage.delete") as delete:
+            renditions.remove_stored(download)
+        self.assertEqual([call.args[0] for call in delete.call_args_list], [download.storage_key, "k/480"])
+        self.assertEqual(download.renditions.count(), 0)
 
 
 class ProviderTests(SimpleTestCase):

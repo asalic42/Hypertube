@@ -19,7 +19,7 @@ from movies_app.models import (
     WatchRecord,
     normalize_title,
 )
-from movies_app.services import storage, tmdb
+from movies_app.services import renditions, storage, tmdb
 from movies_app.services.providers import ProviderError, archive, publicdomaintorrents
 from movies_app.services.titles import clean_title
 
@@ -238,7 +238,7 @@ def merge_movies(keep, duplicate):
     duplicate_download = getattr(duplicate, "download", None)
     if duplicate_download is not None:
         if hasattr(keep, "download"):
-            storage.delete(duplicate_download.storage_key)
+            renditions.remove_stored(duplicate_download)
         else:
             duplicate_download.movie = keep
             duplicate_download.save(update_fields=["movie"])

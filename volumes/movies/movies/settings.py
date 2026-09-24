@@ -141,6 +141,8 @@ MOVIES_DOWNLOAD_DIR = os.environ.get("MOVIES_DOWNLOAD_DIR") or "/downloads"
 TORRENT_LISTEN_PORT = int(os.environ.get("TORRENT_LISTEN_PORT") or 6881)
 # A stored movie nobody watched for this long is erased.
 MOVIE_RETENTION_DAYS = 30
+# Lower resolutions encoded once a movie is stored; only those below the source's height are made.
+MOVIE_RENDITION_HEIGHTS = (1080, 720, 480, 360)
 STREAM_TOKEN_MAX_AGE = timedelta(hours=12)
 
 # External services. Metadata and subtitles are simply skipped without their key.
