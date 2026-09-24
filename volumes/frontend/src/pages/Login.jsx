@@ -12,17 +12,56 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Link } from "react-router-dom";
+import { toast } from "@/components/ui/toast";
+import { ensureCsrfToken } from "@/lib/csrf";
+import { useNavigate } from "react-router-dom";
 
-export default function Login() {
+
+export default function Login({ onLoginSuccess }) {
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({email: '', password: ''});
 
     function handleChange(e) {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     }
 
-    function handleSubmit(e) {
+    async function handleSubmit(e) {
         e.preventDefault();
-        console.log(formData);
+
+        try {
+            const csrfToken = await ensureCsrfToken();
+
+            const response = await fetch('https://localhost:8080/api/auth/login/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+                credentials: 'include',
+                body: JSON.stringify(formData),
+            });
+            
+            if(!response.ok) {
+                const errorData = await response.json();
+                console.error('Détail de l\'erreur :', errorData);
+                throw new Error(errorData.detail);
+            }
+            
+            const data = await response.json();
+            const accessToken = data.access;
+
+            localStorage.setItem('access_token', accessToken);
+
+            onLoginSuccess();
+            navigate('/home');
+            
+        } catch (err) {
+            toast.add({
+                title: "Error",
+                description: err.message,
+                type: "error",
+            });
+        }
     }
 
     return (
@@ -72,13 +111,13 @@ export default function Login() {
                         required 
                     />
                     </div>
+                <Button type="submit" className="w-full">
+                Login
+                </Button>
                 </div>
                 </form>
             </CardContent>
             <CardFooter className="flex-col gap-2">
-                <Button type="submit" className="w-full">
-                Login
-                </Button>
                 <Button variant="outline" className="w-full">
                 Login with Google
                 </Button>

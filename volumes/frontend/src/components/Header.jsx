@@ -1,10 +1,44 @@
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
+import { ensureCsrfToken } from "@/lib/csrf";
+import { toast } from "@/components/ui/toast";
+import { fetchWithAuth } from '@/lib/refreshFlow';
 
-function Header() {
+
+function Header({ onLogout }) {
+    const navigate = useNavigate();
     const location = useLocation();
     const pagesAuth = ['/login', '/signup', '/forgot-password', '/reset-password'];
+
+    async function handleLogout() {
+        try{
+            const csrfToken = await ensureCsrfToken();
+
+            const response = await fetchWithAuth('https://localhost:8080/api/auth/logout/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+                credentials: 'include',
+            });
+            if(!response.ok) {
+                throw new Error(`Erreur ${response.status} lors de la déconnexion`);
+            }
+        } catch (err) {
+            console.log(err);
+            toast.add({
+                title: "Error",
+                description: err.message,
+                type: "error",
+            });
+        } finally {
+            localStorage.removeItem('access_token');
+            onLogout();
+            navigate('/login');
+        }
+    }
 
     if (pagesAuth.includes(location.pathname)) {
         return null;
@@ -31,9 +65,11 @@ function Header() {
             <Link to="/home" className="flex items-center px-4 hover:bg-black">
                 Language
             </Link>
-            <Link to="/home" className="flex items-center px-4 hover:bg-black">
-                Disconnect
-            </Link>
+
+            <button type="button" onClick={handleLogout} className="flex items-center px-4 hover:bg-black">
+                Logout
+            </button>
+            
             <Link to="/profile" className="flex items-center px-4 hover:bg-black">
                 Profile
             </Link>
