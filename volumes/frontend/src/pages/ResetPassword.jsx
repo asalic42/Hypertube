@@ -1,8 +1,17 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardAction,
+  CardContent,
+  CardFooter
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Link } from "react-router-dom";
+import AuthLayout from "@/components/AuthLayout";
 
 export default function ResetPassword() {
     const [formData, setFormData] = useState({ new_password: '', confirm_password: '' })
@@ -16,26 +25,53 @@ export default function ResetPassword() {
         console.log(formData);
     }
     return(
-        <div className="login-container">
-            <h1>Reset password</h1>
-            <form onSubmit={handleSubmit}>
-                <label>New password:</label>
-                <input
-                    type="password"
-                    name="new-password"
-                    value={formData.new_password}
-                    onChange={handleChange}
-                />
-
-                <label>Confirmation password:</label>
-                <input
-                    type="password"
-                    name="confirm-password"
-                    value={formData.confirm_password}
-                    onChange={handleChange}
-                />
-                <Button type="submit">Change password</Button>
-            </form>
-        </div>
+        <AuthLayout className="max-w-md">
+            <CardHeader>
+                <CardTitle>Reset password</CardTitle>
+                <CardDescription>
+                Choose a new password for your account
+                </CardDescription>
+                <CardAction>
+                <Button render={<Link to="/login" />} nativeButton={false} variant="link">
+                    Login
+                </Button>
+                </CardAction>
+            </CardHeader>
+            <CardContent>
+                <form id="reset-password-form" onSubmit={handleSubmit}>
+                <div className="flex flex-col gap-5 sm:gap-6">
+                    <div className="grid gap-2">
+                    <Label htmlFor="new_password">New password</Label>
+                    <Input
+                        id="new_password"
+                        type="password"
+                        name="new_password"
+                        autoComplete="new-password"
+                        value={formData.new_password}
+                        onChange={handleChange}
+                        required
+                    />
+                    </div>
+                    <div className="grid gap-2">
+                    <Label htmlFor="confirm_password">Password confirmation</Label>
+                    <Input
+                        id="confirm_password"
+                        type="password"
+                        name="confirm_password"
+                        autoComplete="new-password"
+                        value={formData.confirm_password}
+                        onChange={handleChange}
+                        required
+                    />
+                    </div>
+                </div>
+                </form>
+            </CardContent>
+            <CardFooter className="flex-col gap-2">
+                <Button type="submit" form="reset-password-form" className="h-10 w-full sm:h-9">
+                Change password
+                </Button>
+            </CardFooter>
+        </AuthLayout>
     )
 }

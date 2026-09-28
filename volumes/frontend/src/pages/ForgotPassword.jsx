@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button"
-import { 
-  Card, 
-  CardHeader, 
-  CardTitle, 
-  CardDescription, 
-  CardAction, 
-  CardContent, 
-  CardFooter 
+import {
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardAction,
+  CardContent,
+  CardFooter
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Link } from "react-router-dom";
+import AuthLayout from "@/components/AuthLayout";
 
 export default function ForgotPassword() {
     const [formData, setFormData] = useState({ email: '' })
@@ -25,11 +25,11 @@ export default function ForgotPassword() {
         console.log(formData);
     }
     return(
-        <Card className="w-full max-w-sm">
+        <AuthLayout className="max-w-md">
             <CardHeader>
                 <CardTitle>Forgot password</CardTitle>
                 <CardDescription>
-                Enter your email to reset your password 
+                Enter your email to reset your password
                 </CardDescription>
                 <CardAction>
                 <Button render={<Link to="/login" />} nativeButton={false} variant="link">
@@ -39,13 +39,14 @@ export default function ForgotPassword() {
             </CardHeader>
             <CardContent>
                 <form id="forgot-password-form" onSubmit={handleSubmit}>
-                <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-5 sm:gap-6">
                     <div className="grid gap-2">
                     <Label htmlFor="email">Email</Label>
                     <Input
                         id="email"
                         type="email"
                         name="email"
+                        autoComplete="email"
                         placeholder="m@example.com"
                         value={formData.email}
                         onChange={handleChange}
@@ -56,10 +57,10 @@ export default function ForgotPassword() {
                 </form>
             </CardContent>
             <CardFooter className="flex-col gap-2">
-                <Button type="submit" className="w-full">
+                <Button type="submit" form="forgot-password-form" className="h-10 w-full sm:h-9">
                 Send
                 </Button>
             </CardFooter>
-        </Card>
+        </AuthLayout>
     )
 }

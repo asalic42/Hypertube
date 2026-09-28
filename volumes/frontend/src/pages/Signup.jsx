@@ -1,13 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button"
-import { 
-  Card, 
-  CardHeader, 
-  CardTitle, 
-  CardDescription, 
-  CardAction, 
-  CardContent, 
-  CardFooter 
+import {
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardAction,
+  CardContent
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { NativeSelect } from "@/components/ui/native-select";
 import { toast } from "@/components/ui/toast";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import AuthLayout from "@/components/AuthLayout";
 
 
 export default function Signup() {
@@ -88,19 +87,19 @@ export default function Signup() {
                 method: 'POST',
                 body: data,
             });
-            
+
             if (!response_reg.ok) {
                 const errorData = await response_reg.json();
                 console.error('Détail de l\'erreur :', errorData);
                 throw new Error('Error register user');
             }
-            
+
 
             const response_cr = await fetch('/api/users/', {
                 method: 'POST',
                 body: data,
             });
-            
+
             if (!response_cr.ok) {
                 const result_reg = await response_reg.json();
                 const user_id = result_reg.id;
@@ -122,7 +121,7 @@ export default function Signup() {
                 type : "success",
             });
             navigate('/login');
-        
+
         } catch (err) {
             console.error(err);
             toast.add({
@@ -134,7 +133,7 @@ export default function Signup() {
     }
 
     return (
-        <Card className="w-full max-w-lg">
+        <AuthLayout>
             <CardHeader>
                 <CardTitle>Create account</CardTitle>
                 <CardDescription>
@@ -149,7 +148,7 @@ export default function Signup() {
 
             <CardContent>
                 <form id="signup-form" onSubmit={handleSubmit}>
-                    <div className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-5 sm:gap-6">
 
                         <div className="grid gap-2">
                             <Label htmlFor="username">Username</Label>
@@ -157,55 +156,8 @@ export default function Signup() {
                                 id="username"
                                 type="text"
                                 name="username"
+                                autoComplete="username"
                                 value={formData.username}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="password">Password</Label>
-                            <Input
-                                id="password"
-                                type="password"
-                                name="password"
-                                value={formData.password}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="confirm_password">Password confirmation</Label>
-                            <Input
-                                id="confirm_password"
-                                type="password"
-                                name="confirm_password"
-                                value={formData.confirm_password}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="firstname">First name</Label>
-                            <Input
-                                id="firstname"
-                                type="text"
-                                name="firstname"
-                                value={formData.firstname}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="lastname">Last name</Label>
-                            <Input
-                                id="lastname"
-                                type="text"
-                                name="lastname"
-                                value={formData.lastname}
                                 onChange={handleChange}
                                 required
                             />
@@ -217,6 +169,7 @@ export default function Signup() {
                                 id="email"
                                 type="email"
                                 name="email"
+                                autoComplete="email"
                                 placeholder="m@example.com"
                                 value={formData.email}
                                 onChange={handleChange}
@@ -224,11 +177,68 @@ export default function Signup() {
                             />
                         </div>
 
+                        {/* Side by side from tablets up, stacked on phones. */}
+                        <div className="grid gap-5 sm:grid-cols-2 sm:gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="firstname">First name</Label>
+                                <Input
+                                    id="firstname"
+                                    type="text"
+                                    name="firstname"
+                                    autoComplete="given-name"
+                                    value={formData.firstname}
+                                    onChange={handleChange}
+                                    required
+                                />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="lastname">Last name</Label>
+                                <Input
+                                    id="lastname"
+                                    type="text"
+                                    name="lastname"
+                                    autoComplete="family-name"
+                                    value={formData.lastname}
+                                    onChange={handleChange}
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid gap-5 sm:grid-cols-2 sm:gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="password">Password</Label>
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    name="password"
+                                    autoComplete="new-password"
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                    required
+                                />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="confirm_password">Password confirmation</Label>
+                                <Input
+                                    id="confirm_password"
+                                    type="password"
+                                    name="confirm_password"
+                                    autoComplete="new-password"
+                                    value={formData.confirm_password}
+                                    onChange={handleChange}
+                                    required
+                                />
+                            </div>
+                        </div>
+
                         <div className="grid gap-2">
-                            <Label htmlFor="password">Avatar</Label>
+                            <Label htmlFor="profilePic">Avatar</Label>
                             {preview && (
-                            <div className="flex justify-center gap-2">
-                                <Avatar className="size-40">
+                            <div className="flex items-center gap-3">
+                                <Avatar className="size-20 sm:size-24">
                                     <AvatarImage src={preview} alt="Preview" />
                                     <AvatarFallback>?</AvatarFallback>
                                 </Avatar>
@@ -237,7 +247,7 @@ export default function Signup() {
                                     variant="ghost"
                                     size="sm"
                                     onClick={handleRemovePhoto}
-                                >x</Button>
+                                >Remove photo</Button>
                             </div>
                             )}
                             <Input
@@ -246,14 +256,17 @@ export default function Signup() {
                                 type="file"
                                 name="avatar"
                                 accept="image/*"
+                                className="h-auto py-2"
                                 onChange={handleFileChange}
                             />
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="password">Language</Label>
+                            <Label htmlFor="preferredLanguage">Language</Label>
                             <NativeSelect
+                                id="preferredLanguage"
                                 name="preferredLanguage"
+                                className="w-full"
                                 value={formData.preferredLanguage}
                                 onChange={handleChange}
                             >
@@ -270,12 +283,12 @@ export default function Signup() {
                             </NativeSelect>
                         </div>
 
-                        <Button type="submit" className="w-full">
+                        <Button type="submit" className="h-10 w-full sm:h-9">
                             Signup
                         </Button>
                     </div>
                 </form>
             </CardContent>
-        </Card>
+        </AuthLayout>
     )
 }
