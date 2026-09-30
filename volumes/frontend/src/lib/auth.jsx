@@ -40,6 +40,16 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const value = useMemo(() => ({ user, loading, login, logout }), [user, loading, login, logout]);
+  // After the account itself changed (email) or is gone (deleted).
+  const updateUser = useCallback((me) => setUser(me), []);
+  const clearSession = useCallback(() => {
+    setAccessToken(null);
+    setUser(null);
+  }, []);
+
+  const value = useMemo(
+    () => ({ user, loading, login, logout, updateUser, clearSession }),
+    [user, loading, login, logout, updateUser, clearSession],
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

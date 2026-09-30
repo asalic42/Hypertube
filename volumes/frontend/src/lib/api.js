@@ -32,13 +32,23 @@ async function csrfToken() {
   return getCookie('csrftoken');
 }
 
+// Answers that do not come from our services (the proxy's own error pages) in plain words.
+const STATUS_MESSAGES = {
+  413: 'The file is too large.',
+  429: 'Too many requests, please wait a moment.',
+  502: 'The server is unavailable right now.',
+  503: 'The server is unavailable right now.',
+  504: 'The server took too long to answer.',
+};
+
 async function parse(response) {
   if (response.status === 204) return null;
   const text = await response.text();
   try {
     return text ? JSON.parse(text) : null;
   } catch {
-    return { detail: text };
+    // Not JSON, so not from our API: never show raw HTML to the user.
+    return { detail: STATUS_MESSAGES[response.status] || `Request failed (${response.status})` };
   }
 }
 
@@ -105,6 +115,13 @@ export const auth = {
   me() {
     return api('/api/auth/me/');
   },
+  // Only the email can change on the account itself; it is the login.
+  updateMe(fields) {
+    return api('/api/auth/me/', { method: 'PATCH', body: fields, csrf: true });
+  },
+  deleteMe() {
+    return api('/api/auth/me/', { method: 'DELETE', csrf: true });
+  },
 };
 
 export const movies = {
@@ -132,6 +149,41 @@ export const movies = {
   },
   addComment(id, comment) {
     return api(`/api/movies/${id}/comments/`, { method: 'POST', body: { comment } });
+  },
+};
+
+export const users = {
+  // The public profile of any user: no email is ever shown from it.
+  async get(username) {
+    const data = await api(`/api/users/${encodeURIComponent(username)}/`);
+    return data.user;
+  },
+  // A temporary URL of the profile picture, or null when the user has none.
+  async avatarUrl(username) {
+    try {
+      const data = await api(`/api/users/${encodeURIComponent(username)}/avatar/`);
+      return data.avatar_url;
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return null;
+      throw err;
+    }
+  },
+  async update(username, fields) {
+    const body = new FormData();
+    for (const [key, value] of Object.entries(fields)) body.append(key, value);
+    const data = await api(`/api/users/${encodeURIComponent(username)}/`, { method: 'PATCH', body });
+    return data.user;
+  },
+  updateAvatar(username, file) {
+    const body = new FormData();
+    body.append('avatar', file);
+    return api(`/api/users/${encodeURIComponent(username)}/avatar/`, { method: 'PATCH', body });
+  },
+  deleteAvatar(username) {
+    return api(`/api/users/${encodeURIComponent(username)}/avatar/`, { method: 'DELETE' });
+  },
+  remove(username) {
+    return api(`/api/users/${encodeURIComponent(username)}/`, { method: 'DELETE' });
   },
 };
 

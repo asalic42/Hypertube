@@ -75,6 +75,7 @@ class PublicUserUpdateSerializer(serializers.ModelSerializer):
         fields = [
             "firstname", 
             "lastname", 
+            "email",
             "preferredLanguage"
         ]
 

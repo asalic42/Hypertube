@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/toast";
 import { movies as moviesApi, comments as commentsApi } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
+import UserProfileDialog from "@/components/UserProfileDialog";
+import { useAvatarUrl } from "@/lib/avatars";
 
 const POLL_INTERVAL = 2000;
 const LANGUAGE_NAMES = new Intl.DisplayNames(["en"], { type: "language" });
@@ -142,7 +144,7 @@ function Player({ movieId, initialStatus }) {
                 ) : download?.status === "failed" ? (
                     <div className="text-center text-white p-4">
                         <p className="font-medium">This movie could not be downloaded.</p>
-                        <p className="text-sm text-gray-300">{download.error}</p>
+                        <p className="text-sm text-white/70">{download.error}</p>
                         <Button className="mt-3" variant="secondary" onClick={requestDownload}>Retry</Button>
                     </div>
                 ) : (
@@ -153,7 +155,7 @@ function Player({ movieId, initialStatus }) {
                             {download?.status === "processing" && "Preparing the file..."}
                             {!download && "Starting..."}
                         </p>
-                        <p className="text-sm text-gray-300">Playback starts as soon as enough data is available.</p>
+                        <p className="text-sm text-white/70">Playback starts as soon as enough data is available.</p>
                     </div>
                 )}
             </div>
@@ -188,7 +190,7 @@ function Player({ movieId, initialStatus }) {
     );
 }
 
-function CommentItem({ comment, own, onChanged }) {
+function CommentItem({ comment, own, onChanged, onShowProfile }) {
     const [editing, setEditing] = useState(false);
     const [text, setText] = useState(comment.comment);
 
@@ -211,14 +213,21 @@ function CommentItem({ comment, own, onChanged }) {
         }
     }
 
+    // The author's public profile opens in a modal above the page.
+    const showProfile = () => onShowProfile(comment.username);
+    const pictureUrl = useAvatarUrl(comment.username);
+
     return (
         <div className="flex gap-3">
-            <Avatar className="size-8 shrink-0">
-                <AvatarFallback>{comment.username[0].toUpperCase()}</AvatarFallback>
-            </Avatar>
+            <button type="button" onClick={showProfile} aria-label={`Profile of ${comment.username}`} className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+                <Avatar className="size-8">
+                    {pictureUrl && <AvatarImage src={pictureUrl} alt="" />}
+                    <AvatarFallback>{comment.username[0].toUpperCase()}</AvatarFallback>
+                </Avatar>
+            </button>
             <div className="flex flex-1 flex-col gap-1">
                 <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{comment.username}</span>
+                    <button type="button" onClick={showProfile} className="font-medium text-sm underline-offset-4 hover:underline">{comment.username}</button>
                     <span className="text-xs text-muted-foreground">{new Date(comment.created_at).toLocaleString()}</span>
                     {own && !editing && (
                         <span className="ml-auto flex gap-1">
@@ -254,6 +263,8 @@ function Comments({ movieId }) {
     const [comments, setComments] = useState([]);
     const [nextPage, setNextPage] = useState(null);
     const [text, setText] = useState("");
+    // Username whose profile is open in the modal, null when closed.
+    const [profileUser, setProfileUser] = useState(null);
 
     function showError(err) {
         toast.add({ title: "Error", description: err.message, type: "error" });
@@ -311,12 +322,19 @@ function Comments({ movieId }) {
             <div className="flex flex-col gap-4">
                 {comments.length === 0 && <p className="text-sm text-muted-foreground">No comment yet.</p>}
                 {comments.map((comment) => (
-                    <CommentItem key={comment.id} comment={comment} own={comment.username === user.username} onChanged={(updated) => replace(comment.id, updated)} />
+                    <CommentItem
+                        key={comment.id}
+                        comment={comment}
+                        own={comment.username === user.username}
+                        onChanged={(updated) => replace(comment.id, updated)}
+                        onShowProfile={setProfileUser}
+                    />
                 ))}
                 {nextPage && (
                     <Button type="button" variant="outline" className="self-center" onClick={loadMore}>Load more</Button>
                 )}
             </div>
+            <UserProfileDialog username={profileUser} onClose={() => setProfileUser(null)} />
         </div>
     );
 }
@@ -379,7 +397,8 @@ function MoviePage({ id }) {
                                 {film.cast.map((member) => (
                                     <li key={member.name} className="flex items-center gap-2 rounded-md bg-muted px-2 py-1 text-xs">
                                         <Avatar className="size-6">
-                                            {member.picture_url && <img src={member.picture_url} alt="" className="size-full rounded-full object-cover" />}
+                                            {/* The fallback initial only shows while there is no picture, or when it fails to load. */}
+                                            {member.picture_url && <AvatarImage src={member.picture_url} alt="" />}
                                             <AvatarFallback>{member.name[0]}</AvatarFallback>
                                         </Avatar>
                                         <span>{member.name}{member.character && <span className="text-muted-foreground"> as {member.character}</span>}</span>

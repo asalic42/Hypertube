@@ -15,6 +15,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { toast } from "@/components/ui/toast";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import AuthLayout from "@/components/AuthLayout";
+import { LANGUAGES, defaultLanguage } from "@/lib/languages";
 
 
 export default function Signup() {
@@ -27,7 +28,7 @@ export default function Signup() {
         lastname: '',
         firstname: '',
         avatar: null,
-        preferredLanguage: ''
+        preferredLanguage: defaultLanguage()
     });
     const [preview, setPreview] = useState(null);
     const fileInputRef = useRef(null);
@@ -270,16 +271,9 @@ export default function Signup() {
                                 value={formData.preferredLanguage}
                                 onChange={handleChange}
                             >
-                                <option value="en">English</option>
-                                <option value="fr">French</option>
-                                <option value="es">Spanish</option>
-                                <option value="de">German</option>
-                                <option value="it">Italian</option>
-                                <option value="pt">Portuguese</option>
-                                <option value="ru">Russian</option>
-                                <option value="zh">Chinese</option>
-                                <option value="ja">Japanese</option>
-                                <option value="ko">Korean</option>
+                                {LANGUAGES.map(([value, name]) => (
+                                    <option key={value} value={value}>{name}</option>
+                                ))}
                             </NativeSelect>
                         </div>
 
