@@ -24,6 +24,33 @@ CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_PATH = "/"
 CSRF_FAILURE_VIEW = "auth_app.views.csrf.csrf_failure"
 
+# Email configuration:
+
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.smtp.EmailBackend",
+)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "mailpit")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "1025"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "false") == "true"
+EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "false") == "true"
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DEFAULT_FROM_EMAIL",
+    "no-reply@hypertube.local",
+)
+
+FRONTEND_BASE_URL = os.getenv(
+    "FRONTEND_BASE_URL",
+    "https://localhost:8080",
+)
+
+PASSWORD_RESET_TIMEOUT = int(
+    os.getenv("PASSWORD_RESET_TIMEOUT", "3600"),
+)
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -140,6 +167,8 @@ REST_FRAMEWORK = {
         "login": "10/minute",
         "refresh": "30/minute",
         "verify": "60/minute",
+        "forgot": "5/minute",
+        "reset": "10/minute",
     },
 }
 
