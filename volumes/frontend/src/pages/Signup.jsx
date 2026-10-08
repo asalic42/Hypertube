@@ -13,9 +13,13 @@ import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { NativeSelect } from "@/components/ui/native-select";
 import { toast } from "@/components/ui/toast";
+import { api } from "@/lib/api";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import AuthLayout from "@/components/AuthLayout";
 import { LANGUAGES, defaultLanguage } from "@/lib/languages";
+
+const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 
 
 export default function Signup() {
@@ -31,26 +35,29 @@ export default function Signup() {
         preferredLanguage: defaultLanguage()
     });
     const [preview, setPreview] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
     const fileInputRef = useRef(null);
 
     // nettoyage memoire au demontage du composant
-    useEffect(() => {
-        return () => {
-            if (preview) {
-                URL.revokeObjectURL(preview);
-            }
-        };
-    }, []);
+    // The preview is an object URL: release it when replaced or when leaving the page.
+    useEffect(() => () => preview && URL.revokeObjectURL(preview), [preview]);
 
     function handleFileChange(e) {
         const file = e.target.files[0];
-        if (preview) {
-            URL.revokeObjectURL(preview);
+        if (!file) return;
+        // Same limits as the users service, so a bad picture is refused before the upload.
+        if (!AVATAR_TYPES.includes(file.type)) {
+            toast.add({ title: "Unsupported picture", description: "Use a JPEG, PNG or WebP image.", type: "error" });
+            e.target.value = "";
+            return;
+        }
+        if (file.size > AVATAR_MAX_BYTES) {
+            toast.add({ title: "Picture too large", description: "Choose an image of 5 MB or less.", type: "error" });
+            e.target.value = "";
+            return;
         }
         setFormData({ ...formData, avatar: file });
-        if (file) {
-            setPreview(URL.createObjectURL(file));
-        }
+        setPreview(URL.createObjectURL(file));
     }
 
     function handleRemovePhoto() {
@@ -70,66 +77,51 @@ export default function Signup() {
 
     async function handleSubmit(e) {
         e.preventDefault();
-
-        const data = new FormData();
-        data.append('username', formData.username);
-        data.append('password', formData.password)
-        data.append('password_confirmation', formData.confirm_password)
-        data.append('firstname', formData.firstname);
-        data.append('lastname', formData.lastname);
-        data.append('email', formData.email);
-        if (formData.avatar) {
-            data.append('avatar', formData.avatar);
+        if (formData.password !== formData.confirm_password) {
+            toast.add({ title: "Error", description: "The passwords do not match.", type: "error" });
+            return;
         }
-        data.append('preferredLanguage', formData.preferredLanguage);
+        setSubmitting(true);
+
+        const profile = new FormData();
+        profile.append('username', formData.username);
+        profile.append('firstname', formData.firstname);
+        profile.append('lastname', formData.lastname);
+        profile.append('email', formData.email);
+        profile.append('preferredLanguage', formData.preferredLanguage);
+        if (formData.avatar) {
+            profile.append('avatar', formData.avatar);
+        }
+        const account = {
+            username: formData.username,
+            email: formData.email,
+            password: formData.password,
+            password_confirmation: formData.confirm_password,
+        };
 
         try {
-            const response_reg = await fetch('/api/auth/register/', {
-                method: 'POST',
-                body: data,
-            });
-
-            if (!response_reg.ok) {
-                const errorData = await response_reg.json();
-                console.error('Détail de l\'erreur :', errorData);
-                throw new Error('Error register user');
+            // The public profile first: if the login cannot be created, the profile is removed again.
+            await api('/api/users/', { method: 'POST', body: profile, auth: false });
+            try {
+                await api('/api/auth/register/', { method: 'POST', body: account, auth: false });
+            } catch (err) {
+                await api(`/api/users/${encodeURIComponent(formData.username)}/`, { method: 'DELETE', auth: false }).catch(() => {});
+                throw err;
             }
-
-
-            const response_cr = await fetch('/api/users/', {
-                method: 'POST',
-                body: data,
-            });
-
-            if (!response_cr.ok) {
-                const result_reg = await response_reg.json();
-                const user_id = result_reg.id;
-                console.log("user id :", user_id);
-                const del = await fetch(`https://localhost:8080/api/auth/delete/${user_id}/`, {
-                    method: 'DELETE',
-                });
-
-                if (!del.ok) {
-                    throw new Error('Error deleting user');
-                }
-
-                throw new Error('Error creating user');
-            }
-
             toast.add({
                 title: "Account created",
-                description: "Account successfully created !",
-                type : "success",
+                description: "You can now log in.",
+                type: "success",
             });
             navigate('/login');
-
         } catch (err) {
-            console.error(err);
             toast.add({
-                title: "Error",
+                title: "Could not create the account",
                 description: err.message,
                 type: "error",
             });
+        } finally {
+            setSubmitting(false);
         }
     }
 
@@ -255,7 +247,7 @@ export default function Signup() {
                                 id="profilePic"
                                 type="file"
                                 name="avatar"
-                                accept="image/*"
+                                accept={AVATAR_TYPES.join(",")}
                                 className="h-auto py-2"
                                 onChange={handleFileChange}
                             />
@@ -276,8 +268,8 @@ export default function Signup() {
                             </NativeSelect>
                         </div>
 
-                        <Button type="submit" className="h-10 w-full sm:h-9">
-                            Signup
+                        <Button type="submit" className="h-10 w-full sm:h-9" disabled={submitting}>
+                            {submitting ? "Creating the account..." : "Signup"}
                         </Button>
                     </div>
                 </form>
