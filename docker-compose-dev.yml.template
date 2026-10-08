@@ -188,6 +188,16 @@ services:
         condition: service_healthy
     restart: "no"
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: hypertube-mailpit
+    networks:
+      - hypertube
+    ports:
+      - 1025:1025 # SMTP
+      - 8025:8025 # Web interface
+    restart: unless-stopped
+
   dbgate:
     image: dbgate/dbgate
     container_name: hypertube-dbgate

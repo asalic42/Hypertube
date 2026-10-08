@@ -11,25 +11,45 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Link } from "react-router-dom";
+import { toast } from "@/components/ui/toast";
+import { api } from "@/lib/api";
 import AuthLayout from "@/components/AuthLayout";
 
 export default function ForgotPassword() {
     const [formData, setFormData] = useState({ email: '' })
+    const [loading, setLoading] = useState(false)
 
     function handleChange(e) {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     }
 
-    function handleSubmit(e) {
+    async function handleSubmit(e) {
         e.preventDefault();
-        console.log(formData);
+        setLoading(true);
+        try {
+            // Anonymous endpoint: no access token, but the CSRF cookie and header.
+            await api('/api/auth/forgot-password/', { method: 'POST', body: formData, auth: false, csrf: true });
+            toast.add({
+                title: "Email sent",
+                description: "If an account matches this address, you will receive a reset link.",
+                type: "success",
+            });
+        } catch (err) {
+            toast.add({
+                title: "Error",
+                description: err.message,
+                type: "error",
+            });
+        } finally {
+            setLoading(false);
+        }
     }
     return(
         <AuthLayout className="max-w-md">
             <CardHeader>
                 <CardTitle>Forgot password</CardTitle>
                 <CardDescription>
-                Enter your email to reset your password
+                Enter your email to reset your password 
                 </CardDescription>
                 <CardAction>
                 <Button render={<Link to="/login" />} nativeButton={false} variant="link">
@@ -57,8 +77,8 @@ export default function ForgotPassword() {
                 </form>
             </CardContent>
             <CardFooter className="flex-col gap-2">
-                <Button type="submit" form="forgot-password-form" className="h-10 w-full sm:h-9">
-                Send
+                <Button type="submit" form="forgot-password-form" className="h-10 w-full sm:h-9" disabled={loading}>
+                {loading ? "Sending..." : "Send"}
                 </Button>
             </CardFooter>
         </AuthLayout>

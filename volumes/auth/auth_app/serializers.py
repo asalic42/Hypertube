@@ -118,3 +118,41 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 class HealthSerializer(serializers.Serializer):
     status = serializers.CharField()
     service = serializers.CharField()
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField(write_only=True)
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    new_password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+    )
+
+    confirm_password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+    )
+
+    def validate(self, attributes):
+        new_password = attributes.get("new_password")
+        confirm_password = attributes.pop(
+            "confirm_password",
+            None,
+        )
+
+        if new_password != confirm_password:
+            raise serializers.ValidationError(
+                {
+                    "confirm_password":
+                        "Passwords do not match."
+                }
+            )
+
+        validate_password(
+            new_password,
+            user=self.context.get("user"),
+        )
+
+        return attributes
