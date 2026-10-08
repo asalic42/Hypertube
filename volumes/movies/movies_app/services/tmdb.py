@@ -43,7 +43,6 @@ def is_configured():
 def _get(path, **params):
     key = settings.TMDB_API_KEY
     headers = {"Accept": "application/json"}
-    # v4 read tokens are JWTs sent as a bearer, v3 keys are a query parameter.
     if len(key) > 40:
         headers["Authorization"] = f"Bearer {key}"
     else:
@@ -51,7 +50,6 @@ def _get(path, **params):
     try:
         return http.get(f"{API_URL}{path}", params=params, headers=headers).json()
     except (requests.RequestException, ValueError) as error:
-        # The key travels in the URL for v3: never echo the request in errors.
         status = getattr(getattr(error, "response", None), "status_code", None)
         raise TMDbError(f"TMDb request to {path} failed (status {status})") from None
 
@@ -100,7 +98,6 @@ def find_id(title, year=None, imdb_id=""):
         params["year"] = year
     match = _pick(_get("/search/movie", **params).get("results", []), title, year)
     if match is None and year:
-        # Sources are often off on the year: retry without it, _pick still checks it loosely.
         params.pop("year")
         match = _pick(_get("/search/movie", **params).get("results", []), title, year)
     return match["id"] if match else None

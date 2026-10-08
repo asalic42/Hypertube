@@ -1,5 +1,3 @@
-// Same-origin calls through the nginx proxy: the access token lives in memory
-// and is renewed from the httpOnly refresh cookie when it expires.
 
 let accessToken = null;
 let refreshing = null;
@@ -32,7 +30,6 @@ async function csrfToken() {
   return getCookie('csrftoken');
 }
 
-// Answers that do not come from our services (the proxy's own error pages) in plain words.
 const STATUS_MESSAGES = {
   413: 'The file is too large.',
   429: 'Too many requests, please wait a moment.',
@@ -47,7 +44,6 @@ async function parse(response) {
   try {
     return text ? JSON.parse(text) : null;
   } catch {
-    // Not JSON, so not from our API: never show raw HTML to the user.
     return { detail: STATUS_MESSAGES[response.status] || `Request failed (${response.status})` };
   }
 }
@@ -66,7 +62,6 @@ async function rawFetch(path, { method = 'GET', body, headers = {}, auth = true,
 }
 
 export async function refreshAccessToken() {
-  // Concurrent 401s share one refresh call.
   refreshing ??= (async () => {
     try {
       const response = await rawFetch('/api/auth/refresh/', { method: 'POST', auth: false, csrf: true });
@@ -115,7 +110,6 @@ export const auth = {
   me() {
     return api('/api/auth/me/');
   },
-  // Only the email can change on the account itself; it is the login.
   updateMe(fields) {
     return api('/api/auth/me/', { method: 'PATCH', body: fields, csrf: true });
   },
@@ -153,12 +147,10 @@ export const movies = {
 };
 
 export const users = {
-  // The public profile of any user: no email is ever shown from it.
   async get(username) {
     const data = await api(`/api/users/${encodeURIComponent(username)}/`);
     return data.user;
   },
-  // A temporary URL of the profile picture, or null when the user has none.
   async avatarUrl(username) {
     try {
       const data = await api(`/api/users/${encodeURIComponent(username)}/avatar/`);

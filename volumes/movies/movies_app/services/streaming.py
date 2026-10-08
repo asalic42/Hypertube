@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 CHUNK_SIZE = 256 * 1024
 POLL_INTERVAL = 0.5
 STATUS_REFRESH_INTERVAL = 5
-# How long a viewer may wait for a piece before the response is cut short.
 PIECE_TIMEOUT = 90
 MIN_BUFFER_BYTES = 8 * 1024 * 1024
 MIN_BUFFER_RATIO = 0.03
@@ -164,7 +163,7 @@ def _feed(process, download):
         for chunk in iter_local(download, 0, download.file_size - 1):
             process.stdin.write(chunk)
     except (BrokenPipeError, OSError, ValueError):
-        pass  # ffmpeg exited or the viewer left
+        pass
     finally:
         try:
             process.stdin.close()
@@ -185,7 +184,7 @@ def iter_transcoded(download):
 def _iter_transcoded(download, path):
     complete = download.status != Download.Status.DOWNLOADING
     source = str(path) if complete else "pipe:0"
-    process = subprocess.Popen(  # noqa: S603
+    process = subprocess.Popen(
         ["ffmpeg", "-v", "error", "-i", source, *media.LIVE_OUTPUT],
         stdin=subprocess.DEVNULL if complete else subprocess.PIPE,
         stdout=subprocess.PIPE,

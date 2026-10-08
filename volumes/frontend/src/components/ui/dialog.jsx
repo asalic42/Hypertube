@@ -15,10 +15,6 @@ function DialogClose({ ...props }) {
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
-/**
- * A modal panel centered in the viewport above a dimmed backdrop. On phones
- * it keeps a 16px gutter and scrolls inside when taller than the screen.
- */
 function DialogContent({ className, children, showCloseButton = true, ...props }) {
   return (
     <DialogPrimitive.Portal>

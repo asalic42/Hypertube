@@ -40,7 +40,6 @@ def process_renditions():
 def warm_catalog():
     """Keep the front page listing fresh and enrich the catalogue little by little."""
     catalog.refresh_popular()
-    # Never-tried movies first: retries of unmatched ones must not starve the rest of the catalogue.
     queue = Movie.objects.order_by(F("metadata_fetched_at").asc(nulls_first=True), "-popularity")
     catalog.enrich_pending(queue, limit=CATALOG_BATCH, timeout=55)
 
@@ -80,10 +79,8 @@ class Command(BaseCommand):
         self.wait_for_database()
         engine = TorrentEngine(listen_port=settings.TORRENT_LISTEN_PORT)
         background = ThreadPoolExecutor(max_workers=1, thread_name_prefix="background")
-        # Encoding a film takes long: it gets its own thread so that the other jobs keep running.
         encoder = ThreadPoolExecutor(max_workers=1, thread_name_prefix="renditions")
         tasks = [
-            # [callable, interval, next run, running future, executor]
             [process_subtitles, SUBTITLES_INTERVAL, 0.0, None, background],
             [warm_catalog, CATALOG_INTERVAL, 0.0, None, background],
             [purge, PURGE_INTERVAL, 0.0, None, background],
@@ -98,7 +95,7 @@ class Command(BaseCommand):
             except DatabaseError:
                 logger.exception("database error, retrying")
                 time.sleep(5)
-            except Exception:  # noqa: BLE001 - the worker must survive a bad torrent
+            except Exception:
                 logger.exception("unexpected error in the torrent loop")
 
             now = time.monotonic()
@@ -132,7 +129,7 @@ class Command(BaseCommand):
     def run_task(function):
         try:
             function()
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("background task %s failed", function.__name__)
         finally:
             connection.close()

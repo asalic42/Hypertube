@@ -25,7 +25,6 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         model = User
         fields = ("email",)
 
-    # Uniqueness is checked by the model field's validator, the address is only normalised here.
     def validate_email(self, value):
         return value.strip().lower()
 

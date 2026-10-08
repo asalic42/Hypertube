@@ -8,16 +8,11 @@ import { users as usersApi } from "@/lib/api";
 import { avatarUrl as cachedAvatarUrl } from "@/lib/avatars";
 import { useAuth } from "@/hooks/useAuth";
 
-/**
- * The public profile of a user in a modal above the current page: picture,
- * username, first and last name. The email is never shown here.
- * `username` null closes the dialog.
- */
+
 export default function UserProfileDialog({ username, onClose }) {
     return (
         <Dialog open={Boolean(username)} onOpenChange={(open) => !open && onClose()}>
             <DialogContent>
-                {/* Keyed on the username: another user always starts from a blank panel. */}
                 {username && <Profile key={username} username={username} />}
             </DialogContent>
         </Dialog>
@@ -36,7 +31,6 @@ function Profile({ username }) {
             .then((data) => {
                 if (cancelled) return;
                 setProfile(data);
-                // The picture is optional: a missing one must not hide the profile.
                 return cachedAvatarUrl(username).then((url) => !cancelled && setAvatarUrl(url));
             })
             .catch((err) => {

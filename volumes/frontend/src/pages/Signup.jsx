@@ -178,7 +178,6 @@ export default function Signup() {
                             />
                         </div>
 
-                        {/* Side by side from tablets up, stacked on phones. */}
                         <div className="grid gap-5 sm:grid-cols-2 sm:gap-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="firstname">First name</Label>

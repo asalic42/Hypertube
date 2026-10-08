@@ -30,11 +30,9 @@ class StreamTokenAuthentication(BaseAuthentication):
         if not token or movie_id is None:
             return None
         user_id = streaming.read_token(token, movie_id)
-        # An invalid token falls through to the next authenticator, then to a 401.
         return (StreamUser(user_id), None) if user_id else None
 
     def authenticate_header(self, request):
-        # DRF answers 401 rather than 403 only when the first authenticator names a scheme.
         return 'Bearer realm="api"'
 
 

@@ -79,8 +79,6 @@ body {
 }
 
 :root {
-  /* Black with dark red accents. Hue 26 is the red used everywhere; only
-     lightness and chroma vary, so the shades read as one family. */
   color-scheme: dark;
   --background: oklch(0.12 0.006 26);
   --foreground: oklch(0.97 0.004 26);
@@ -100,7 +98,6 @@ body {
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 16%);
   --ring: oklch(0.55 0.19 26);
-  /* A brighter red for small text and marks on black, where the primary would be too dim. */
   --brand: oklch(0.64 0.22 26);
   --chart-1: oklch(0.72 0.17 26);
   --chart-2: oklch(0.62 0.2 26);
@@ -118,7 +115,6 @@ body {
   --sidebar-ring: oklch(0.55 0.19 26);
 }
 
-/* The app has a single, dark look: the .dark class changes nothing. */
 .dark {
   --background: oklch(0.12 0.006 26);
 }

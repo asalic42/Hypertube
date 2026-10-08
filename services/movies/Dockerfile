@@ -8,7 +8,6 @@ RUN mkdir -p /certs
 RUN mkdir -p /jwt
 RUN mkdir -p /downloads
 
-# ffmpeg converts the videos browsers cannot play (mkv, avi, ...)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
@@ -23,5 +22,4 @@ RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r /init/requirements.txt
 
 ENTRYPOINT ["bash", "/init/init.sh"]
-# Threaded workers: a video stream holds its connection for a long time
 CMD ["gunicorn", "--reload", "--worker-class", "gthread", "--workers", "2", "--threads", "16", "--bind", "0.0.0.0:8443", "movies.wsgi:application"]

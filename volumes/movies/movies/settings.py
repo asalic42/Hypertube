@@ -68,7 +68,6 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_THROTTLE_RATES": {
         "anon": "30/minute",
-        # A playing video alone issues many range requests.
         "user": "1200/minute",
     },
 }
@@ -76,7 +75,6 @@ REST_FRAMEWORK = {
 
 def read_key_file(env_variable: str, default: str) -> str:
     path = Path(os.getenv(env_variable) or default)
-    # Without the key every token is rejected: the service fails closed.
     return path.read_text(encoding="utf-8") if path.is_file() else ""
 
 
@@ -139,9 +137,7 @@ AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME") or "us-east-1"
 # Torrents: working directory shared by the web and worker containers.
 MOVIES_DOWNLOAD_DIR = os.environ.get("MOVIES_DOWNLOAD_DIR") or "/downloads"
 TORRENT_LISTEN_PORT = int(os.environ.get("TORRENT_LISTEN_PORT") or 6881)
-# A stored movie nobody watched for this long is erased.
 MOVIE_RETENTION_DAYS = 30
-# Lower resolutions encoded once a movie is stored; only those below the source's height are made.
 MOVIE_RENDITION_HEIGHTS = (1080, 720, 480, 360)
 STREAM_TOKEN_MAX_AGE = timedelta(hours=12)
 

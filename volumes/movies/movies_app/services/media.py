@@ -8,17 +8,14 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 VIDEO_EXTENSIONS = (".mp4", ".m4v", ".webm", ".mkv", ".avi", ".mov", ".mpg", ".mpeg", ".ogv", ".wmv", ".flv", ".divx")
-# Containers a browser plays natively; everything else is converted.
 BROWSER_EXTENSIONS = (".mp4", ".m4v", ".webm")
 BROWSER_VIDEO_CODECS = {"h264", "vp8", "vp9", "av1"}
 BROWSER_AUDIO_CODECS = {"aac", "mp3", "opus", "vorbis"}
 
-# One encoding for every conversion, so that all the copies of a film play the same everywhere.
 ENCODE = (
     "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
     "-c:a", "aac", "-ac", "2", "-b:a", "160k",
-)  # fmt: skip
-# Fragmented MP4 can be written to a pipe and played while it is produced.
+)
 LIVE_OUTPUT = (*ENCODE, "-movflags", "frag_keyframe+empty_moov+default_base_moof", "-f", "mp4", "pipe:1")
 
 
@@ -38,7 +35,6 @@ def pieces_path(download_id):
     return download_directory(download_id) / "pieces.bin"
 
 
-# Working directories of the rendition encoder live next to the torrents, on the same volume.
 RENDITIONS_DIR = "renditions"
 
 
@@ -86,7 +82,6 @@ def probe(path):
     streams = json.loads(output or b"{}").get("streams", [])
     video = [stream for stream in streams if stream.get("codec_type") == "video"]
     sized = [stream for stream in video if stream.get("width") and stream.get("height")]
-    # Attached pictures (covers) are video streams too: the frame size is the largest one's.
     main = max(sized, key=lambda stream: stream["width"] * stream["height"], default=None)
     return {
         "video_codecs": {stream["codec_name"] for stream in video},
@@ -122,7 +117,7 @@ def encode_rendition(source, target, height):
             "ffmpeg", "-v", "error", "-y", "-i", str(source),
             "-vf", f"scale=-2:{height}", *ENCODE,
             "-movflags", "+faststart", str(target),
-        ],  # fmt: skip
+        ],
         timeout=6 * 3600,
     )
     return target, "video/mp4"

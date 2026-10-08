@@ -18,13 +18,11 @@ function Header() {
     const [menuOpen, setMenuOpen] = useState(false);
     const pagesAuth = ['/login', '/signup', '/forgot-password', '/reset-password'];
 
-    // Keep the field in sync when the query changes from elsewhere (back button, "Clear").
     if (searched !== lastSearched) {
         setLastSearched(searched);
         setSearch(searched);
     }
 
-    // The mobile menu closes as soon as the viewer goes somewhere.
     const [menuPath, setMenuPath] = useState(location.pathname);
     if (location.pathname !== menuPath) {
         setMenuPath(location.pathname);
@@ -72,7 +70,6 @@ function Header() {
                     Hyper<span className="text-brand">tube</span>
                 </Link>
 
-                {/* On phones the search takes its own full-width line under the brand. */}
                 <form onSubmit={handleSearch} role="search" className="order-last w-full sm:order-none sm:ml-auto sm:w-auto sm:max-w-sm sm:flex-1">
                     <div className="relative">
                         <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-white/50" aria-hidden="true" />

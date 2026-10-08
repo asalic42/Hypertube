@@ -15,7 +15,6 @@ from movies_app.services import media, storage
 
 logger = logging.getLogger(__name__)
 
-# Download being encoded, so that the purge leaves its working directory alone.
 in_progress = None
 
 
@@ -85,7 +84,7 @@ def _encode(download, rendition, source, workdir):
 
 def process_next():
     """Encode the missing renditions of one stored movie. True when there was something to do."""
-    global in_progress  # noqa: PLW0603
+    global in_progress
     download = next_download()
     if download is None:
         return False
@@ -99,7 +98,6 @@ def process_next():
         try:
             storage.download_file(download.storage_key, source)
         except (*storage.StorageError, OSError) as error:
-            # Without the source there is nothing to encode: give up on this movie rather than loop on it.
             logger.warning("download %s: stored file unavailable, no rendition will be made: %s", download.pk, error)
             Download.objects.filter(pk=download.pk).update(renditions_planned=True, updated_at=timezone.now())
             download.renditions.filter(status=Rendition.Status.PENDING).update(

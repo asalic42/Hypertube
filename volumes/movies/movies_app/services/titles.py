@@ -16,7 +16,6 @@ def clean_title(raw_title, year=None):
     """
     raw_title = (raw_title or "").replace("_", " ").strip()
     if year is None:
-        # Years are usually appended, so the last one is the production year.
         matches = _YEAR.findall(raw_title)
         year = int(matches[-1]) if matches else None
 
@@ -24,7 +23,6 @@ def clean_title(raw_title, year=None):
     title = _NOISE.sub(" ", title)
     if year is not None:
         without_year = re.sub(rf"(?<!\d){year}(?!\d)", " ", title)
-        # Keep the year when it is the title itself ("1984").
         if re.search(r"[A-Za-z0-9]", without_year):
             title = without_year
     title = re.sub(r"\s+", " ", title).strip(" -–:|,.")

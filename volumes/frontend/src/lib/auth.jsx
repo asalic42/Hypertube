@@ -7,7 +7,6 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // On load, the refresh cookie is the only session we have.
     let cancelled = false;
     (async () => {
       try {
@@ -40,7 +39,6 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // After the account itself changed (email) or is gone (deleted).
   const updateUser = useCallback((me) => setUser(me), []);
   const clearSession = useCallback(() => {
     setAccessToken(null);

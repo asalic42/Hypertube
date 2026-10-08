@@ -24,7 +24,6 @@ function Results({ params, onCount }) {
     const [films, setFilms] = useState([]);
     const [nextPage, setNextPage] = useState(null);
     const [count, setCount] = useState(null);
-    // Page being fetched; null once it has arrived. Page 1 loads on mount.
     const [loadingPage, setLoadingPage] = useState(1);
     const sentinel = useRef(null);
 
@@ -47,7 +46,7 @@ function Results({ params, onCount }) {
         };
     }, [params, loadingPage, onCount]);
 
-    // Infinite scroll: the next page loads when the sentinel below the grid becomes visible.
+    // Infinite scroll
     useEffect(() => {
         const element = sentinel.current;
         if (!element || !nextPage || loadingPage) return undefined;
@@ -84,7 +83,6 @@ function Home() {
     const [count, setCount] = useState(null);
     const [draft, setDraft] = useState(filters);
     const [lastFilters, setLastFilters] = useState(filters);
-    // The form follows the URL (back button, header search) until the user edits it.
     if (filters !== lastFilters) {
         setLastFilters(filters);
         setDraft(filters);

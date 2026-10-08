@@ -44,7 +44,6 @@ class Movie(models.Model):
     original_language = models.CharField(max_length=8, blank=True)
     imdb_id = models.CharField(max_length=16, blank=True, db_index=True)
     tmdb_id = models.PositiveIntegerField(null=True, blank=True, unique=True)
-    # Sum of the download counters reported by the external sources.
     popularity = models.BigIntegerField(default=0, db_index=True)
     metadata_status = models.CharField(
         max_length=16,
@@ -54,7 +53,6 @@ class Movie(models.Model):
     )
     metadata_fetched_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    # Drives the "erase a movie unwatched for a month" rule.
     last_watched_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     def save(self, *args, **kwargs):
@@ -109,7 +107,6 @@ class SourceItem(models.Model):
 class Torrent(models.Model):
     source = models.ForeignKey(SourceItem, on_delete=models.CASCADE, related_name="torrents")
     torrent_url = models.URLField(max_length=1024)
-    # Container announced by the source ("mp4", "avi", ...), empty when unknown.
     video_format = models.CharField(max_length=16, blank=True)
 
     class Meta:
@@ -145,7 +142,6 @@ class Download(models.Model):
 
     movie = models.OneToOneField(Movie, on_delete=models.CASCADE, related_name="download")
     torrent = models.ForeignKey(Torrent, on_delete=models.SET_NULL, null=True, related_name="+")
-    # Torrents that already stalled or failed, so the worker falls back to another source.
     attempted_torrent_ids = models.JSONField(default=list, blank=True)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.QUEUED, db_index=True)
     progress = models.FloatField(default=0)
@@ -153,24 +149,19 @@ class Download(models.Model):
     num_peers = models.PositiveIntegerField(default=0)
     error = models.TextField(blank=True)
 
-    # Location of the video inside the torrent, filled by the worker. The web
-    # process uses it to map byte ranges to pieces while the download runs.
     local_path = models.CharField(max_length=1024, blank=True)
     file_size = models.BigIntegerField(null=True, blank=True)
     file_offset = models.BigIntegerField(null=True, blank=True)
     piece_length = models.PositiveIntegerField(null=True, blank=True)
     buffered_bytes = models.BigIntegerField(default=0, help_text="Contiguous bytes available from the start.")
     needs_transcode = models.BooleanField(default=False)
-    # Byte offset a viewer is waiting for; the worker prioritises its pieces.
     requested_offset = models.BigIntegerField(null=True, blank=True)
 
     storage_key = models.CharField(max_length=512, blank=True)
     storage_size = models.BigIntegerField(null=True, blank=True)
     content_type = models.CharField(max_length=64, blank=True)
-    # Frame size of the stored video, read once the file is complete.
     width = models.PositiveIntegerField(null=True, blank=True)
     height = models.PositiveIntegerField(null=True, blank=True)
-    # Set once the lower resolutions to encode were decided (possibly none).
     renditions_planned = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -236,7 +227,6 @@ class Subtitle(models.Model):
 
 class Comment(models.Model):
     movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name="comments")
-    # Users live in the auth service: only their id and username are kept here.
     user_id = models.UUIDField(db_index=True)
     username = models.CharField(max_length=150)
     content = models.TextField(max_length=2000)

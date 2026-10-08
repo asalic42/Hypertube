@@ -20,10 +20,8 @@ logger = logging.getLogger(__name__)
 
 MAX_TORRENT_FILE_BYTES = 10 * 1024 * 1024
 STALL_TIMEOUT = 180
-# Pieces fetched ahead of a viewer who seeks into a part that is not downloaded yet.
 SEEK_WINDOW = 8
 TOP_PRIORITY = 7
-# Re-checking data after a restart makes no network progress, yet is not a stall.
 _BUSY_STATES = (lt.torrent_status.checking_files, lt.torrent_status.checking_resume_data)
 
 
@@ -39,12 +37,9 @@ class _Job:
     last_piece: int
     last_done: int = -1
     last_progress_at: float = field(default_factory=time.monotonic)
-    # Bitfield of the previous tick: a piece is advertised one tick after
-    # libtorrent reports it, which leaves time for the data to reach the file.
     previous_pieces: bytes = b""
     applied_offset: int | None = None
     finalizer: object = None
-    # Relative indexes of the boundary pieces whose video bytes were fetched from a web seed.
     patched: set = field(default_factory=set)
 
 
@@ -65,8 +60,6 @@ class TorrentEngine:
     """Owns the only libtorrent session. Jobs and their progress live in the Download table."""
 
     def __init__(self, listen_port=6881):
-        # The OpenSSL bundled with libtorrent does not look at the system CA store:
-        # without one, the HTTPS web seeds of archive.org fail certificate verification.
         os.environ.setdefault("SSL_CERT_FILE", certifi.where())
         self.session = lt.session(
             {
@@ -86,7 +79,6 @@ class TorrentEngine:
         rows = {download.pk: download for download in active}
 
         for download_id in [pk for pk in self.jobs if pk not in rows]:
-            # The row is gone (purged or deleted): drop the torrent and its data.
             self._drop(self.jobs[download_id], delete_files=True)
 
         for download_id, download in rows.items():
@@ -145,12 +137,8 @@ class TorrentEngine:
 
         first_piece = offset // piece_length
         last_piece = (offset + max(size, 1) - 1) // piece_length
-        # The video is selected piece by piece rather than with file priorities:
-        # libtorrent web seeds skip the pieces touching a file of priority 0,
-        # which are precisely the first and last pieces of the video.
         priorities = [0] * info.num_pieces()
         priorities[first_piece : last_piece + 1] = [4] * (last_piece - first_piece + 1)
-        # Players read the end of the file first when the MP4 index is stored there.
         for piece in (first_piece, min(first_piece + 1, last_piece), max(last_piece - 1, first_piece), last_piece):
             priorities[piece] = TOP_PRIORITY
 
@@ -183,7 +171,6 @@ class TorrentEngine:
 
     def _update(self, job, download):
         if job.finalizer is not None:
-            # Conversion and upload are running; tick() drops the job once the row leaves the active statuses.
             return
 
         status = job.handle.status()
@@ -236,7 +223,7 @@ class TorrentEngine:
         path = media.pieces_path(download_id)
         temporary = path.with_suffix(".tmp")
         temporary.write_bytes(pieces)
-        temporary.replace(path)  # atomic: readers never see a partial bitfield
+        temporary.replace(path)
 
     def _prioritize(self, job, download):
         piece = (download.file_offset + download.requested_offset) // download.piece_length
@@ -290,7 +277,7 @@ def _patch_boundaries(job, info, video, path):
     seeds = [seed["url"] for seed in info.web_seeds() if seed["url"].startswith(("https://", "http://"))]
     seeds.sort(key=lambda url: not url.startswith("https://"))
     if not seeds:
-        return  # peer-only torrent: its pieces verify normally
+        return
 
     files, piece_length = info.files(), info.piece_length()
     offset, size = files.file_offset(video), files.file_size(video)
@@ -300,7 +287,7 @@ def _patch_boundaries(job, info, video, path):
     for piece in {job.first_piece, job.last_piece}:
         begin, end = piece * piece_length, (piece + 1) * piece_length
         if begin >= offset and end <= offset + size:
-            continue  # entirely inside the video: nothing can corrupt its hash
+            continue
         start = max(begin, offset) - offset
         stop = min(end, offset + size) - offset - 1
         try:
@@ -329,7 +316,6 @@ def finalize(download_id):
             path, content_type = media.prepare_for_storage(source, media.download_directory(download_id))
             key = f"{download.movie_id}/video{path.suffix.lower()}"
             storage.upload_file(path, key, content_type)
-            # The lower resolutions are encoded later by the worker, from the stored file.
             renditions.plan(download, path)
         except (media.MediaError, OSError, *storage.StorageError) as error:
             logger.exception("download %s could not be stored", download_id)

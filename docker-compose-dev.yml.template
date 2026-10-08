@@ -101,7 +101,6 @@ services:
     networks:
       - hypertube
     env_file: .env
-    # The web container owns the migrations, the worker waits for the schema.
     entrypoint: ["python3", "manage.py", "torrent_worker"]
     depends_on:
       movies:
