@@ -66,7 +66,8 @@ class PublicUserResponseSerializer(serializers.Serializer):
 
 class PublicUserAvatarResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
-    avatar_url = serializers.URLField()
+    # Null when the user has no picture.
+    avatar_url = serializers.URLField(allow_null=True)
 
 
 class PublicUserUpdateSerializer(serializers.ModelSerializer):
@@ -75,6 +76,7 @@ class PublicUserUpdateSerializer(serializers.ModelSerializer):
         fields = [
             "firstname", 
             "lastname", 
+            "email",
             "preferredLanguage"
         ]
 

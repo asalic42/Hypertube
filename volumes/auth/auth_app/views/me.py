@@ -10,7 +10,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
 
-from auth_app.serializers import UserSerializer
+from auth_app.serializers import UserSerializer, UserUpdateSerializer
 from auth_app.cookies import delete_refresh_cookie
 
 
@@ -28,6 +28,19 @@ class MeView(RetrieveAPIView):
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        request=UserUpdateSerializer,
+        responses=UserSerializer,
+        tags=["Authentication"],
+        operation_id="auth_update_current_user",
+        description="Changes the email of the current user.",
+    )
+    def patch(self, request, *args, **kwargs):
+        serializer = UserUpdateSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(UserSerializer(request.user).data)
 
     @extend_schema(
         request=None,

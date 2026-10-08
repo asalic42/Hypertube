@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import timedelta
 import os
 
 
@@ -54,7 +55,40 @@ TEMPLATES = [
 WSGI_APPLICATION = "movies.wsgi.application"
 
 REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTStatelessUserAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "30/minute",
+        "user": "1200/minute",
+    },
+}
+
+
+def read_key_file(env_variable: str, default: str) -> str:
+    path = Path(os.getenv(env_variable) or default)
+    return path.read_text(encoding="utf-8") if path.is_file() else ""
+
+
+# Tokens are issued by the auth service; this service only verifies them.
+SIMPLE_JWT = {
+    "ALGORITHM": "RS256",
+    "VERIFYING_KEY": read_key_file("JWT_PUBLIC_KEY_PATH", "/jwt/jwt_public.pem"),
+    "ISSUER": "auth-service",
+    "AUDIENCE": "hypertube",
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "USER_ID_CLAIM": "sub",
+    "TOKEN_TYPE_CLAIM": "token_type",
+    "JTI_CLAIM": "jti",
+    "LEEWAY": 5,
 }
 
 SPECTACULAR_SETTINGS = {
@@ -81,7 +115,7 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = []
 
-LANGUAGE_CODE = "fr-fr"
+LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Europe/Paris"
 USE_I18N = True
 USE_TZ = True
@@ -92,3 +126,32 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# File storage (S3) for the downloaded movies and their subtitles.
+AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
+AWS_MOVIES_STORAGE_BUCKET_NAME = os.environ.get("AWS_MOVIES_STORAGE_BUCKET_NAME") or "movies"
+AWS_S3_ENDPOINT_URL = os.environ.get("AWS_S3_ENDPOINT_URL")
+AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME") or "us-east-1"
+
+# Torrents: working directory shared by the web and worker containers.
+MOVIES_DOWNLOAD_DIR = os.environ.get("MOVIES_DOWNLOAD_DIR") or "/downloads"
+TORRENT_LISTEN_PORT = int(os.environ.get("TORRENT_LISTEN_PORT") or 6881)
+MOVIE_RETENTION_DAYS = 30
+MOVIE_RENDITION_HEIGHTS = (1080, 720, 480, 360)
+STREAM_TOKEN_MAX_AGE = timedelta(hours=12)
+
+# External services. Metadata and subtitles are simply skipped without their key.
+ARCHIVE_COLLECTION = os.environ.get("ARCHIVE_COLLECTION") or "feature_films"
+TMDB_API_KEY = os.environ.get("TMDB_API_KEY", "").strip()
+OPENSUBTITLES_API_KEY = os.environ.get("OPENSUBTITLES_API_KEY", "").strip()
+OPENSUBTITLES_USERNAME = os.environ.get("OPENSUBTITLES_USERNAME", "").strip()
+OPENSUBTITLES_PASSWORD = os.environ.get("OPENSUBTITLES_PASSWORD", "")
+USERS_SERVICE_URL = os.environ.get("USERS_SERVICE_URL") or "http://users:8443"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "loggers": {"movies_app": {"handlers": ["console"], "level": "INFO"}},
+}

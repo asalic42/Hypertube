@@ -16,6 +16,10 @@ REFRESH_COOKIE_PATH = "/api/auth/"
 REFRESH_COOKIE_SECURE = True
 REFRESH_COOKIE_HTTPONLY = True
 REFRESH_COOKIE_SAMESITE = "Lax"
+# Readable twin of the refresh cookie: it carries no secret, it only tells
+# the front end that a session exists, so it never calls refresh for nothing.
+SESSION_COOKIE_MARKER_NAME = "logged_in"
+SESSION_COOKIE_MARKER_PATH = "/"
 
 # CSRF cookie configuration:
 
@@ -230,7 +234,7 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
-LANGUAGE_CODE = "fr-fr"
+LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Europe/Paris"
 USE_I18N = True
 USE_TZ = True

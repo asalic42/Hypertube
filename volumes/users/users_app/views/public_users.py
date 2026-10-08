@@ -141,10 +141,13 @@ class PublicUserAvatarView(APIView):
         operation_id="get_public_user_avatar",
         responses={
             200: PublicUserAvatarResponseSerializer, 
-            404: OpenApiResponse(description="User has no profile avatar."),
+            404: OpenApiResponse(description="Unknown user."),
             503: OpenApiResponse(description="Unable to retrieve user avatar right now."),
         },
-        description="Renvoie l'url temporaire de l'image de profil d'un utilisateur public.",
+        description=(
+            "Renvoie l'url temporaire de l'image de profil d'un utilisateur public, "
+            "ou `avatar_url: null` quand il n'en a pas."
+        ),
     )
     def get(self, request, username):
         key = get_bucket_file_key(username)
@@ -168,7 +171,8 @@ class PublicUserAvatarView(APIView):
             )
             response_serializer.is_valid(raise_exception=True)
             return Response(response_serializer.validated_data)
-        return Response({"message": "User has no profile avatar."}, status=404)
+        # A missing picture is the normal case, not an error the browser should log.
+        return Response({"message": "User has no profile avatar.", "avatar_url": None})
 
     # PATCH
     @extend_schema(
