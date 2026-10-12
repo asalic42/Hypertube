@@ -9,9 +9,22 @@ import { movies as moviesApi, comments as commentsApi } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import UserProfileDialog from "@/components/UserProfileDialog";
 import { useAvatarUrl } from "@/lib/avatars";
+import { attachMse, supportsMse } from "@/lib/mse";
 
 const POLL_INTERVAL = 2000;
 const LANGUAGE_NAMES = new Intl.DisplayNames(["en"], { type: "language" });
+// How the bytes reach the <video>: "mse" (the page fetches and feeds them through
+// Media Source Extensions) or "native" (the element loads the URL itself).
+const ENGINE_KEY = "hypertube.engine";
+
+function initialEngine() {
+    if (!supportsMse()) return "native";
+    try {
+        return localStorage.getItem(ENGINE_KEY) === "native" ? "native" : "mse";
+    } catch {
+        return "mse";
+    }
+}
 
 function languageName(code) {
     try {
@@ -106,6 +119,42 @@ function Player({ movieId, initialStatus }) {
     const qualities = download?.qualities ?? [];
     const selectable = qualities.filter((item) => item.status === "ready" && sources[qualityKey(item)]);
 
+    const [engine, setEngine] = useState(initialEngine);
+    // Why MSE gave up on the current file, when it did.
+    const [engineNotice, setEngineNotice] = useState(null);
+    const [engineStatus, setEngineStatus] = useState(null);
+
+    function chooseEngine(event) {
+        const video = videoRef.current;
+        if (video) resumeRef.current = { time: video.currentTime, playing: !video.paused && !video.ended };
+        setEngineNotice(null);
+        setEngine(event.target.value);
+        try {
+            localStorage.setItem(ENGINE_KEY, event.target.value);
+        } catch {
+            // Private mode: the choice just lasts for this page.
+        }
+    }
+
+    // In MSE mode the element gets an object URL from the player, not the stream URL.
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video || !source || engine !== "mse") return undefined;
+        const handle = attachMse(video, source, {
+            onStatus: setEngineStatus,
+            onFallback: (reason) => {
+                // The native element takes over for this film; the viewer can retry MSE by hand.
+                setEngineNotice(reason);
+                setEngineStatus(null);
+                setEngine("native");
+            },
+        });
+        return () => {
+            handle.destroy();
+            setEngineStatus(null);
+        };
+    }, [source, engine]);
+
     function changeQuality(event) {
         const video = videoRef.current;
         if (video) resumeRef.current = { time: video.currentTime, playing: !video.paused && !video.ended };
@@ -125,7 +174,7 @@ function Player({ movieId, initialStatus }) {
         <div className="flex flex-col gap-3">
             <div className="aspect-video w-full overflow-hidden rounded-lg bg-black flex items-center justify-center">
                 {source ? (
-                    <video ref={videoRef} src={source} controls autoPlay className="h-full w-full" crossOrigin="use-credentials" onLoadedMetadata={resume}>
+                    <video ref={videoRef} src={engine === "native" ? source : undefined} controls autoPlay className="h-full w-full" crossOrigin="use-credentials" onLoadedMetadata={resume}>
                         {download.subtitles
                             .filter((subtitle) => subtitle.status === "ready")
                             .map((subtitle) => (
@@ -178,6 +227,22 @@ function Player({ movieId, initialStatus }) {
                             </NativeSelect>
                         </label>
                     )}
+                    {source && supportsMse() && (
+                        <label className="flex items-center gap-2">
+                            <span>Engine</span>
+                            <NativeSelect size="sm" value={engine} onChange={chooseEngine}>
+                                <NativeSelectOption value="mse">Media Source (MSE)</NativeSelectOption>
+                                <NativeSelectOption value="native">Native player</NativeSelectOption>
+                            </NativeSelect>
+                        </label>
+                    )}
+                    {engineStatus && (
+                        <span title={engineStatus.tracks.join(", ")}>
+                            MSE: {engineStatus.tracks.length} track{engineStatus.tracks.length === 1 ? "" : "s"}
+                            {engineStatus.ranges === false ? ", live conversion (no seeking)" : ", byte ranges"}
+                        </span>
+                    )}
+                    {engineNotice && <span className="text-destructive">MSE unavailable for this file: {engineNotice}</span>}
                     <p>
                         {download.status === "ready" ? "Stored on the server." : download.status === "downloading" ? `Download: ${download.progress}%` : null}
                         {download.subtitles.length > 0 && (
