@@ -9,6 +9,9 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-hypertube-dev-secre
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "*").split(",")
 
+# Users log in with their username; the email stays the account's natural key.
+AUTHENTICATION_BACKENDS = ["auth_app.backends.UsernameBackend"]
+
 # Refresh token cookie configuration:
 
 REFRESH_COOKIE_NAME = "refresh"

@@ -103,6 +103,9 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    # The login form sends the username, not the email the model uses as natural key.
+    username_field = "username"
+
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)

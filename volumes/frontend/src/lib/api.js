@@ -152,8 +152,8 @@ export function hasAccessToken() {
 }
 
 export const auth = {
-  async login(email, password) {
-    const data = await api('/api/auth/login/', { method: 'POST', body: { email, password }, auth: false, csrf: true });
+  async login(username, password) {
+    const data = await api('/api/auth/login/', { method: 'POST', body: { username, password }, auth: false, csrf: true });
     setToken(data.access);
     return data.user;
   },
