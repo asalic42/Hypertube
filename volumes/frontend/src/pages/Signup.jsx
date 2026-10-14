@@ -13,7 +13,8 @@ import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { NativeSelect } from "@/components/ui/native-select";
 import { toast } from "@/components/ui/toast";
-import { api } from "@/lib/api";
+import { auth as authApi, users as usersApi } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import AuthLayout from "@/components/AuthLayout";
 import { LANGUAGES, defaultLanguage } from "@/lib/languages";
@@ -24,6 +25,7 @@ const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 
 export default function Signup() {
     const navigate = useNavigate();
+    const { updateUser } = useAuth();
     const [formData, setFormData] = useState({
         email: '',
         username: '',
@@ -83,46 +85,43 @@ export default function Signup() {
         }
         setSubmitting(true);
 
-        const profile = new FormData();
-        profile.append('username', formData.username);
-        profile.append('firstname', formData.firstname);
-        profile.append('lastname', formData.lastname);
-        profile.append('email', formData.email);
-        profile.append('preferredLanguage', formData.preferredLanguage);
-        if (formData.avatar) {
-            profile.append('avatar', formData.avatar);
-        }
         const account = {
             username: formData.username,
             email: formData.email,
             password: formData.password,
             password_confirmation: formData.confirm_password,
         };
+        const profile = {
+            firstname: formData.firstname,
+            lastname: formData.lastname,
+            preferredLanguage: formData.preferredLanguage,
+            avatar: formData.avatar,
+        };
 
+        let me;
         try {
-            // The public profile first: if the login cannot be created, the profile is removed again.
-            await api('/api/users/', { method: 'POST', body: profile, auth: false });
-            try {
-                await api('/api/auth/register/', { method: 'POST', body: account, auth: false });
-            } catch (err) {
-                await api(`/api/users/${encodeURIComponent(formData.username)}/`, { method: 'DELETE', auth: false }).catch(() => {});
-                throw err;
-            }
-            toast.add({
-                title: "Account created",
-                description: "You can now log in.",
-                type: "success",
-            });
-            navigate('/login');
+            // The account first: its token is what allows the profile to be created.
+            me = await authApi.register(account);
         } catch (err) {
-            toast.add({
-                title: "Could not create the account",
-                description: err.message,
-                type: "error",
-            });
-        } finally {
+            toast.add({ title: "Could not create the account", description: err.message, type: "error" });
             setSubmitting(false);
+            return;
         }
+        updateUser(me);
+        try {
+            await usersApi.create(profile);
+        } catch (err) {
+            // The account exists and is logged in: the profile can be completed from its page.
+            toast.add({ title: "Account created, profile incomplete", description: err.message, type: "error" });
+            navigate('/profile');
+            return;
+        }
+        toast.add({
+            title: "Welcome!",
+            description: "Your account is ready.",
+            type: "success",
+        });
+        navigate('/home');
     }
 
     return (

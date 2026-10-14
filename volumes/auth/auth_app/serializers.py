@@ -106,7 +106,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
+        # The other services identify the caller from these two claims.
         token["username"] = user.username
+        token["email"] = user.email
         return token
 
     def validate(self, attributes):
