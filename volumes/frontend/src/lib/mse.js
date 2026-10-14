@@ -195,9 +195,10 @@ export function attachMse(video, url, { onFallback, onStatus } = {}) {
                     });
                     sourceBuffer.addEventListener("error", () => fail("the browser refused the segments"));
                     buffers.set(track.id, state);
-                    enqueue(state, initSegments[track.id]);
                 }
+                // The duration can only be set while no SourceBuffer is busy: before the first append.
                 if (Number.isFinite(duration) && duration > 0) mediaSource.duration = duration;
+                for (const track of tracks) enqueue(buffers.get(track.id), initSegments[track.id]);
                 onStatus?.({ tracks: tracks.map((track) => track.mime), ranges: loader.ranges });
             } catch (error) {
                 fail(error.message);
