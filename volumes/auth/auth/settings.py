@@ -80,6 +80,14 @@ FORTY_TWO_REDIRECT_URI = (
     f"{OMNIAUTH_REDIRECT_URL}/api/auth/oauth/42/callback/"
 )
 
+# Provider: GitHub
+
+GITHUB_UID = os.getenv("GITHUB_UID")
+GITHUB_SECRET = os.getenv("GITHUB_SECRET")
+GITHUB_REDIRECT_URI = (
+    f"{OMNIAUTH_REDIRECT_URL}/api/auth/oauth/github/callback/"
+)
+
 # Provider: Google (OIDC)
 
 GOOGLE_UID = os.getenv("GOOGLE_OIDC")

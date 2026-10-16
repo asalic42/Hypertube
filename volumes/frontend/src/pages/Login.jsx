@@ -15,7 +15,7 @@ import { Link } from "react-router-dom";
 import { toast } from "@/components/ui/toast";
 import { ensureCsrfToken } from "@/lib/csrf";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { GoogleIcon, FortyTwoIcon } from "@/components/icons/oauth-icons";
+import { GoogleIcon, GithubIcon, FortyTwoIcon } from "@/components/icons/oauth-icons";
 
 
 const OAUTH_ERRORS = {
@@ -167,6 +167,17 @@ export default function Login({ onLoginSuccess }) {
                         onClick={() => startOAuth('42')}
                     >
                         <FortyTwoIcon className="size-5" />
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-lg"
+                        className="rounded-full"
+                        aria-label="Login with GitHub"
+                        title="Login with GitHub"
+                        onClick={() => startOAuth('github')}
+                    >
+                        <GithubIcon className="size-5" />
                     </Button>
                     <Button
                         type="button"

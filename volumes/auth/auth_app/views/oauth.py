@@ -28,7 +28,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from auth_app.cookies import set_refresh_cookie
 from auth_app.models import OAuthAccount, User
-from auth_app.oauth import forty_two, google
+from auth_app.oauth import forty_two, github, google
 
 
 logger = logging.getLogger(__name__)
@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 # Routes are built with `as_view(provider=<slug>)`.
 PROVIDERS = {
     "42": forty_two,
+    "github": github,
     "google": google,
 }
 

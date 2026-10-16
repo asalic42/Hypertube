@@ -37,6 +37,16 @@ auth_urlpatterns = [
         name="oauth-42-callback",
     ),
     path(
+        "oauth/github/start/",
+        OAuthStartView.as_view(provider="github"),
+        name="oauth-github-start",
+    ),
+    path(
+        "oauth/github/callback/",
+        OAuthCallbackView.as_view(provider="github"),
+        name="oauth-github-callback",
+    ),
+    path(
         "oauth/google/start/",
         OAuthStartView.as_view(provider="google"),
         name="oauth-google-start",
