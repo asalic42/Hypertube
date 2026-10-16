@@ -15,7 +15,7 @@ import { Link } from "react-router-dom";
 import { toast } from "@/components/ui/toast";
 import { ensureCsrfToken } from "@/lib/csrf";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { GoogleIcon, GithubIcon, FortyTwoIcon } from "@/components/icons/oauth-icons";
+import { GoogleIcon, GithubIcon, DiscordIcon, FortyTwoIcon } from "@/components/icons/oauth-icons";
 
 
 const OAUTH_ERRORS = {
@@ -189,6 +189,17 @@ export default function Login({ onLoginSuccess }) {
                         onClick={() => startOAuth('google')}
                     >
                         <GoogleIcon className="size-5" />
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-lg"
+                        className="rounded-full"
+                        aria-label="Login with Discord"
+                        title="Login with Discord"
+                        onClick={() => startOAuth('discord')}
+                    >
+                        <DiscordIcon className="size-5" />
                     </Button>
                 </div>
             </CardFooter>

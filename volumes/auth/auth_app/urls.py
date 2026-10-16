@@ -56,6 +56,16 @@ auth_urlpatterns = [
         OAuthCallbackView.as_view(provider="google"),
         name="oauth-google-callback",
     ),
+    path(
+        "oauth/discord/start/",
+        OAuthStartView.as_view(provider="discord"),
+        name="oauth-discord-start",
+    ),
+    path(
+        "oauth/discord/callback/",
+        OAuthCallbackView.as_view(provider="discord"),
+        name="oauth-discord-callback",
+    ),
 ]
 
 

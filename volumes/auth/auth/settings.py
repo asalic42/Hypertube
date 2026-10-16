@@ -96,6 +96,14 @@ GOOGLE_REDIRECT_URI = (
     f"{OMNIAUTH_REDIRECT_URL}/api/auth/oauth/google/callback/"
 )
 
+# Provider: Discord
+
+DISCORD_UID = os.getenv("DISCORD_UID")
+DISCORD_SECRET = os.getenv("DISCORD_SECRET")
+DISCORD_REDIRECT_URI = (
+    f"{OMNIAUTH_REDIRECT_URL}/api/auth/oauth/discord/callback/"
+)
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",

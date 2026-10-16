@@ -28,7 +28,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from auth_app.cookies import set_refresh_cookie
 from auth_app.models import OAuthAccount, User
-from auth_app.oauth import forty_two, github, google
+from auth_app.oauth import discord, forty_two, github, google
 
 
 logger = logging.getLogger(__name__)
@@ -39,6 +39,7 @@ PROVIDERS = {
     "42": forty_two,
     "github": github,
     "google": google,
+    "discord": discord,
 }
 
 
