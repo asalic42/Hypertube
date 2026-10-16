@@ -21,6 +21,10 @@ SCOPE = "public"
 TIMEOUT = 10
 
 
+def is_configured() -> bool:
+    return bool(settings.FORTY_TWO_UID and settings.FORTY_TWO_SECRET)
+
+
 def build_authorize_url(state: str) -> str:
     """Build the URL the browser is redirected to so the user can authorize."""
     session = OAuth2Session(

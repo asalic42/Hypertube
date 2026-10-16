@@ -15,6 +15,7 @@ import { Link } from "react-router-dom";
 import { toast } from "@/components/ui/toast";
 import { ensureCsrfToken } from "@/lib/csrf";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { GoogleIcon, FortyTwoIcon } from "@/components/icons/oauth-icons";
 
 
 const OAUTH_ERRORS = {
@@ -144,15 +145,41 @@ export default function Login({ onLoginSuccess }) {
                 </div>
                 </form>
             </CardContent>
-            <CardFooter className="flex-col gap-2">
-                <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => startOAuth('42')}
-                >
-                Login with 42
-                </Button>
+            <CardFooter className="flex-col gap-4">
+                <div className="relative w-full">
+                    <span className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-border" />
+                    </span>
+                    <span className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-card px-2 text-muted-foreground">
+                            or continue with
+                        </span>
+                    </span>
+                </div>
+                <div className="flex flex-row justify-center gap-3">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-lg"
+                        className="rounded-full"
+                        aria-label="Login with 42"
+                        title="Login with 42"
+                        onClick={() => startOAuth('42')}
+                    >
+                        <FortyTwoIcon className="size-5" />
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-lg"
+                        className="rounded-full"
+                        aria-label="Login with Google"
+                        title="Login with Google"
+                        onClick={() => startOAuth('google')}
+                    >
+                        <GoogleIcon className="size-5" />
+                    </Button>
+                </div>
             </CardFooter>
         </Card>
     )

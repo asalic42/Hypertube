@@ -80,6 +80,14 @@ FORTY_TWO_REDIRECT_URI = (
     f"{OMNIAUTH_REDIRECT_URL}/api/auth/oauth/42/callback/"
 )
 
+# Provider: Google (OIDC)
+
+GOOGLE_UID = os.getenv("GOOGLE_OIDC")
+GOOGLE_SECRET = os.getenv("GOOGLE_SECRET")
+GOOGLE_REDIRECT_URI = (
+    f"{OMNIAUTH_REDIRECT_URL}/api/auth/oauth/google/callback/"
+)
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
