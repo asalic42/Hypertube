@@ -11,6 +11,8 @@ from .views import (
     CsrfTokenView,
     ForgotPasswordView,
     ResetPasswordView,
+    FortyTwoStartView,
+    FortyTwoCallbackView,
 )
 
 
@@ -24,6 +26,16 @@ auth_urlpatterns = [
     path("verify/", VerifyView.as_view(), name="verify"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("me/", MeView.as_view(), name="me"),
+    path(
+        "oauth/42/start/",
+        FortyTwoStartView.as_view(),
+        name="oauth-42-start",
+    ),
+    path(
+        "oauth/42/callback/",
+        FortyTwoCallbackView.as_view(),
+        name="oauth-42-callback",
+    ),
 ]
 
 

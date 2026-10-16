@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button"
 import { 
   Card, 
@@ -14,12 +14,39 @@ import { Label } from "@/components/ui/label"
 import { Link } from "react-router-dom";
 import { toast } from "@/components/ui/toast";
 import { ensureCsrfToken } from "@/lib/csrf";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+
+
+const OAUTH_ERRORS = {
+    oauth_denied: "Authorization was cancelled.",
+    oauth_state: "Invalid OAuth state, please try again.",
+    oauth_failed: "OAuth login failed, please try again.",
+    oauth_no_email: "Your provider did not share a verified email.",
+    oauth_not_configured: "This provider is not configured.",
+};
 
 
 export default function Login({ onLoginSuccess }) {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [formData, setFormData] = useState({email: '', password: ''});
+
+    useEffect(() => {
+        const error = searchParams.get('error');
+        if (error) {
+            toast.add({
+                title: "Error",
+                description: OAUTH_ERRORS[error] || "OAuth login failed.",
+                type: "error",
+            });
+        }
+    }, [searchParams]);
+
+    function startOAuth(provider) {
+        window.location.assign(
+            `https://localhost:8080/api/auth/oauth/${provider}/start/`
+        );
+    }
 
     function handleChange(e) {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -118,8 +145,13 @@ export default function Login({ onLoginSuccess }) {
                 </form>
             </CardContent>
             <CardFooter className="flex-col gap-2">
-                <Button variant="outline" className="w-full">
-                Login with Google
+                <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => startOAuth('42')}
+                >
+                Login with 42
                 </Button>
             </CardFooter>
         </Card>

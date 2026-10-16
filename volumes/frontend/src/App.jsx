@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Login from './pages/Login';
+import OAuthCallback from './pages/OAuthCallback';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Signup from './pages/Signup';
@@ -13,7 +14,7 @@ import { useState, useEffect } from 'react';
 import { fetchWithAuth } from './lib/refreshFlow';
 
 
-const PUBLIC_ROUTES = ['/login', '/signup', '/forgot-password', '/reset-password'];
+const PUBLIC_ROUTES = ['/login', '/signup', '/forgot-password', '/reset-password', '/oauth/callback'];
 
 function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -49,6 +50,7 @@ function AppContent() {
       <main className="flex-1 flex items-center justify-center">
         <Routes>
           <Route path="/login" element={<Login onLoginSuccess={() => setIsAuthenticated(true)} />} />
+          <Route path="/oauth/callback" element={<OAuthCallback onLoginSuccess={() => setIsAuthenticated(true)} />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/signup" element={<Signup />} />
