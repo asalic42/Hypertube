@@ -19,7 +19,7 @@ import secrets
 
 import requests
 from django.conf import settings
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.http import HttpResponseRedirect
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import AllowAny
@@ -83,25 +83,31 @@ def resolve_user(profile: dict) -> User:
         return account.user
 
     email = profile.get("email")
-
-    # Link to an existing account only when the email is verified.
-    if email and profile.get("email_verified"):
-        existing = User.objects.filter(email__iexact=email).first()
-        if existing:
-            OAuthAccount.objects.create(
-                user=existing,
-                provider=provider,
-                provider_user_id=provider_user_id,
-            )
-            return existing
-
     if not email:
         raise OAuthUserError("oauth_no_email")
 
-    user = User.objects.create_user(
-        email=email,
-        username=_unique_username(profile.get("username"), email),
-    )
+    # Accounts sharing the same email are merged into a single local user.
+    existing = User.objects.filter(email__iexact=email).first()
+    if existing:
+        OAuthAccount.objects.create(
+            user=existing,
+            provider=provider,
+            provider_user_id=provider_user_id,
+        )
+        return existing
+
+    try:
+        with transaction.atomic():
+            user = User.objects.create_user(
+                email=email,
+                username=_unique_username(profile.get("username"), email),
+            )
+    except IntegrityError:
+        # Concurrent signup/oauth for the same email: link to the winner.
+        user = User.objects.filter(email__iexact=email).first()
+        if user is None:
+            raise
+
     OAuthAccount.objects.create(
         user=user,
         provider=provider,
