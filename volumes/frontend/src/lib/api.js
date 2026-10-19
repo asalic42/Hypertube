@@ -157,6 +157,12 @@ export const auth = {
     setToken(data.access);
     return data.user;
   },
+  // Creates the account and logs it in: the refresh cookie is set and the access token returned.
+  async register(fields) {
+    const data = await api('/api/auth/register/', { method: 'POST', body: fields, auth: false, csrf: true });
+    setToken(data.access);
+    return data.user;
+  },
   async logout() {
     try {
       await api('/api/auth/logout/', { method: 'POST', csrf: true });
@@ -216,6 +222,13 @@ export const users = {
       if (err instanceof ApiError && err.status === 404) return null;
       throw err;
     }
+  },
+  // The caller's own profile; the username and email come from the token.
+  async create(fields) {
+    const body = new FormData();
+    for (const [key, value] of Object.entries(fields)) if (value !== null && value !== undefined) body.append(key, value);
+    const data = await api('/api/users/', { method: 'POST', body });
+    return data.user;
   },
   async update(username, fields) {
     const body = new FormData();

@@ -4,6 +4,12 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def read_key_file(env_variable: str, default: str) -> str:
+    path = Path(os.getenv(env_variable) or default)
+    return path.read_text(encoding="utf-8") if path.is_file() else ""
+
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-hypertube-dev-secret-key")
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "*").split(",")
@@ -77,6 +83,27 @@ WSGI_APPLICATION = "users.wsgi.application"
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Every route needs the access token issued by the auth service; the
+    # views that are open (health) say so explicitly.
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTStatelessUserAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+}
+
+# Tokens are signed by the auth service; only its public key is needed here.
+SIMPLE_JWT = {
+    "ALGORITHM": "RS256",
+    "VERIFYING_KEY": read_key_file("JWT_PUBLIC_KEY_PATH", "/jwt/jwt_public.pem"),
+    "ISSUER": "auth-service",
+    "AUDIENCE": "hypertube",
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "USER_ID_CLAIM": "sub",
+    "TOKEN_TYPE_CLAIM": "token_type",
+    "JTI_CLAIM": "jti",
+    "LEEWAY": 5,
 }
 
 SPECTACULAR_SETTINGS = {
