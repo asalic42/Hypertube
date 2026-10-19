@@ -12,8 +12,3 @@ export const LANGUAGES = [
   ["ko", "Korean"],
 ];
 
-// The browser's language when it is one we support, English otherwise.
-export function defaultLanguage() {
-  const code = (navigator.language || "").slice(0, 2).toLowerCase();
-  return LANGUAGES.some(([value]) => value === code) ? code : "en";
-}

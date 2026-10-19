@@ -17,7 +17,7 @@ import { auth as authApi, users as usersApi } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import AuthLayout from "@/components/AuthLayout";
-import { LANGUAGES, defaultLanguage } from "@/lib/languages";
+import { LANGUAGES } from "@/lib/languages";
 
 const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
@@ -34,7 +34,7 @@ export default function Signup() {
         lastname: '',
         firstname: '',
         avatar: null,
-        preferredLanguage: defaultLanguage()
+        preferredLanguage: "en"
     });
     const [preview, setPreview] = useState(null);
     const [submitting, setSubmitting] = useState(false);
