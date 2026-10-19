@@ -58,11 +58,11 @@ class UsersApiTests(APITestCase):
 
     def test_profile_is_created_for_the_token_identity(self):
         self.client.force_authenticate(token_user("carl", "carl@example.test"))
-        response = self.client.post("/api/users/", {"firstname": "Carl", "preferredLanguage": "fr", "username": "ana", "email": "x@example.test"})
+        response = self.client.post("/api/users/", {"firstname": "Carl", "lastname": "Sagan", "preferredLanguage": "fr", "username": "ana", "email": "x@example.test"})
         self.assertEqual(response.status_code, 201)
         # The body cannot pick another identity.
         self.assertEqual((response.data["user"]["username"], response.data["user"]["email"], response.data["user"]["firstname"]), ("carl", "carl@example.test", "Carl"))
-        self.assertEqual(self.client.post("/api/users/", {"firstname": "Again"}).status_code, 409)
+        self.assertEqual(self.client.post("/api/users/", {"firstname": "Again", "lastname": "Sagan"}).status_code, 409)
 
     def test_missing_own_profile_is_created_on_read(self):
         self.client.force_authenticate(token_user("dora", "dora@example.test"))
@@ -73,3 +73,17 @@ class UsersApiTests(APITestCase):
     def test_missing_picture_is_not_an_error(self):
         response = self.client.get("/api/users/bob/avatar/")
         self.assertEqual((response.status_code, response.data["avatar_url"]), (200, None))
+
+    def test_names_are_required(self):
+        self.client.force_authenticate(token_user("eve", "eve@example.test"))
+        for body in ({}, {"firstname": "Eve"}, {"firstname": " ", "lastname": "Adams"}, {"firstname": "Eve", "lastname": ""}):
+            response = self.client.post("/api/users/", body)
+            self.assertEqual(response.status_code, 400, body)
+        self.assertFalse(PublicUser.objects.filter(username="eve").exists())
+
+        response = self.client.post("/api/users/", {"firstname": "  Eve ", "lastname": "Adams"})
+        self.assertEqual((response.status_code, response.data["user"]["firstname"]), (201, "Eve"))
+
+        # A name can be changed but not emptied.
+        self.assertEqual(self.client.patch("/api/users/eve/", {"lastname": ""}).status_code, 400)
+        self.assertEqual(self.client.patch("/api/users/eve/", {"lastname": "Smith"}).status_code, 200)

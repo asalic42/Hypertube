@@ -1,8 +1,11 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+from auth_app.validators import validate_username
 
 User = get_user_model()
 
@@ -54,11 +57,15 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
 
     def validate_username(self, value):
-        if User.objects.filter(username=value).exists():
+        try:
+            value = validate_username(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages[0])
+        if User.objects.filter(username__iexact=value).exists():
             raise serializers.ValidationError(
                 "This username already exists"
             )
-        return value.strip()
+        return value
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():

@@ -152,6 +152,10 @@ export default function Signup() {
                                 value={formData.username}
                                 onChange={handleChange}
                                 required
+                                minLength={3}
+                                maxLength={30}
+                                pattern="[A-Za-z0-9][A-Za-z0-9._\-]*"
+                                title="3 to 30 letters, digits, dots, underscores or dashes, starting with a letter or digit."
                             />
                         </div>
 
@@ -180,6 +184,7 @@ export default function Signup() {
                                     value={formData.firstname}
                                     onChange={handleChange}
                                     required
+                                    maxLength={128}
                                 />
                             </div>
 
@@ -193,6 +198,7 @@ export default function Signup() {
                                     value={formData.lastname}
                                     onChange={handleChange}
                                     required
+                                    maxLength={128}
                                 />
                             </div>
                         </div>

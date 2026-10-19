@@ -29,6 +29,7 @@ from auth_app.cookies import set_refresh_cookie
 from auth_app.models import OAuthAccount, User
 from auth_app.oauth import discord, forty_two, github, google
 from auth_app.serializers import CustomTokenObtainPairSerializer
+from auth_app.validators import USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH
 
 
 logger = logging.getLogger(__name__)
@@ -57,7 +58,10 @@ class OAuthUserError(Exception):
 
 def _unique_username(raw_username: str | None, email: str) -> str:
     base = (raw_username or email.split("@")[0] or "user").strip()
-    base = re.sub(r"[^A-Za-z0-9_.-]", "", base)[:30] or "user"
+    # Same rule as registration: allowed characters only, a letter or digit first.
+    base = re.sub(r"[^A-Za-z0-9_.-]", "", base).lstrip("._-")[:USERNAME_MAX_LENGTH]
+    if len(base) < USERNAME_MIN_LENGTH:
+        base = "user"
 
     username = base
     suffix = 2
@@ -130,6 +134,10 @@ def sync_public_user(user: User, profile: dict, access_token: str) -> None:
         "firstname": profile.get("first_name") or "",
         "lastname": profile.get("last_name") or "",
     }
+    # The users service requires both names. Without them the profile is
+    # created from the token on the user's first read, to be completed later.
+    if not payload["firstname"] or not payload["lastname"]:
+        return
     url = f"{settings.USERS_SERVICE_BASE_URL}/api/users/"
 
     try:

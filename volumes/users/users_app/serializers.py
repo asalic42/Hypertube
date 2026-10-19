@@ -41,9 +41,20 @@ class PublicUserListSerializer(serializers.ModelSerializer):
         fields = ["id", "username"]
 
 
+class NameField(serializers.CharField):
+    """A first or last name: required, not blank, surrounding spaces removed."""
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("max_length", 128)
+        kwargs.setdefault("allow_blank", False)
+        super().__init__(**kwargs)
+
+
 class PublicUserCreateSerializer(serializers.ModelSerializer):
     """The caller's own profile: username and email come from the token, not the body."""
 
+    firstname = NameField()
+    lastname = NameField()
     avatar = AvatarImageField(required=False)
 
     class Meta:
@@ -79,6 +90,10 @@ class PublicUserAvatarResponseSerializer(serializers.Serializer):
 
 
 class PublicUserUpdateSerializer(serializers.ModelSerializer):
+    # Optional on a partial update, but a name can never be emptied.
+    firstname = NameField(required=False)
+    lastname = NameField(required=False)
+
     class Meta:
         model = PublicUser
         fields = [
@@ -87,6 +102,14 @@ class PublicUserUpdateSerializer(serializers.ModelSerializer):
             "email",
             "preferredLanguage"
         ]
+
+    def validate(self, attrs):
+        # With form data, DRF reads an empty optional field as "not sent".
+        # An explicit empty name is a request to erase it, which is refused.
+        for name in ("firstname", "lastname"):
+            if name in self.initial_data and not str(self.initial_data.get(name) or "").strip():
+                raise serializers.ValidationError({name: "This field may not be blank."})
+        return attrs
 
 
 class PublicUserAvatarUpdateSerializer(serializers.Serializer):

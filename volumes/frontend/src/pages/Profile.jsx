@@ -262,11 +262,11 @@ export default function Profile() {
                     <div className="grid gap-4 sm:grid-cols-2">
                         <div className="grid gap-2">
                             <Label htmlFor="firstname">First name</Label>
-                            <Input id="firstname" name="firstname" autoComplete="given-name" value={form.firstname} onChange={handleChange} required />
+                            <Input id="firstname" name="firstname" autoComplete="given-name" value={form.firstname} onChange={handleChange} required maxLength={128} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="lastname">Last name</Label>
-                            <Input id="lastname" name="lastname" autoComplete="family-name" value={form.lastname} onChange={handleChange} required />
+                            <Input id="lastname" name="lastname" autoComplete="family-name" value={form.lastname} onChange={handleChange} required maxLength={128} />
                         </div>
                     </div>
                     <div className="grid gap-2">
