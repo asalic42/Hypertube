@@ -46,3 +46,35 @@ class User(AbstractBaseUser):
 
     def __str__(self) -> str:
         return self.username
+
+
+class OAuthAccount(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="oauth_accounts",
+    )
+
+    provider = models.CharField(
+        max_length=32,
+    )
+
+    provider_user_id = models.CharField(
+        max_length=255,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        db_table = "oauth_account"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("provider", "provider_user_id"),
+                name="uniq_provider_account",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.provider}:{self.provider_user_id}"

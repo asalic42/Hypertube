@@ -11,6 +11,8 @@ from .views import (
     CsrfTokenView,
     ForgotPasswordView,
     ResetPasswordView,
+    OAuthStartView,
+    OAuthCallbackView,
 )
 
 
@@ -24,6 +26,46 @@ auth_urlpatterns = [
     path("verify/", VerifyView.as_view(), name="verify"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("me/", MeView.as_view(), name="me"),
+    path(
+        "oauth/42/start/",
+        OAuthStartView.as_view(provider="42"),
+        name="oauth-42-start",
+    ),
+    path(
+        "oauth/42/callback/",
+        OAuthCallbackView.as_view(provider="42"),
+        name="oauth-42-callback",
+    ),
+    path(
+        "oauth/github/start/",
+        OAuthStartView.as_view(provider="github"),
+        name="oauth-github-start",
+    ),
+    path(
+        "oauth/github/callback/",
+        OAuthCallbackView.as_view(provider="github"),
+        name="oauth-github-callback",
+    ),
+    path(
+        "oauth/google/start/",
+        OAuthStartView.as_view(provider="google"),
+        name="oauth-google-start",
+    ),
+    path(
+        "oauth/google/callback/",
+        OAuthCallbackView.as_view(provider="google"),
+        name="oauth-google-callback",
+    ),
+    path(
+        "oauth/discord/start/",
+        OAuthStartView.as_view(provider="discord"),
+        name="oauth-discord-start",
+    ),
+    path(
+        "oauth/discord/callback/",
+        OAuthCallbackView.as_view(provider="discord"),
+        name="oauth-discord-callback",
+    ),
 ]
 
 

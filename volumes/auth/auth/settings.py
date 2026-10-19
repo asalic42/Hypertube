@@ -28,6 +28,11 @@ CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_PATH = "/"
 CSRF_FAILURE_VIEW = "auth_app.views.csrf.csrf_failure"
 
+# Session configuration (used to store the OAuth "state"):
+
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = "Lax"
+
 # Email configuration:
 
 EMAIL_BACKEND = os.getenv(
@@ -53,6 +58,54 @@ FRONTEND_BASE_URL = os.getenv(
 
 PASSWORD_RESET_TIMEOUT = int(
     os.getenv("PASSWORD_RESET_TIMEOUT", "3600"),
+)
+
+# OAuth (OmniAuth) configuration:
+
+OMNIAUTH_REDIRECT_URL = os.getenv(
+    "OMNIAUTH_REDIRECT_URL",
+    "https://localhost:8080",
+)
+
+OAUTH_FRONTEND_CALLBACK = f"{FRONTEND_BASE_URL}/oauth/callback"
+
+# Internal URL of the users service (server to server, plain HTTP on 8443).
+
+USERS_SERVICE_BASE_URL = os.getenv(
+    "USERS_SERVICE_BASE_URL",
+    "http://users:8443",
+)
+
+# Provider: 42 (intra)
+
+FORTY_TWO_UID = os.getenv("FORTY_TWO_UID")
+FORTY_TWO_SECRET = os.getenv("FORTY_TWO_SECRET")
+FORTY_TWO_REDIRECT_URI = (
+    f"{OMNIAUTH_REDIRECT_URL}/api/auth/oauth/42/callback/"
+)
+
+# Provider: GitHub
+
+GITHUB_UID = os.getenv("GITHUB_UID")
+GITHUB_SECRET = os.getenv("GITHUB_SECRET")
+GITHUB_REDIRECT_URI = (
+    f"{OMNIAUTH_REDIRECT_URL}/api/auth/oauth/github/callback/"
+)
+
+# Provider: Google (OIDC)
+
+GOOGLE_UID = os.getenv("GOOGLE_OIDC")
+GOOGLE_SECRET = os.getenv("GOOGLE_SECRET")
+GOOGLE_REDIRECT_URI = (
+    f"{OMNIAUTH_REDIRECT_URL}/api/auth/oauth/google/callback/"
+)
+
+# Provider: Discord
+
+DISCORD_UID = os.getenv("DISCORD_UID")
+DISCORD_SECRET = os.getenv("DISCORD_SECRET")
+DISCORD_REDIRECT_URI = (
+    f"{OMNIAUTH_REDIRECT_URL}/api/auth/oauth/discord/callback/"
 )
 
 INSTALLED_APPS = [
@@ -173,6 +226,7 @@ REST_FRAMEWORK = {
         "verify": "60/minute",
         "forgot": "5/minute",
         "reset": "10/minute",
+        "oauth": "10/minute",
     },
 }
 
