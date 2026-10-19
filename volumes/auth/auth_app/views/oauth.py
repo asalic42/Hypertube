@@ -24,11 +24,11 @@ from django.http import HttpResponseRedirect
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from auth_app.cookies import set_refresh_cookie
 from auth_app.models import OAuthAccount, User
 from auth_app.oauth import discord, forty_two, github, google
+from auth_app.serializers import CustomTokenObtainPairSerializer
 
 
 logger = logging.getLogger(__name__)
@@ -82,8 +82,11 @@ def resolve_user(profile: dict) -> User:
     if account:
         return account.user
 
+    # Only a verified email may identify an account: anyone can type someone
+    # else's address into a provider profile, and linking on it would hand
+    # them that person's account. Providers that do not verify say so.
     email = profile.get("email")
-    if not email:
+    if not email or not profile.get("email_verified"):
         raise OAuthUserError("oauth_no_email")
 
     # Accounts sharing the same email are merged into a single local user.
@@ -116,26 +119,32 @@ def resolve_user(profile: dict) -> User:
     return user
 
 
-def sync_public_user(user: User, profile: dict) -> None:
+def sync_public_user(user: User, profile: dict, access_token: str) -> None:
     """Best effort creation of the matching PublicUser in the users service.
 
+    The users service takes the username and email from the bearer token, so
+    the call is made as the user, with the access token just minted for them.
     Must never make the login fail: failures are only logged.
     """
     payload = {
-        "username": user.username,
-        "email": user.email,
         "firstname": profile.get("first_name") or "",
         "lastname": profile.get("last_name") or "",
     }
     url = f"{settings.USERS_SERVICE_BASE_URL}/api/users/"
 
     try:
-        response = requests.post(url, json=payload, timeout=5)
+        response = requests.post(
+            url,
+            json=payload,
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=5,
+        )
     except requests.RequestException:
         logger.warning("PublicUser sync request failed", exc_info=True)
         return
 
-    if response.status_code not in (200, 201):
+    # 409: the profile already exists, which is the case on every login after the first.
+    if response.status_code not in (200, 201, 409):
         logger.warning(
             "PublicUser sync returned %s: %s",
             response.status_code,
@@ -222,9 +231,11 @@ class OAuthCallbackView(OAuthProviderMixin, APIView):
         except OAuthUserError as exc:
             return self._redirect_error(exc.code)
 
-        sync_public_user(user, profile)
+        # Same claims as a password login: the other services read username
+        # and email from the token, and the refresh flow copies them over.
+        refresh = CustomTokenObtainPairSerializer.get_token(user)
+        sync_public_user(user, profile, str(refresh.access_token))
 
-        refresh = RefreshToken.for_user(user)
         response = HttpResponseRedirect(settings.OAUTH_FRONTEND_CALLBACK)
         set_refresh_cookie(response, str(refresh))
         return response

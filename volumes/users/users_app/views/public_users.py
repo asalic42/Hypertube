@@ -1,85 +1,90 @@
 import logging
 
+from django.core.files.storage import default_storage
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema, OpenApiResponse
+from drf_spectacular.utils import OpenApiResponse, extend_schema
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
 from users_app.models import PublicUser
+from users_app.permissions import IsOwnerOrReadOnly, is_owner
 from users_app.serializers import (
     MessageSerializer,
+    PublicUserAvatarResponseSerializer,
     PublicUserAvatarUpdateSerializer,
     PublicUserCreateSerializer,
     PublicUserListResponseSerializer,
+    PublicUserListSerializer,
+    PublicUserResponseSerializer,
     PublicUserSerializer,
     PublicUserUpdateSerializer,
-    PublicUserResponseSerializer,
-    PublicUserAvatarResponseSerializer,
 )
-from rest_framework import serializers
-from django.core.files.storage import default_storage
 from users_app.services.avatars import (
     PresignedUrlError,
-    get_bucket_file_key,
-    create_avatar_key,
-    save_avatar,
     delete_avatar,
     get_presigned_url,
+    save_avatar,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _profile(user, request):
+    """A profile as the caller may see it: the email only for its owner."""
+    data = PublicUserSerializer(user).data
+    if not is_owner(request, user.username):
+        data.pop("email", None)
+    return data
+
+
+def _response(message, user, request, status_code=status.HTTP_200_OK):
+    return Response({"message": message, "user": _profile(user, request)}, status=status_code)
+
+
+def _get_profile(request, username):
+    """
+    The profile at `username`. The owner's own profile is created from the
+    token when it does not exist yet, so an account always has one.
+    """
+    if is_owner(request, username) and getattr(request.user, "email", ""):
+        user, _ = PublicUser.objects.get_or_create(username=username, defaults={"email": request.user.email})
+        return user
+    return get_object_or_404(PublicUser, username=username)
 
 
 class PublicUserView(APIView):
-    authentication_classes = []
-    permission_classes = []
-    
-    # GET
+    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
+
     @extend_schema(
         tags=["Public users"],
         operation_id="get_public_user",
-        responses=PublicUserResponseSerializer,
-        description="Retourne le detail d'un utilisateur public via son username.",
+        responses={200: PublicUserResponseSerializer, 404: OpenApiResponse(description="Unknown user.")},
+        description="Le profil public d'un utilisateur. L'email n'est renvoyé qu'à son propriétaire.",
     )
     def get(self, request, username):
-        user = get_object_or_404(PublicUser, username=username)
-        response_serializer = PublicUserResponseSerializer(
-            instance={
-                "message": "User retrieved successfully",
-                "user": PublicUserSerializer(user).data,
-            }
-        )
-        return Response(response_serializer.data)
+        return _response("User retrieved successfully", _get_profile(request, username), request)
 
-    # PATCH
     @extend_schema(
         tags=["Public users"],
         operation_id="update_public_user",
         request={"multipart/form-data": PublicUserUpdateSerializer},
-        responses=PublicUserResponseSerializer,
-        description="Met a jour partiellement un utilisateur public.",
+        responses={200: PublicUserResponseSerializer, 403: OpenApiResponse(description="Not your profile.")},
+        description="Met à jour partiellement son propre profil.",
     )
     def patch(self, request, username):
-        user = get_object_or_404(PublicUser, username=username)
+        user = _get_profile(request, username)
         serializer = PublicUserUpdateSerializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        response_serializer = PublicUserResponseSerializer(
-            instance={
-                "message": "User updated successfully",
-                "user": PublicUserSerializer(user).data,
-            }
-        )
-        return Response(response_serializer.data)
+        return _response("User updated successfully", user, request)
 
-    # DELETE
     @extend_schema(
         tags=["Public users"],
         operation_id="delete_public_user",
-        responses={
-            200: MessageSerializer,
-            404: OpenApiResponse(
-                description="User not found",
-            ),
-        },
-        description="Supprime un utilisateur public via son username.",
+        responses={200: MessageSerializer, 403: OpenApiResponse(description="Not your profile.")},
+        description="Supprime son propre profil et sa photo.",
     )
     def delete(self, request, username):
         user = get_object_or_404(PublicUser, username=username)
@@ -89,127 +94,97 @@ class PublicUserView(APIView):
 
 
 class PublicUserListCreate(APIView):
-    authentication_classes = []
-    permission_classes = []
-
-    # GET
     @extend_schema(
         tags=["Public users"],
         operation_id="list_public_users",
         responses=PublicUserListResponseSerializer,
-        description="Retourne la liste des utilisateurs publics.",
+        description="La liste des utilisateurs : identifiant et nom seulement.",
     )
     def get(self, request):
-        users = PublicUser.objects.all()
-        return Response(
-            {
-                "users": PublicUserSerializer(users, many=True).data
-            }
-        )
+        users = PublicUser.objects.order_by("username")
+        return Response({"users": PublicUserListSerializer(users, many=True).data})
 
-    # POST
     @extend_schema(
         tags=["Public users"],
         operation_id="create_public_user",
         request={"multipart/form-data": PublicUserCreateSerializer},
         responses={
             201: PublicUserResponseSerializer,
-            400: OpenApiResponse(description="Validation error")
+            400: OpenApiResponse(description="Validation error"),
+            409: OpenApiResponse(description="The profile already exists."),
         },
-        description="Crée un utilisateur public a partir d'un payload JSON.",
+        description="Crée le profil public du compte connecté. Nom et email viennent du jeton.",
     )
     def post(self, request):
+        username = getattr(request.user, "username", "")
+        email = getattr(request.user, "email", "")
+        if not username or not email:
+            return Response({"detail": "The token does not identify an account."}, status=status.HTTP_403_FORBIDDEN)
+        if PublicUser.objects.filter(username=username).exists():
+            return Response({"detail": "The profile already exists."}, status=status.HTTP_409_CONFLICT)
         serializer = PublicUserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        response_serializer = PublicUserResponseSerializer(
-            instance={
-                "message": "User created successfully",
-                "user": PublicUserSerializer(serializer.instance).data
-            }
-        )
-        return Response(response_serializer.data, status=201)
+        user = serializer.save(username=username, email=email)
+        return _response("User created successfully", user, request, status.HTTP_201_CREATED)
 
 
 class PublicUserAvatarView(APIView):
-    authentication_classes = []
-    permission_classes = []
-    
-    # GET
+    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
+
     @extend_schema(
         tags=["Public users"],
         operation_id="get_public_user_avatar",
         responses={
-            200: PublicUserAvatarResponseSerializer, 
-            404: OpenApiResponse(description="User has no profile avatar."),
+            200: PublicUserAvatarResponseSerializer,
+            404: OpenApiResponse(description="Unknown user."),
             503: OpenApiResponse(description="Unable to retrieve user avatar right now."),
         },
-        description="Renvoie l'url temporaire de l'image de profil d'un utilisateur public.",
+        description=(
+            "Renvoie l'url temporaire de l'image de profil d'un utilisateur public, "
+            "ou `avatar_url: null` quand il n'en a pas."
+        ),
     )
     def get(self, request, username):
-        key = get_bucket_file_key(username)
-        if key:
-            try:
-                url = get_presigned_url(
-                    bucket_name=default_storage.bucket_name,
-                    object_key=key,
-                    expiration=3600
-                )
-            except PresignedUrlError:
-                return Response(
-                    {"message": "Unable to retrieve user avatar right now."},
-                    status=503,
-                )
-            response_serializer = PublicUserAvatarResponseSerializer(
-                data={
-                    "message": "User avatar retrieved successfully.",
-                    "avatar_url": url,
-                }
-            )
-            response_serializer.is_valid(raise_exception=True)
-            return Response(response_serializer.validated_data)
-        return Response({"message": "User has no profile avatar."}, status=404)
+        user = get_object_or_404(PublicUser, username=username)
+        if not user.avatar:
+            # A missing picture is the normal case, not an error the browser should log.
+            return Response({"message": "User has no profile avatar.", "avatar_url": None})
+        try:
+            url = get_presigned_url(bucket_name=default_storage.bucket_name, object_key=user.avatar, expiration=3600)
+        except PresignedUrlError:
+            return Response({"message": "Unable to retrieve user avatar right now."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response({"message": "User avatar retrieved successfully.", "avatar_url": url})
 
-    # PATCH
     @extend_schema(
         tags=["Public users"],
         operation_id="update_public_user_avatar",
         request={"multipart/form-data": PublicUserAvatarUpdateSerializer},
-        responses=MessageSerializer,
-        description="Met a jour l'avatar.",
+        responses={200: MessageSerializer, 403: OpenApiResponse(description="Not your profile.")},
+        description="Remplace sa propre photo de profil.",
     )
     def patch(self, request, username):
         serializer = PublicUserAvatarUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = get_object_or_404(PublicUser, username=username)
-        file = serializer.validated_data["avatar"]
-
-        old_key = user.avatar if user.avatar else None
-        new_key = save_avatar(user, file)
-
+        user = _get_profile(request, username)
+        old_key = user.avatar or None
+        new_key = save_avatar(user, serializer.validated_data["avatar"])
         if old_key and old_key != new_key:
             default_storage.delete(old_key)
+        return Response({"message": "User avatar updated successfully"})
 
-        return Response(
-            {
-                "message": "User avatar updated successfully"
-            }
-        )
-
-    # DELETE
     @extend_schema(
         tags=["Public users"],
         operation_id="delete_public_user_avatar",
         responses={
             200: MessageSerializer,
+            403: OpenApiResponse(description="Not your profile."),
             404: OpenApiResponse(description="User has no avatar to delete"),
         },
-        description="Supprime l'avatar.",
+        description="Supprime sa propre photo de profil.",
     )
     def delete(self, request, username):
         user = get_object_or_404(PublicUser, username=username)
-        if user.avatar:
-            delete_avatar(user)
-            return Response({"message": "User avatar deleted successfully"})
-        else:
-            return Response({"message": "User has no avatar to delete"}, status=404)
+        if not user.avatar:
+            return Response({"message": "User has no avatar to delete"}, status=status.HTTP_404_NOT_FOUND)
+        delete_avatar(user)
+        return Response({"message": "User avatar deleted successfully"})

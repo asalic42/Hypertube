@@ -9,3 +9,4 @@ django-cors-headers==4.3.0
 pillow==12.3.0
 django-storages==1.14.0
 boto3==1.28.26
+djangorestframework-simplejwt[crypto]==5.5.1

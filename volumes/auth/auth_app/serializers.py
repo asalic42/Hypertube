@@ -18,6 +18,17 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = fields
     
 
+class UserUpdateSerializer(serializers.ModelSerializer):
+    """What a user may change on their own account: the email, which is the login."""
+
+    class Meta:
+        model = User
+        fields = ("email",)
+
+    def validate_email(self, value):
+        return value.strip().lower()
+
+
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
         write_only=True,
@@ -95,7 +106,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
+        # The other services identify the caller from these two claims.
         token["username"] = user.username
+        token["email"] = user.email
         return token
 
     def validate(self, attributes):

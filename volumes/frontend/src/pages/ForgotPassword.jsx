@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button"
 import {
-  Card,
   CardHeader,
   CardTitle,
   CardDescription,
@@ -13,7 +12,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Link } from "react-router-dom";
 import { toast } from "@/components/ui/toast";
-import { ensureCsrfToken } from "@/lib/csrf";
+import { api } from "@/lib/api";
+import AuthLayout from "@/components/AuthLayout";
 
 export default function ForgotPassword() {
     const [formData, setFormData] = useState({ email: '' })
@@ -26,32 +26,14 @@ export default function ForgotPassword() {
     async function handleSubmit(e) {
         e.preventDefault();
         setLoading(true);
-
         try {
-            const csrfToken = await ensureCsrfToken();
-
-            const response = await fetch('https://localhost:8080/api/auth/forgot-password/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken,
-                },
-                credentials: 'include',
-                body: JSON.stringify(formData),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Détail de l\'erreur :', errorData);
-                throw new Error(errorData.detail);
-            }
-
+            // Anonymous endpoint: no access token, but the CSRF cookie and header.
+            await api('/api/auth/forgot-password/', { method: 'POST', body: formData, auth: false, csrf: true });
             toast.add({
-                title: "Email envoyé",
-                description: "Si un compte est associé à cette adresse, vous allez recevoir un lien de réinitialisation.",
+                title: "Email sent",
+                description: "If an account matches this address, you will receive a reset link.",
                 type: "success",
             });
-
         } catch (err) {
             toast.add({
                 title: "Error",
@@ -63,27 +45,28 @@ export default function ForgotPassword() {
         }
     }
     return(
-        <Card className="w-full max-w-sm">
+        <AuthLayout className="max-w-md">
             <CardHeader>
-            <CardTitle>Forgot password</CardTitle>
-            <CardDescription>
-            Enter your email to reset your password
-            </CardDescription>
-            <CardAction>
-            <Button render={<Link to="/login" />} nativeButton={false} variant="link">
-                Login
-            </Button>
-            </CardAction>
+                <CardTitle>Forgot password</CardTitle>
+                <CardDescription>
+                Enter your email to reset your password 
+                </CardDescription>
+                <CardAction>
+                <Button render={<Link to="/login" />} nativeButton={false} variant="link">
+                    Login
+                </Button>
+                </CardAction>
             </CardHeader>
             <CardContent>
                 <form id="forgot-password-form" onSubmit={handleSubmit}>
-                <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-5 sm:gap-6">
                     <div className="grid gap-2">
                     <Label htmlFor="email">Email</Label>
                     <Input
                         id="email"
                         type="email"
                         name="email"
+                        autoComplete="email"
                         placeholder="m@example.com"
                         value={formData.email}
                         onChange={handleChange}
@@ -94,15 +77,10 @@ export default function ForgotPassword() {
                 </form>
             </CardContent>
             <CardFooter className="flex-col gap-2">
-            <Button
-                type="submit"
-                form="forgot-password-form"
-                className="w-full"
-                disabled={loading}
-            >
-                Send
-            </Button>
+                <Button type="submit" form="forgot-password-form" className="h-10 w-full sm:h-9" disabled={loading}>
+                {loading ? "Sending..." : "Send"}
+                </Button>
             </CardFooter>
-        </Card>
+        </AuthLayout>
     )
 }

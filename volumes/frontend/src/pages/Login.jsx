@@ -1,22 +1,20 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button"
-import { 
-  Card, 
-  CardHeader, 
-  CardTitle, 
-  CardDescription, 
-  CardAction, 
-  CardContent, 
-  CardFooter 
+import {
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardAction,
+  CardContent,
+  CardFooter
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "@/components/ui/toast";
-import { ensureCsrfToken } from "@/lib/csrf";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import AuthLayout from "@/components/AuthLayout";
 import { GoogleIcon, GithubIcon, DiscordIcon, FortyTwoIcon } from "@/components/icons/oauth-icons";
-
 
 const OAUTH_ERRORS = {
     oauth_denied: "Authorization was cancelled.",
@@ -26,11 +24,13 @@ const OAUTH_ERRORS = {
     oauth_not_configured: "This provider is not configured.",
 };
 
-
-export default function Login({ onLoginSuccess }) {
+export default function Login() {
+    const { login } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [searchParams] = useSearchParams();
     const [formData, setFormData] = useState({email: '', password: ''});
+    const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         const error = searchParams.get('error');
@@ -44,9 +44,7 @@ export default function Login({ onLoginSuccess }) {
     }, [searchParams]);
 
     function startOAuth(provider) {
-        window.location.assign(
-            `https://localhost:8080/api/auth/oauth/${provider}/start/`
-        );
+        window.location.assign(`/api/auth/oauth/${provider}/start/`);
     }
 
     function handleChange(e) {
@@ -55,45 +53,23 @@ export default function Login({ onLoginSuccess }) {
 
     async function handleSubmit(e) {
         e.preventDefault();
-
+        setSubmitting(true);
         try {
-            const csrfToken = await ensureCsrfToken();
-
-            const response = await fetch('https://localhost:8080/api/auth/login/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken,
-                },
-                credentials: 'include',
-                body: JSON.stringify(formData),
-            });
-            
-            if(!response.ok) {
-                const errorData = await response.json();
-                console.error('Détail de l\'erreur :', errorData);
-                throw new Error(errorData.detail);
-            }
-            
-            const data = await response.json();
-            const accessToken = data.access;
-
-            localStorage.setItem('access_token', accessToken);
-
-            onLoginSuccess();
-            navigate('/home');
-            
+            await login(formData.email, formData.password);
+            navigate(location.state?.from?.pathname || '/home', { replace: true });
         } catch (err) {
             toast.add({
-                title: "Error",
+                title: "Login failed",
                 description: err.message,
                 type: "error",
             });
+        } finally {
+            setSubmitting(false);
         }
     }
 
     return (
-        <Card className="w-full max-w-lg">
+        <AuthLayout className="max-w-md">
             <CardHeader>
                 <CardTitle>Login to your account</CardTitle>
                 <CardDescription>
@@ -107,13 +83,14 @@ export default function Login({ onLoginSuccess }) {
             </CardHeader>
             <CardContent>
                 <form id="login-form" onSubmit={handleSubmit}>
-                <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-5 sm:gap-6">
                     <div className="grid gap-2">
                     <Label htmlFor="email">Email</Label>
                     <Input
                         id="email"
                         type="email"
                         name="email"
+                        autoComplete="email"
                         placeholder="m@example.com"
                         value={formData.email}
                         onChange={handleChange}
@@ -121,7 +98,7 @@ export default function Login({ onLoginSuccess }) {
                     />
                     </div>
                     <div className="grid gap-2">
-                    <div className="flex items-center">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                         <Label htmlFor="password">Password</Label>
                         <Link
                           to="/forgot-password"
@@ -134,18 +111,19 @@ export default function Login({ onLoginSuccess }) {
                         id="password"
                         type="password"
                         name="password"
+                        autoComplete="current-password"
                         value={formData.password}
                         onChange={handleChange}
-                        required 
+                        required
                     />
                     </div>
-                <Button type="submit" className="w-full">
-                Login
-                </Button>
                 </div>
                 </form>
             </CardContent>
             <CardFooter className="flex-col gap-4">
+                <Button type="submit" form="login-form" className="h-10 w-full sm:h-9" disabled={submitting}>
+                {submitting ? "Logging in..." : "Login"}
+                </Button>
                 <div className="relative w-full">
                     <span className="absolute inset-0 flex items-center">
                         <span className="w-full border-t border-border" />
@@ -203,6 +181,6 @@ export default function Login({ onLoginSuccess }) {
                     </Button>
                 </div>
             </CardFooter>
-        </Card>
+        </AuthLayout>
     )
 }

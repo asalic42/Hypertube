@@ -1,29 +1,28 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button"
 import {
-  Card,
   CardHeader,
   CardTitle,
   CardDescription,
-  CardContent
+  CardAction,
+  CardContent,
+  CardFooter
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "@/components/ui/toast";
-import { ensureCsrfToken } from "@/lib/csrf";
+import { api } from "@/lib/api";
+import AuthLayout from "@/components/AuthLayout";
 
 export default function ResetPassword() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-
+    // Both come from the link in the reset email.
     const uid = searchParams.get('uid');
     const token = searchParams.get('token');
 
-    const [formData, setFormData] = useState({
-        new_password: '',
-        confirm_password: '',
-    })
+    const [formData, setFormData] = useState({ new_password: '', confirm_password: '' })
     const [loading, setLoading] = useState(false)
 
     function handleChange(e) {
@@ -32,50 +31,21 @@ export default function ResetPassword() {
 
     async function handleSubmit(e) {
         e.preventDefault();
-
         if (formData.new_password !== formData.confirm_password) {
-            toast.add({
-                title: "Error",
-                description: "Les mots de passe ne correspondent pas.",
-                type: "error",
-            });
+            toast.add({ title: "Error", description: "The passwords do not match.", type: "error" });
             return;
         }
-
         setLoading(true);
-
         try {
-            const csrfToken = await ensureCsrfToken();
-
-            const response = await fetch(
-                `https://localhost:8080/api/auth/reset-password/?uid=${encodeURIComponent(uid)}&token=${encodeURIComponent(token)}`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken,
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        new_password: formData.new_password,
-                        confirm_password: formData.confirm_password,
-                    }),
-                });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Détail de l\'erreur :', errorData);
-                throw new Error(errorData.detail);
-            }
-
+            const query = new URLSearchParams({ uid, token });
+            // Anonymous endpoint: no access token, but the CSRF cookie and header.
+            await api(`/api/auth/reset-password/?${query}`, { method: 'POST', body: formData, auth: false, csrf: true });
             toast.add({
-                title: "Mot de passe mis à jour",
-                description: "Vous pouvez maintenant vous connecter.",
+                title: "Password updated",
+                description: "You can now log in with your new password.",
                 type: "success",
             });
-
             navigate('/login');
-
         } catch (err) {
             toast.add({
                 title: "Error",
@@ -89,69 +59,70 @@ export default function ResetPassword() {
 
     if (!uid || !token) {
         return (
-            <Card className="w-full max-w-sm">
-            <CardHeader>
-                <CardTitle>Reset password</CardTitle>
-                <CardDescription>
-                Ce lien est invalide. Merci de demander un nouveau lien de réinitialisation.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Button
-                    render={<Link to="/forgot-password" />}
-                    nativeButton={false}
-                    className="w-full"
-                >
-                    Demander un nouveau lien
-                </Button>
-            </CardContent>
-            </Card>
+            <AuthLayout className="max-w-md">
+                <CardHeader>
+                    <CardTitle>Reset password</CardTitle>
+                    <CardDescription>
+                    This link is not valid. Please request a new reset link.
+                    </CardDescription>
+                </CardHeader>
+                <CardFooter className="flex-col gap-2">
+                    <Button render={<Link to="/forgot-password" />} nativeButton={false} className="h-10 w-full sm:h-9">
+                        Request a new link
+                    </Button>
+                </CardFooter>
+            </AuthLayout>
         )
     }
 
     return(
-        <Card className="w-full max-w-sm">
+        <AuthLayout className="max-w-md">
             <CardHeader>
-            <CardTitle>Reset password</CardTitle>
-            <CardDescription>
-            Enter your new password below
-            </CardDescription>
+                <CardTitle>Reset password</CardTitle>
+                <CardDescription>
+                Choose a new password for your account
+                </CardDescription>
+                <CardAction>
+                <Button render={<Link to="/login" />} nativeButton={false} variant="link">
+                    Login
+                </Button>
+                </CardAction>
             </CardHeader>
             <CardContent>
                 <form id="reset-password-form" onSubmit={handleSubmit}>
-                <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-5 sm:gap-6">
                     <div className="grid gap-2">
                     <Label htmlFor="new_password">New password</Label>
                     <Input
                         id="new_password"
                         type="password"
                         name="new_password"
+                        autoComplete="new-password"
                         value={formData.new_password}
                         onChange={handleChange}
                         required
                     />
                     </div>
                     <div className="grid gap-2">
-                    <Label htmlFor="confirm_password">Confirm password</Label>
+                    <Label htmlFor="confirm_password">Password confirmation</Label>
                     <Input
                         id="confirm_password"
                         type="password"
                         name="confirm_password"
+                        autoComplete="new-password"
                         value={formData.confirm_password}
                         onChange={handleChange}
                         required
                     />
                     </div>
                 </div>
-                <Button
-                    type="submit"
-                    className="w-full mt-6"
-                    disabled={loading}
-                >
-                Change password
-                </Button>
                 </form>
             </CardContent>
-        </Card>
+            <CardFooter className="flex-col gap-2">
+                <Button type="submit" form="reset-password-form" className="h-10 w-full sm:h-9" disabled={loading}>
+                {loading ? "Saving..." : "Change password"}
+                </Button>
+            </CardFooter>
+        </AuthLayout>
     )
 }

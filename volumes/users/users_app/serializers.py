@@ -33,16 +33,24 @@ class PublicUserSerializer(serializers.ModelSerializer):
         ]
 
 
+class PublicUserListSerializer(serializers.ModelSerializer):
+    """What the user list exposes: enough to find and name someone, nothing private."""
+
+    class Meta:
+        model = PublicUser
+        fields = ["id", "username"]
+
+
 class PublicUserCreateSerializer(serializers.ModelSerializer):
+    """The caller's own profile: username and email come from the token, not the body."""
+
     avatar = AvatarImageField(required=False)
 
     class Meta:
         model = PublicUser
         fields = [
-            "username",
             "firstname",
             "lastname",
-            "email",
             "preferredLanguage",
             "avatar",
         ]
@@ -66,7 +74,8 @@ class PublicUserResponseSerializer(serializers.Serializer):
 
 class PublicUserAvatarResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
-    avatar_url = serializers.URLField()
+    # Null when the user has no picture.
+    avatar_url = serializers.URLField(allow_null=True)
 
 
 class PublicUserUpdateSerializer(serializers.ModelSerializer):
@@ -75,6 +84,7 @@ class PublicUserUpdateSerializer(serializers.ModelSerializer):
         fields = [
             "firstname", 
             "lastname", 
+            "email",
             "preferredLanguage"
         ]
 
@@ -88,7 +98,7 @@ class MessageSerializer(serializers.Serializer):
 
 
 class PublicUserListResponseSerializer(serializers.Serializer):
-    users = PublicUserSerializer(many=True)
+    users = PublicUserListSerializer(many=True)
 
 
 class HealthSerializer(serializers.Serializer):
