@@ -6,6 +6,7 @@ import ResetPassword from './pages/ResetPassword';
 import Signup from './pages/Signup';
 import Home from './pages/Home';
 import Profile from './pages/Profile';
+import UserProfile from './pages/UserProfile';
 import Watch from './pages/Watch';
 import Header from './components/Header'
 import Footer from './components/Footer'
@@ -30,6 +31,7 @@ function App() {
               <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
               <Route path="/movies/:id" element={<ProtectedRoute><Watch /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/users/:username" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
             </Routes>
           </main>
           <Footer />

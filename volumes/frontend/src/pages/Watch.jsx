@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
@@ -7,7 +7,6 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/toast";
 import { movies as moviesApi, comments as commentsApi } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
-import UserProfileDialog from "@/components/UserProfileDialog";
 import { useAvatarUrl } from "@/lib/avatars";
 
 const POLL_INTERVAL = 2000;
@@ -190,7 +189,7 @@ function Player({ movieId, initialStatus }) {
     );
 }
 
-function CommentItem({ comment, own, onChanged, onShowProfile }) {
+function CommentItem({ comment, own, onChanged }) {
     const [editing, setEditing] = useState(false);
     const [text, setText] = useState(comment.comment);
 
@@ -213,21 +212,20 @@ function CommentItem({ comment, own, onChanged, onShowProfile }) {
         }
     }
 
-    // The author's public profile opens in a modal above the page.
-    const showProfile = () => onShowProfile(comment.username);
+    const profilePath = `/users/${encodeURIComponent(comment.username)}`;
     const pictureUrl = useAvatarUrl(comment.username);
 
     return (
         <div className="flex gap-3">
-            <button type="button" onClick={showProfile} aria-label={`Profile of ${comment.username}`} className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+            <Link to={profilePath} aria-label={`Profile of ${comment.username}`} className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
                 <Avatar className="size-8">
                     {pictureUrl && <AvatarImage src={pictureUrl} alt="" />}
                     <AvatarFallback>{comment.username[0].toUpperCase()}</AvatarFallback>
                 </Avatar>
-            </button>
+            </Link>
             <div className="flex flex-1 flex-col gap-1">
                 <div className="flex items-center gap-2">
-                    <button type="button" onClick={showProfile} className="font-medium text-sm underline-offset-4 hover:underline">{comment.username}</button>
+                    <Link to={profilePath} className="font-medium text-sm underline-offset-4 hover:underline">{comment.username}</Link>
                     <span className="text-xs text-muted-foreground">{new Date(comment.created_at).toLocaleString()}</span>
                     {own && !editing && (
                         <span className="ml-auto flex gap-1">
@@ -263,8 +261,6 @@ function Comments({ movieId }) {
     const [comments, setComments] = useState([]);
     const [nextPage, setNextPage] = useState(null);
     const [text, setText] = useState("");
-    // Username whose profile is open in the modal, null when closed.
-    const [profileUser, setProfileUser] = useState(null);
 
     function showError(err) {
         toast.add({ title: "Error", description: err.message, type: "error" });
@@ -327,14 +323,12 @@ function Comments({ movieId }) {
                         comment={comment}
                         own={comment.username === user.username}
                         onChanged={(updated) => replace(comment.id, updated)}
-                        onShowProfile={setProfileUser}
                     />
                 ))}
                 {nextPage && (
                     <Button type="button" variant="outline" className="self-center" onClick={loadMore}>Load more</Button>
                 )}
             </div>
-            <UserProfileDialog username={profileUser} onClose={() => setProfileUser(null)} />
         </div>
     );
 }
