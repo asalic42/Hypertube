@@ -6,3 +6,4 @@ from .me import MeView
 from .csrf import CsrfTokenView
 from .forgot_pass import ForgotPasswordView
 from .reset_pass import ResetPasswordView
+from .oauth import OAuthStartView, OAuthCallbackView
