@@ -21,13 +21,13 @@ PROFILE = {
 
 
 class OAuthCallbackTests(TestCase):
-    def _callback(self):
+    def _callback(self, profile=PROFILE):
         session = self.client.session
         session[_state_session_key("google")] = "state-1"
         session.save()
         with (
             patch("auth_app.oauth.google.exchange_code", return_value="provider-token"),
-            patch("auth_app.oauth.google.fetch_profile", return_value=PROFILE),
+            patch("auth_app.oauth.google.fetch_profile", return_value=profile),
             patch("auth_app.views.oauth.requests.post") as post,
         ):
             post.return_value.status_code = 201
@@ -80,3 +80,24 @@ class OAuthCallbackTests(TestCase):
             )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response["Location"], settings.OAUTH_FRONTEND_CALLBACK)
+
+    def test_unverified_email_cannot_take_over_an_account(self):
+        victim = User.objects.create_user(email="jane@example.com", username="jane", password="Str0ng-pass!")
+
+        response, post = self._callback({**PROFILE, "email_verified": False})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], f"{settings.FRONTEND_BASE_URL}/login?error=oauth_no_email")
+        self.assertNotIn(settings.REFRESH_COOKIE_NAME, response.cookies)
+        self.assertFalse(OAuthAccount.objects.filter(user=victim).exists())
+        self.assertEqual(User.objects.count(), 1)
+        post.assert_not_called()
+
+    def test_already_linked_account_logs_in_without_email(self):
+        user = User.objects.create_user(email="jane@example.com", username="jane", password="Str0ng-pass!")
+        OAuthAccount.objects.create(user=user, provider="google", provider_user_id="google-123")
+
+        response, _ = self._callback({**PROFILE, "email": None, "email_verified": False})
+
+        self.assertEqual(response["Location"], settings.OAUTH_FRONTEND_CALLBACK)
+        self.assertIn(settings.REFRESH_COOKIE_NAME, response.cookies)

@@ -82,8 +82,11 @@ def resolve_user(profile: dict) -> User:
     if account:
         return account.user
 
+    # Only a verified email may identify an account: anyone can type someone
+    # else's address into a provider profile, and linking on it would hand
+    # them that person's account. Providers that do not verify say so.
     email = profile.get("email")
-    if not email:
+    if not email or not profile.get("email_verified"):
         raise OAuthUserError("oauth_no_email")
 
     # Accounts sharing the same email are merged into a single local user.
