@@ -5,6 +5,7 @@ from django.conf import settings
 from django.test import TestCase
 
 from auth_app.models import User
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from auth_app.serializers import CustomTokenObtainPairSerializer
 
 
@@ -64,6 +65,13 @@ class UpdateEmailTests(TestCase):
 
     def test_own_email_is_normalized(self):
         response = self.patch("  Jane.New@Example.com ")
-        self.assertEqual((response.status_code, response.json()["email"]), (200, "jane.new@example.com"))
+        self.assertEqual((response.status_code, response.json()["user"]["email"]), (200, "jane.new@example.com"))
         # Changing only the case of one's own address is allowed, and a no-op.
         self.assertEqual(self.patch("JANE.NEW@example.com").status_code, 200)
+
+    def test_new_tokens_carry_the_new_email(self):
+        response = self.patch("jane.new@example.com")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(AccessToken(response.json()["access"])["email"], "jane.new@example.com")
+        refresh = RefreshToken(response.cookies[settings.REFRESH_COOKIE_NAME].value)
+        self.assertEqual(refresh["email"], "jane.new@example.com")

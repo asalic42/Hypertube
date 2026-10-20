@@ -90,6 +90,8 @@ class PublicUserAvatarResponseSerializer(serializers.Serializer):
 
 
 class PublicUserUpdateSerializer(serializers.ModelSerializer):
+    """What the owner may change. The email is the auth service's: it comes from the token, never from the body."""
+
     # Optional on a partial update, but a name can never be emptied.
     firstname = NameField(required=False)
     lastname = NameField(required=False)
@@ -97,10 +99,9 @@ class PublicUserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = PublicUser
         fields = [
-            "firstname", 
-            "lastname", 
-            "email",
-            "preferredLanguage"
+            "firstname",
+            "lastname",
+            "preferredLanguage",
         ]
 
     def validate(self, attrs):

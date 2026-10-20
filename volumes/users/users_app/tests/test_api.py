@@ -87,3 +87,23 @@ class UsersApiTests(APITestCase):
         # A name can be changed but not emptied.
         self.assertEqual(self.client.patch("/api/users/eve/", {"lastname": ""}).status_code, 400)
         self.assertEqual(self.client.patch("/api/users/eve/", {"lastname": "Smith"}).status_code, 200)
+
+    def test_email_comes_from_the_token_never_from_the_body(self):
+        # Claiming another account's address through the body is ignored.
+        response = self.client.patch("/api/users/ana/", {"email": "bob@example.test", "firstname": "Anita"})
+        self.assertEqual((response.status_code, response.data["user"]["email"]), (200, "ana@example.test"))
+        self.bob.refresh_from_db()
+        self.assertEqual(self.bob.email, "bob@example.test")
+
+        # After the auth service changed the email, the token carries the new one and the profile follows.
+        self.client.force_authenticate(token_user("ana", "ana.new@example.test"))
+        response = self.client.get("/api/users/ana/")
+        self.assertEqual(response.data["user"]["email"], "ana.new@example.test")
+        self.ana.refresh_from_db()
+        self.assertEqual(self.ana.email, "ana.new@example.test")
+
+    def test_email_held_by_a_stale_profile_does_not_break_the_owner(self):
+        self.client.force_authenticate(token_user("ana", "bob@example.test"))
+        with self.assertLogs("users_app.views.public_users", level="WARNING"):
+            response = self.client.get("/api/users/ana/")
+        self.assertEqual((response.status_code, response.data["user"]["email"]), (200, "ana@example.test"))

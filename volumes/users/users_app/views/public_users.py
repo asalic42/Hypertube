@@ -1,6 +1,7 @@
 import logging
 
 from django.core.files.storage import default_storage
+from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
@@ -48,10 +49,28 @@ def _get_profile(request, username):
     The profile at `username`. The owner's own profile is created from the
     token when it does not exist yet, so an account always has one.
     """
-    if is_owner(request, username) and getattr(request.user, "email", ""):
-        user, _ = PublicUser.objects.get_or_create(username=username, defaults={"email": request.user.email})
+    email = getattr(request.user, "email", "")
+    if is_owner(request, username) and email:
+        user, created = PublicUser.objects.get_or_create(username=username, defaults={"email": email})
+        if not created and user.email != email:
+            _sync_email(user, email)
         return user
     return get_object_or_404(PublicUser, username=username)
+
+
+def _sync_email(user, email):
+    """
+    The auth service owns the email and puts it in the token: the copy kept
+    here follows it. Only a stale profile left by a deleted account can hold
+    the same address; it is left alone and logged rather than crash the request.
+    """
+    try:
+        with transaction.atomic():
+            PublicUser.objects.filter(pk=user.pk).update(email=email)
+    except IntegrityError:
+        logger.warning("profile %s keeps email %s: %s is held by another profile", user.username, user.email, email)
+        return
+    user.email = email
 
 
 class PublicUserView(APIView):

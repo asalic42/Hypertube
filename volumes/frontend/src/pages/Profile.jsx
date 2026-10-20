@@ -135,11 +135,16 @@ export default function Profile() {
         try {
             let profile;
             try {
-                // The auth service owns the email: change it there first, the users copy follows.
+                // The auth service owns the email: change it there first. The users
+                // service reads it from the fresh token, so it is not sent to it.
                 if (form.email !== saved.email) {
                     updateUser(await authApi.updateMe({ email: form.email }));
                 }
-                profile = await usersApi.update(user.username, form);
+                profile = await usersApi.update(user.username, {
+                    firstname: form.firstname,
+                    lastname: form.lastname,
+                    preferredLanguage: form.preferredLanguage,
+                });
             } catch (err) {
                 toast.add({ title: "Could not save your information", description: err.message, type: "error" });
                 return;

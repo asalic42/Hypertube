@@ -173,8 +173,11 @@ export const auth = {
   me() {
     return api('/api/auth/me/');
   },
-  updateMe(fields) {
-    return api('/api/auth/me/', { method: 'PATCH', body: fields, csrf: true });
+  async updateMe(fields) {
+    // The email is in the tokens: the answer carries fresh ones.
+    const data = await api('/api/auth/me/', { method: 'PATCH', body: fields, csrf: true });
+    setToken(data.access);
+    return data.user;
   },
   deleteMe() {
     return api('/api/auth/me/', { method: 'DELETE', csrf: true });
