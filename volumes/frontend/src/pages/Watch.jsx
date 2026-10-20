@@ -8,6 +8,7 @@ import { toast } from "@/components/ui/toast";
 import { movies as moviesApi, comments as commentsApi } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useAvatarUrl } from "@/lib/avatars";
+import CoverPlaceholder from "@/components/CoverPlaceholder";
 
 const POLL_INTERVAL = 2000;
 const LANGUAGE_NAMES = new Intl.DisplayNames(["en"], { type: "language" });
@@ -378,7 +379,13 @@ function MoviePage({ id }) {
             </div>
             <Separator />
             <div className="grid gap-6 md:grid-cols-[200px_1fr]">
-                {film.cover_url && <img src={film.cover_url} alt="" className="w-full rounded-lg object-cover" />}
+                {film.cover_url ? (
+                    <img src={film.cover_url} alt="" className="w-full rounded-lg object-cover" />
+                ) : (
+                    <div className="aspect-[2/3] w-full overflow-hidden rounded-lg">
+                        <CoverPlaceholder title={film.title} year={film.year} />
+                    </div>
+                )}
                 <div className="flex flex-col gap-3">
                     <p className="text-muted-foreground">{film.overview || "No summary available."}</p>
                     {people.map(([role, names]) => (

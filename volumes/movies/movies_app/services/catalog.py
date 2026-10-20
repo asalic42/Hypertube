@@ -1,4 +1,5 @@
 import logging
+from bisect import bisect_right
 from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -120,6 +121,41 @@ def refresh_popular():
 def refresh_search(words):
     _refresh(f"archive:search:{' '.join(words)}"[:255], SEARCH_TTL, lambda: archive.search(words))
     refresh_pdt_catalog()
+
+
+def refresh_ranks():
+    """
+    Make popularity comparable across sources. archive.org counts downloads,
+    publicdomaintorrents counts nothing, so raw counts would keep every PDT
+    title at the bottom of the front page. Each source item gets its
+    percentile within its source instead, and a movie takes the best of its
+    items. The signal is the download count when the source has one, else
+    the TMDb vote count of the film.
+    """
+    ranks = {}
+    for provider in SourceItem.Provider.values:
+        rows = list(
+            SourceItem.objects.filter(provider=provider).values_list("movie_id", "downloads", "movie__vote_count")
+        )
+        if not rows:
+            continue
+        counts_downloads = any(downloads for _, downloads, _ in rows)
+        signal = {movie_id: (downloads if counts_downloads else votes) for movie_id, downloads, votes in rows}
+        ordered = sorted(signal.values())
+        total = len(ordered)
+        for movie_id, value in signal.items():
+            # Ties share a percentile: the share of items at or below this value.
+            percentile = 100.0 * bisect_right(ordered, value) / total if value > 0 else 0.0
+            ranks[movie_id] = max(ranks.get(movie_id, 0.0), percentile)
+
+    movies = Movie.objects.filter(pk__in=ranks).only("pk", "rank")
+    changed = []
+    for movie in movies:
+        if movie.rank != ranks[movie.pk]:
+            movie.rank = ranks[movie.pk]
+            changed.append(movie)
+    Movie.objects.bulk_update(changed, ["rank"], batch_size=500)
+    Movie.objects.exclude(pk__in=ranks).exclude(rank=0).update(rank=0)
 
 
 def resolve_movie(movie_id):

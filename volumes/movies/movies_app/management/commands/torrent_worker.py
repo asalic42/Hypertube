@@ -40,8 +40,10 @@ def process_renditions():
 def warm_catalog():
     """Keep the front page listing fresh and enrich the catalogue little by little."""
     catalog.refresh_popular()
-    queue = Movie.objects.order_by(F("metadata_fetched_at").asc(nulls_first=True), "-popularity")
+    queue = Movie.objects.order_by(F("metadata_fetched_at").asc(nulls_first=True), "-rank", "-popularity")
     catalog.enrich_pending(queue, limit=CATALOG_BATCH, timeout=55)
+    # Enrichment brings vote counts, the listings bring download counts: re-rank.
+    catalog.refresh_ranks()
 
 
 def purge():

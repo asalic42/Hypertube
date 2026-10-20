@@ -45,6 +45,9 @@ class Movie(models.Model):
     imdb_id = models.CharField(max_length=16, blank=True, db_index=True)
     tmdb_id = models.PositiveIntegerField(null=True, blank=True, unique=True)
     popularity = models.BigIntegerField(default=0, db_index=True)
+    # Popularity made comparable across sources: the movie's best percentile
+    # within one source, 0 to 100. See `catalog.refresh_ranks`.
+    rank = models.FloatField(default=0, db_index=True)
     metadata_status = models.CharField(
         max_length=16,
         choices=MetadataStatus.choices,

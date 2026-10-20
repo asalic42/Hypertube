@@ -60,9 +60,9 @@ class AuthenticationTests(ApiTestCase):
 class MovieListTests(ApiTestCase):
     def setUp(self):
         super().setUp()
-        self.charade = self.make_movie("Charade", year=1963, rating=7.7, popularity=50)
-        self.zorro = self.make_movie("Zorro", year=1975, rating=6.1, popularity=90)
-        self.alibi = self.make_movie("alibi", year=1929, rating=5.6, popularity=10)
+        self.charade = self.make_movie("Charade", year=1963, rating=7.7, rank=50)
+        self.zorro = self.make_movie("Zorro", year=1975, rating=6.1, rank=90)
+        self.alibi = self.make_movie("alibi", year=1929, rating=5.6, rank=10)
 
     def titles(self, query=""):
         response = self.client.get(f"/api/movies/{query}")

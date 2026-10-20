@@ -278,6 +278,40 @@ def make_item(external_id, title, downloads=0, provider=SourceItem.Provider.ARCH
     )
 
 
+class RankTests(TestCase):
+    def test_each_source_ranks_its_own_items_and_pdt_uses_votes(self):
+        PDT = SourceItem.Provider.PUBLIC_DOMAIN_TORRENTS
+        catalog.upsert_items([make_item("big", "Big Hit", downloads=1000), make_item("mid", "Mid", downloads=100), make_item("none", "Unknown", downloads=0)])
+        catalog.upsert_items([make_item("p1", "Loved", provider=PDT), make_item("p2", "Liked", provider=PDT), make_item("p3", "Obscure", provider=PDT)])
+        by_title = {movie.title: movie for movie in Movie.objects.all()}
+        Movie.objects.filter(pk=by_title["Loved"].pk).update(vote_count=900)
+        Movie.objects.filter(pk=by_title["Liked"].pk).update(vote_count=30)
+
+        catalog.refresh_ranks()
+
+        ranks = {movie.title: movie.rank for movie in Movie.objects.all()}
+        # archive.org by downloads, PDT by TMDb votes: the best of each source is on a par.
+        self.assertEqual(ranks["Big Hit"], 100.0)
+        self.assertEqual(ranks["Loved"], 100.0)
+        self.assertAlmostEqual(ranks["Mid"], 200 / 3)
+        self.assertAlmostEqual(ranks["Liked"], 200 / 3)
+        # No signal at all: unranked, whatever the source.
+        self.assertEqual((ranks["Unknown"], ranks["Obscure"]), (0.0, 0.0))
+
+    def test_a_movie_on_two_sources_takes_its_best_rank(self):
+        PDT = SourceItem.Provider.PUBLIC_DOMAIN_TORRENTS
+        catalog.upsert_items([make_item("a", "Charade", downloads=1), make_item("b", "Zorro", downloads=500)])
+        catalog.upsert_items([make_item("p", "Charade", provider=PDT)])
+        keep = Movie.objects.get(title="Charade", sources__provider=SourceItem.Provider.ARCHIVE)
+        catalog.merge_movies(keep=keep, duplicate=Movie.objects.get(sources__provider=PDT))
+        Movie.objects.filter(pk=keep.pk).update(vote_count=50)
+
+        catalog.refresh_ranks()
+
+        keep.refresh_from_db()
+        self.assertEqual(keep.rank, 100.0, "last on archive.org, but the only ranked PDT title")
+
+
 class CatalogTests(TestCase):
     def test_upsert_is_idempotent_and_tracks_popularity(self):
         catalog.upsert_items([make_item("a", "Charade (1963)", downloads=10)])
