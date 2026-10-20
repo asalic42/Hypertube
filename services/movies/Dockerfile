@@ -22,4 +22,4 @@ RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r /init/requirements.txt
 
 ENTRYPOINT ["bash", "/init/init.sh"]
-CMD ["gunicorn", "--reload", "--worker-class", "gthread", "--workers", "2", "--threads", "16", "--bind", "0.0.0.0:8443", "movies.wsgi:application"]
+CMD ["gunicorn", "--worker-class", "gthread", "--workers", "2", "--threads", "16", "--bind", "0.0.0.0:8443", "movies.wsgi:application"]
