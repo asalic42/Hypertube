@@ -5,6 +5,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from auth_app.managers import normalize_email
 from auth_app.validators import validate_username
 
 User = get_user_model()
@@ -29,7 +30,10 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         fields = ("email",)
 
     def validate_email(self, value):
-        return value.strip().lower()
+        value = normalize_email(value)
+        if User.objects.filter(email__iexact=value).exclude(pk=self.instance.pk).exists():
+            raise serializers.ValidationError("This email already has an account")
+        return value
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -68,11 +72,12 @@ class RegisterSerializer(serializers.ModelSerializer):
         return value
 
     def validate_email(self, value):
-        if User.objects.filter(email=value).exists():
+        value = normalize_email(value)
+        if User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError(
                 "This email already has an account"
             )
-        return value.strip().lower()
+        return value
 
 
     def validate(self, attributes):

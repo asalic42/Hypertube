@@ -44,3 +44,26 @@ class DeleteAccountTests(TestCase):
 
     def test_needs_a_token(self):
         self.assertEqual(self.client.delete("/api/auth/me/").status_code, 401)
+
+
+class UpdateEmailTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(email="jane@example.com", username="jane", password="Str0ng-pass!")
+        User.objects.create_user(email="bob@example.com", username="bob", password="Str0ng-pass!")
+        self.bearer = f"Bearer {CustomTokenObtainPairSerializer.get_token(self.user).access_token}"
+
+    def patch(self, email):
+        return self.client.patch("/api/auth/me/", {"email": email}, content_type="application/json", HTTP_AUTHORIZATION=self.bearer)
+
+    def test_another_account_email_is_refused_whatever_the_case(self):
+        response = self.patch("Bob@Example.com")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("email", response.json())
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "jane@example.com")
+
+    def test_own_email_is_normalized(self):
+        response = self.patch("  Jane.New@Example.com ")
+        self.assertEqual((response.status_code, response.json()["email"]), (200, "jane.new@example.com"))
+        # Changing only the case of one's own address is allowed, and a no-op.
+        self.assertEqual(self.patch("JANE.NEW@example.com").status_code, 200)

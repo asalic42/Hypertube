@@ -3,8 +3,17 @@ from typing import Any
 from django.contrib.auth.base_user import BaseUserManager
 
 
+def normalize_email(value: str) -> str:
+    """The form an email is stored and compared in: trimmed, lower case."""
+    return (value or "").strip().lower()
+
+
 class UserManager(BaseUserManager):
     use_in_migrations = True
+
+    def get_by_natural_key(self, email):
+        # The login: an address typed with capitals is the same account.
+        return self.get(email__iexact=normalize_email(email))
 
     def create_user(
         self,
@@ -19,7 +28,7 @@ class UserManager(BaseUserManager):
         if not username:
             raise ValueError("Username is required.")
 
-        email = self.normalize_email(email).lower()
+        email = normalize_email(email)
         username = username.strip()
 
         user = self.model(
