@@ -176,7 +176,7 @@ export default function Profile() {
     async function deleteAccount() {
         setDeleting(true);
         try {
-            await usersApi.remove(user.username);
+            // The auth service erases the profile, comments and watch history with the account.
             await authApi.deleteMe();
         } catch (err) {
             toast.add({ title: "Could not delete the account", description: err.message, type: "error" });

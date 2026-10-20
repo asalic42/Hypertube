@@ -5,6 +5,7 @@ from . import views
 movies_urlpatterns = [
     path("", views.MovieListView.as_view(), name="movie-list"),
     path("genres/", views.GenreListView.as_view(), name="genre-list"),
+    path("me/", views.MyDataView.as_view(), name="my-data"),
     path("<int:movie_id>/", views.MovieDetailView.as_view(), name="movie-detail"),
     path("<int:movie_id>/comments/", views.MovieCommentListView.as_view(), name="movie-comment-list"),
     path("<int:movie_id>/download/", views.MovieDownloadView.as_view(), name="movie-download"),

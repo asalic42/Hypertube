@@ -76,6 +76,13 @@ USERS_SERVICE_BASE_URL = os.getenv(
     "http://users:8443",
 )
 
+# Internal URL of the movies service, for erasing a deleted account's data.
+
+MOVIES_SERVICE_BASE_URL = os.getenv(
+    "MOVIES_SERVICE_BASE_URL",
+    "http://movies:8443",
+)
+
 # Provider: 42 (intra)
 
 FORTY_TWO_UID = os.getenv("FORTY_TWO_UID")

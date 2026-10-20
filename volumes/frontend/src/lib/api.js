@@ -244,9 +244,6 @@ export const users = {
   deleteAvatar(username) {
     return api(`/api/users/${encodeURIComponent(username)}/avatar/`, { method: 'DELETE' });
   },
-  remove(username) {
-    return api(`/api/users/${encodeURIComponent(username)}/`, { method: 'DELETE' });
-  },
 };
 
 export const comments = {

@@ -1,0 +1,46 @@
+from unittest.mock import patch
+
+import requests
+from django.conf import settings
+from django.test import TestCase
+
+from auth_app.models import User
+from auth_app.serializers import CustomTokenObtainPairSerializer
+
+
+class DeleteAccountTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(email="jane@example.com", username="jane", password="Str0ng-pass!")
+        self.bearer = f"Bearer {CustomTokenObtainPairSerializer.get_token(self.user).access_token}"
+
+    def delete(self):
+        return self.client.delete("/api/auth/me/", HTTP_AUTHORIZATION=self.bearer)
+
+    def test_the_other_services_erase_their_data_first(self):
+        with patch("auth_app.services.requests.delete") as remote:
+            remote.return_value.status_code = 204
+            response = self.delete()
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(User.objects.filter(pk=self.user.pk).exists())
+        calls = [(call.args[0], call.kwargs["headers"]["Authorization"]) for call in remote.call_args_list]
+        self.assertEqual(calls, [
+            (f"{settings.USERS_SERVICE_BASE_URL}/api/users/jane/", self.bearer),
+            (f"{settings.MOVIES_SERVICE_BASE_URL}/api/movies/me/", self.bearer),
+        ])
+
+    def test_a_missing_profile_is_not_an_error(self):
+        with patch("auth_app.services.requests.delete") as remote:
+            remote.return_value.status_code = 404
+            self.assertEqual(self.delete().status_code, 204)
+        self.assertFalse(User.objects.filter(pk=self.user.pk).exists())
+
+    def test_the_account_is_kept_when_a_service_cannot_erase(self):
+        for failure in ({"side_effect": requests.ConnectionError()}, {"return_value.status_code": 500}):
+            with patch("auth_app.services.requests.delete", **failure), self.assertLogs("auth_app.views.me", level="ERROR"):
+                response = self.delete()
+            self.assertEqual(response.status_code, 503, failure)
+            self.assertTrue(User.objects.filter(pk=self.user.pk).exists())
+
+    def test_needs_a_token(self):
+        self.assertEqual(self.client.delete("/api/auth/me/").status_code, 401)

@@ -1,3 +1,5 @@
+import logging
+
 from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
@@ -12,6 +14,9 @@ from rest_framework_simplejwt.exceptions import TokenError
 
 from auth_app.serializers import UserSerializer, UserUpdateSerializer
 from auth_app.cookies import delete_refresh_cookie
+from auth_app.services import RemoteError, delete_user_data
+
+logger = logging.getLogger(__name__)
 
 
 @method_decorator(csrf_protect, name="dispatch")
@@ -44,11 +49,27 @@ class MeView(RetrieveAPIView):
 
     @extend_schema(
         request=None,
-        responses={204: None},
+        responses={204: None, 503: None},
         tags=["Authentication"],
         operation_id="auth_delete_current_user",
+        description=(
+            "Deletes the account and everything the other services hold about it: "
+            "profile and picture, comments, watch history. When one of them cannot "
+            "erase its part the account is kept and 503 is returned, to try again later."
+        ),
     )
     def delete(self, request, *args, **kwargs):
+        # The other services check the user's own token, so nothing but the
+        # account owner can trigger this, and nothing is left behind.
+        try:
+            delete_user_data(request.user.username, request.META.get("HTTP_AUTHORIZATION", ""))
+        except RemoteError as error:
+            logger.error("account %s not deleted, a service kept its data: %s", request.user.pk, error)
+            return Response(
+                {"detail": "The account could not be deleted right now, please try again later."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         raw_refresh_token = request.COOKIES.get(settings.REFRESH_COOKIE_NAME)
 
         if raw_refresh_token:
