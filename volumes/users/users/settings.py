@@ -91,6 +91,20 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
+    # One proxy (nginx) stands in front: the client address is the one it
+    # writes in X-Forwarded-For, not whatever the client put there itself.
+    "NUM_PROXIES": 1,
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "30/minute",
+        "user": "600/minute",
+        # Picture uploads cost storage and CPU.
+        "avatar": "10/minute",
+    },
 }
 
 # Tokens are signed by the auth service; only its public key is needed here.

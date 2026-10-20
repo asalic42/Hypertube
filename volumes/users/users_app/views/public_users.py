@@ -149,6 +149,7 @@ class PublicUserListCreate(APIView):
 
 class PublicUserAvatarView(APIView):
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
+    throttle_scope = "avatar"
 
     @extend_schema(
         tags=["Public users"],

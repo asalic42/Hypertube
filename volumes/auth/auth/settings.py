@@ -216,6 +216,9 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_SCHEMA_CLASS":
         "drf_spectacular.openapi.AutoSchema",
+    # One proxy (nginx) stands in front: the client address is the one it
+    # writes in X-Forwarded-For, not whatever the client put there itself.
+    "NUM_PROXIES": 1,
     "DEFAULT_THROTTLE_CLASSES": (
         "rest_framework.throttling."
         "AnonRateThrottle",
