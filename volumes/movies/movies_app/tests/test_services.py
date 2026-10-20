@@ -69,6 +69,9 @@ class StreamTokenTests(SimpleTestCase):
         with override_settings(STREAM_TOKEN_MAX_AGE=-1):
             self.assertIsNone(streaming.read_token(token, 7))
 
+    def test_token_must_name_a_real_user_id(self):
+        self.assertIsNone(streaming.read_token(streaming.make_token("not-a-uuid", 7), 7))
+
 
 class MediaPathTests(SimpleTestCase):
     @override_settings(MOVIES_DOWNLOAD_DIR="/downloads")

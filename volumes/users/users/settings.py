@@ -1,6 +1,8 @@
 from pathlib import Path
 import os
 
+from django.core.exceptions import ImproperlyConfigured
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -10,9 +12,29 @@ def read_key_file(env_variable: str, default: str) -> str:
     return path.read_text(encoding="utf-8") if path.is_file() else ""
 
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-hypertube-dev-secret-key")
-DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
-ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "*").split(",")
+def required_env(name: str) -> str:
+    """A setting that must come from the environment: no fallback, start-up fails without it."""
+    value = os.getenv(name, "").strip()
+    if not value:
+        raise ImproperlyConfigured(f"{name} is not set. Add it to the .env file at the root of the project.")
+    return value
+
+
+def secret_key(name: str) -> str:
+    key = required_env(name)
+    if len(key) < 50 or key.startswith("django-insecure-"):
+        raise ImproperlyConfigured(
+            f"{name} is too weak: use at least 50 random characters, never committed, made with "
+            "python3 -c \"import secrets; print(secrets.token_urlsafe(64))\""
+        )
+    return key
+
+
+# Security settings have no safe default: each one is read from .env, and the
+# service refuses to start without them. DEBUG is off unless asked for.
+SECRET_KEY = secret_key("USERS_SECRET_KEY")
+DEBUG = os.getenv("DJANGO_DEBUG", "0").strip().lower() in ("1", "true", "yes")
+ALLOWED_HOSTS = [host.strip() for host in required_env("DJANGO_ALLOWED_HOSTS").split(",") if host.strip()]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
