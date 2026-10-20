@@ -128,6 +128,17 @@ def storage_key(movie_id, language):
     return f"{movie_id}/subtitles/{language}.vtt"
 
 
+def remove_stored(movie):
+    """Forget the subtitles of a movie and erase their files from storage. Best effort.
+
+    Every row goes, not only the stored ones: a later download asks for the
+    languages it needs again, from scratch.
+    """
+    for key in movie.subtitles.exclude(storage_key="").values_list("storage_key", flat=True):
+        storage.delete(key)
+    movie.subtitles.all().delete()
+
+
 def process(subtitle):
     """Resolve a pending subtitle: files shipped with the archive.org item first, then OpenSubtitles."""
     movie = subtitle.movie

@@ -50,8 +50,9 @@ def purge():
     stale = Download.objects.filter(status=Download.Status.READY).filter(
         Q(movie__last_watched_at__lt=limit) | Q(movie__last_watched_at__isnull=True, completed_at__lt=limit)
     )
-    for download in stale:
+    for download in stale.select_related("movie"):
         renditions.remove_stored(download)
+        subtitles.remove_stored(download.movie)
         download.delete()
         logger.info("movie %s was not watched for %s days: erased", download.movie_id, settings.MOVIE_RETENTION_DAYS)
 

@@ -1,5 +1,6 @@
 import json
 import tempfile
+from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -7,6 +8,7 @@ from unittest import mock
 from botocore.exceptions import ClientError
 
 from django.test import SimpleTestCase, TestCase, override_settings
+from django.utils import timezone
 
 from movies_app.models import Comment, Download, MergedMovie, Movie, Rendition, SourceItem, Subtitle, Torrent, WatchRecord
 from movies_app.services import catalog, media, renditions, streaming, subtitles, tmdb
@@ -180,6 +182,48 @@ class RenditionWorkerTests(TestCase):
             renditions.remove_stored(download)
         self.assertEqual([call.args[0] for call in delete.call_args_list], [download.storage_key, "k/480"])
         self.assertEqual(download.renditions.count(), 0)
+
+
+class PurgeTests(TestCase):
+    """The monthly purge, run by the worker: `torrent_worker.purge`."""
+
+    def stored_movie(self, title, **download_fields):
+        movie = Movie.objects.create(title=title)
+        download = Download.objects.create(
+            movie=movie, status=Download.Status.READY, storage_key=f"{movie.pk}/video.mp4", storage_size=10,
+            completed_at=timezone.now() - timedelta(days=60), **download_fields,
+        )
+        Rendition.objects.create(download=download, height=480, status=Rendition.Status.READY, storage_key=f"{movie.pk}/video_480p.mp4")
+        Subtitle.objects.create(movie=movie, language="en", status=Subtitle.Status.READY, storage_key=f"{movie.pk}/subtitles/en.vtt")
+        Subtitle.objects.create(movie=movie, language="fr", status=Subtitle.Status.UNAVAILABLE)
+        return movie
+
+    def test_erases_the_video_its_renditions_and_its_subtitles(self):
+        from movies_app.management.commands.torrent_worker import purge
+
+        stale = self.stored_movie("Charade")
+        Movie.objects.filter(pk=stale.pk).update(last_watched_at=timezone.now() - timedelta(days=31))
+        never_watched = self.stored_movie("Nosferatu")
+        fresh = self.stored_movie("Metropolis")
+        Movie.objects.filter(pk=fresh.pk).update(last_watched_at=timezone.now() - timedelta(days=2))
+
+        with tempfile.TemporaryDirectory() as root, \
+                override_settings(MOVIES_DOWNLOAD_DIR=root), \
+                mock.patch("movies_app.services.storage.delete") as delete:
+            purge()
+
+        deleted = sorted(call.args[0] for call in delete.call_args_list)
+        self.assertEqual(deleted, sorted([
+            f"{stale.pk}/video.mp4", f"{stale.pk}/video_480p.mp4", f"{stale.pk}/subtitles/en.vtt",
+            f"{never_watched.pk}/video.mp4", f"{never_watched.pk}/video_480p.mp4", f"{never_watched.pk}/subtitles/en.vtt",
+        ]))
+        for movie in (stale, never_watched):
+            self.assertFalse(Download.objects.filter(movie=movie).exists())
+            self.assertEqual(movie.subtitles.count(), 0, "every subtitle row goes, stored or not")
+            self.assertTrue(Movie.objects.filter(pk=movie.pk).exists(), "the catalogue entry stays")
+        self.assertTrue(Download.objects.filter(movie=fresh).exists())
+        self.assertEqual(fresh.subtitles.count(), 2)
+        self.assertEqual(fresh.download.renditions.count(), 1)
 
 
 class ProviderTests(SimpleTestCase):
