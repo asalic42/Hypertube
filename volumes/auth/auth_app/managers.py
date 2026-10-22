@@ -11,9 +11,9 @@ def normalize_email(value: str) -> str:
 class UserManager(BaseUserManager):
     use_in_migrations = True
 
-    def get_by_natural_key(self, email):
-        # The login: an address typed with capitals is the same account.
-        return self.get(email__iexact=normalize_email(email))
+    def get_by_natural_key(self, username):
+        # The login: a username typed with capitals is the same account.
+        return self.get(username__iexact=(username or "").strip())
 
     def create_user(
         self,

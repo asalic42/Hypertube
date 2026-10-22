@@ -7,18 +7,18 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from auth_app.models import User
 
-EMAIL, PASSWORD = "jane@example.com", "Str0ng-pass!"
+EMAIL, USERNAME, PASSWORD = "jane@example.com", "jane", "Str0ng-pass!"
 
 
 class AuthFlowTestCase(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(email=EMAIL, username="jane", password=PASSWORD)
+        self.user = User.objects.create_user(email=EMAIL, username=USERNAME, password=PASSWORD)
 
     def post(self, path, body=None, **extra):
         return self.client.post(path, body or {}, content_type="application/json", **extra)
 
-    def login(self, email=EMAIL, password=PASSWORD):
-        return self.post("/api/auth/login/", {"email": email, "password": password})
+    def login(self, username=USERNAME, password=PASSWORD):
+        return self.post("/api/auth/login/", {"username": username, "password": password})
 
     def refresh_cookie(self, response):
         return response.cookies.get(settings.REFRESH_COOKIE_NAME)
@@ -41,10 +41,20 @@ class LoginTests(AuthFlowTestCase):
         self.assertFalse(response.cookies[settings.SESSION_COOKIE_MARKER_NAME]["httponly"])
 
     def test_wrong_credentials_are_refused_without_a_cookie(self):
-        for email, password in ((EMAIL, "wrong"), ("nobody@example.com", PASSWORD)):
-            response = self.login(email, password)
-            self.assertEqual(response.status_code, 401, email)
+        for username, password in ((USERNAME, "wrong"), ("nobody", PASSWORD), (EMAIL, PASSWORD)):
+            response = self.login(username, password)
+            self.assertEqual(response.status_code, 401, username)
             self.assertIsNone(self.refresh_cookie(response))
+
+    def test_login_takes_the_username_whatever_its_case(self):
+        response = self.login("JANE")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["user"]["username"], "jane")
+
+    def test_login_without_a_username_is_a_validation_error(self):
+        response = self.post("/api/auth/login/", {"email": EMAIL, "password": PASSWORD})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("username", response.json())
 
     def test_verify(self):
         access = self.login().json()["access"]

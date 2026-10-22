@@ -36,11 +36,14 @@ class RegisterTests(TestCase):
         self.assertIn("email", response.json())
         self.assertEqual(User.objects.count(), 1)
 
-    def test_email_is_stored_lower_case_and_logs_in_whatever_the_case(self):
+    def test_email_is_stored_lower_case(self):
         self.assertEqual(self.register(email="Jane@Example.com").status_code, 201)
         self.assertEqual(User.objects.get().email, "jane@example.com")
+
+    def test_the_new_account_logs_in_with_its_username(self):
+        self.assertEqual(self.register().status_code, 201)
         response = self.client.post(
-            "/api/auth/login/", {"email": "JANE@example.com", "password": VALID["password"]}, content_type="application/json"
+            "/api/auth/login/", {"username": VALID["username"], "password": VALID["password"]}, content_type="application/json"
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn("access", response.json())
