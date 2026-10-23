@@ -1,9 +1,14 @@
+import io
 import uuid
 from types import SimpleNamespace
+from unittest import mock
 
+from django.core.files.uploadedfile import SimpleUploadedFile
+from PIL import Image
 from rest_framework.test import APITestCase
 
 from users_app.models import PublicUser
+from users_app.services import account
 
 
 def token_user(username, email=None, user_id=None):
@@ -99,13 +104,7 @@ class UsersApiTests(APITestCase):
         self.assertEqual(self.client.patch(self.url(eve.id), {"lastname": ""}).status_code, 400)
         self.assertEqual(self.client.patch(self.url(eve.id), {"lastname": "Smith"}).status_code, 200)
 
-    def test_email_comes_from_the_token_never_from_the_body(self):
-        # Claiming another account's address through the body is ignored.
-        response = self.client.patch(self.url(self.ana), {"email": "bob@example.test", "firstname": "Anita"})
-        self.assertEqual((response.status_code, response.data["user"]["email"]), (200, "ana@example.test"))
-        self.bob.refresh_from_db()
-        self.assertEqual(self.bob.email, "bob@example.test")
-
+    def test_the_profile_email_follows_the_token(self):
         # After the auth service changed the email, the token carries the new one and the profile follows.
         self.client.force_authenticate(token_user("ana", "ana.new@example.test", self.ana.pk))
         response = self.client.get(self.url(self.ana))
@@ -130,3 +129,106 @@ class UsersApiTests(APITestCase):
         self.assertEqual((response.status_code, response.data["user"]["email"]), (200, "bob@example.test"))
         self.bob.refresh_from_db()
         self.assertTrue(self.bob.email.endswith("@unknown.invalid"), "bob keeps his profile, only the stale address is gone")
+
+
+def png(name="me.png"):
+    buffer = io.BytesIO()
+    Image.new("RGB", (4, 4), "red").save(buffer, format="PNG")
+    return SimpleUploadedFile(name, buffer.getvalue(), content_type="image/png")
+
+
+class ProfileUpdateTests(APITestCase):
+    """One PATCH for the whole profile: what the auth service owns is relayed to it."""
+
+    def setUp(self):
+        self.ana = PublicUser.objects.create(id=uuid.uuid4(), username="ana", email="ana@example.test", firstname="Ana", lastname="Lopez")
+        self.client.force_authenticate(token_user("ana", "ana@example.test", self.ana.pk))
+        self.url = f"/api/users/{self.ana.pk}/"
+
+    def patch(self, body, **extra):
+        return self.client.patch(self.url, body, HTTP_AUTHORIZATION="Bearer tok", **extra)
+
+    def test_email_and_password_go_to_the_auth_service(self):
+        answer = {"user": {"email": "ana.new@example.test"}, "access": "new-access"}
+        with mock.patch.object(account, "update_credentials", return_value=answer) as relay:
+            response = self.patch({"firstname": "Anita", "email": "Ana.New@example.test", "password": "N3w-pass!", "current_password": "old"})
+        # Sent as typed: the auth service normalizes and answers with what it stored.
+        relay.assert_called_once_with({"email": "Ana.New@example.test", "password": "N3w-pass!", "current_password": "old"}, "Bearer tok")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual((response.data["user"]["firstname"], response.data["user"]["email"], response.data["access"]), ("Anita", "ana.new@example.test", "new-access"))
+        self.ana.refresh_from_db()
+        self.assertEqual((self.ana.firstname, self.ana.email), ("Anita", "ana.new@example.test"))
+
+    def test_a_refusal_of_the_auth_service_is_the_answer_and_nothing_changes(self):
+        refusal = account.CredentialsRejected(400, {"current_password": ["Wrong password."]})
+        with mock.patch.object(account, "update_credentials", side_effect=refusal):
+            response = self.patch({"firstname": "Anita", "password": "N3w-pass!", "current_password": "wrong"})
+        self.assertEqual((response.status_code, response.data), (400, {"current_password": ["Wrong password."]}))
+        self.ana.refresh_from_db()
+        self.assertEqual(self.ana.firstname, "Ana")
+
+    def test_an_unreachable_auth_service_changes_nothing(self):
+        with mock.patch.object(account, "update_credentials", side_effect=account.AuthUnavailable()):
+            response = self.patch({"firstname": "Anita", "email": "ana.new@example.test"})
+        self.assertEqual(response.status_code, 503)
+        self.ana.refresh_from_db()
+        self.assertEqual((self.ana.firstname, self.ana.email), ("Ana", "ana@example.test"))
+
+    def test_without_credentials_the_auth_service_is_not_called(self):
+        with mock.patch.object(account, "update_credentials") as relay:
+            response = self.patch({"firstname": "Anita"})
+        relay.assert_not_called()
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("access", response.data)
+
+    def test_the_username_cannot_change(self):
+        response = self.patch({"username": "anita"})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("username", response.data)
+
+    def test_the_picture_comes_in_the_same_patch(self):
+        with mock.patch("users_app.serializers.get_presigned_url", return_value="https://files.example.test/avatars/me.png"):
+            response = self.patch({"lastname": "Diaz", "avatar": png()}, format="multipart")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["user"]["avatar_url"], "https://files.example.test/avatars/me.png")
+        self.assertNotIn("avatar", response.data["user"], "the storage key is not exposed")
+        self.ana.refresh_from_db()
+        self.assertTrue(self.ana.avatar.startswith("avatars/"))
+        self.assertEqual(self.ana.lastname, "Diaz")
+
+        response = self.client.get(self.url)
+        self.assertIsNone(response.data["user"]["avatar_url"], "no url when the storage cannot sign one")
+
+    def test_a_profile_without_picture_has_no_url(self):
+        self.assertIsNone(self.client.get(self.url).data["user"]["avatar_url"])
+
+
+class AccountRelayTests(APITestCase):
+    def test_the_relay_fetches_a_csrf_cookie_then_patches_as_the_user(self):
+        session = mock.MagicMock()
+        session.cookies.get.return_value = "csrf-123"
+        session.patch.return_value.status_code = 200
+        session.patch.return_value.json.return_value = {"user": {"email": "x@example.test"}, "access": "a"}
+        with mock.patch("users_app.services.account.requests.Session", return_value=session):
+            answer = account.update_credentials({"email": "x@example.test"}, "Bearer tok")
+        self.assertEqual(answer["access"], "a")
+        session.get.assert_called_once()
+        self.assertTrue(session.get.call_args.args[0].endswith("/api/auth/csrf/"))
+        url, kwargs = session.patch.call_args.args[0], session.patch.call_args.kwargs
+        self.assertTrue(url.endswith("/api/auth/me/"))
+        self.assertEqual(kwargs["json"], {"email": "x@example.test"})
+        self.assertEqual((kwargs["headers"]["Authorization"], kwargs["headers"]["X-CSRFToken"]), ("Bearer tok", "csrf-123"))
+
+    def test_refusals_and_outages_are_told_apart(self):
+        session = mock.MagicMock()
+        session.patch.return_value.status_code = 400
+        session.patch.return_value.json.return_value = {"email": ["taken"]}
+        with mock.patch("users_app.services.account.requests.Session", return_value=session):
+            with self.assertRaises(account.CredentialsRejected) as refused:
+                account.update_credentials({"email": "x@example.test"}, "Bearer tok")
+        self.assertEqual((refused.exception.status_code, refused.exception.body), (400, {"email": ["taken"]}))
+
+        session.patch.return_value.status_code = 500
+        with mock.patch("users_app.services.account.requests.Session", return_value=session):
+            with self.assertRaises(account.AuthUnavailable):
+                account.update_credentials({"email": "x@example.test"}, "Bearer tok")

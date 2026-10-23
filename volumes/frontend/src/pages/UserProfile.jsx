@@ -4,7 +4,6 @@ import { Languages, UserRound } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { users as usersApi } from "@/lib/api";
-import { useAvatarUrl } from "@/lib/avatars";
 import { LANGUAGES } from "@/lib/languages";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -14,7 +13,6 @@ export default function UserProfile() {
     const { user: me } = useAuth();
     // Keyed by id, so switching profiles shows "Loading" instead of the previous user.
     const [loaded, setLoaded] = useState({ id: null, profile: null, error: null });
-    const pictureUrl = useAvatarUrl(id);
 
     useEffect(() => {
         let cancelled = false;
@@ -45,6 +43,7 @@ export default function UserProfile() {
         return <p className="text-muted-foreground p-4">Loading...</p>;
     }
 
+    const pictureUrl = profile.avatar_url;
     const fullName = [profile.firstname, profile.lastname].filter(Boolean).join(" ");
     const languageName = LANGUAGES.find(([code]) => code === profile.preferredLanguage)?.[1];
     const isMe = me?.id === profile.id;

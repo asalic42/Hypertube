@@ -20,6 +20,7 @@ export class ApiError extends Error {
 // Labels for the fields named in validation errors, so a message reads as a sentence.
 const FIELD_LABELS = {
   username: 'Username',
+  current_password: 'Current password',
   email: 'Email',
   password: 'Password',
   password_confirmation: 'Password confirmation',
@@ -233,10 +234,13 @@ export const users = {
     const data = await api('/api/users/', { method: 'POST', body });
     return data.user;
   },
+  // One call for the whole profile, picture included. The email and password are
+  // relayed to the auth service; the answer then carries a fresh access token.
   async update(userId, fields) {
     const body = new FormData();
-    for (const [key, value] of Object.entries(fields)) body.append(key, value);
+    for (const [key, value] of Object.entries(fields)) if (value !== null && value !== undefined) body.append(key, value);
     const data = await api(`/api/users/${encodeURIComponent(userId)}/`, { method: 'PATCH', body });
+    if (data.access) setToken(data.access);
     return data.user;
   },
   updateAvatar(userId, file) {

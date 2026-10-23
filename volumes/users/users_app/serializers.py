@@ -1,8 +1,10 @@
 from rest_framework import serializers
 from rest_framework.exceptions import APIException
 
+from django.core.files.storage import default_storage
+
 from users_app.models import PublicUser
-from users_app.services.avatars import save_avatar
+from users_app.services.avatars import PresignedUrlError, get_presigned_url, save_avatar
 from users_app.validators import validate_avatar_upload
 
 
@@ -20,6 +22,9 @@ class AvatarSaveError(APIException):
 
 
 class PublicUserSerializer(serializers.ModelSerializer):
+    # The picture as a URL the browser can load, valid for an hour; null without a picture.
+    avatar_url = serializers.SerializerMethodField()
+
     class Meta:
         model = PublicUser
         fields = [
@@ -28,9 +33,17 @@ class PublicUserSerializer(serializers.ModelSerializer):
             "firstname",
             "lastname",
             "email",
-            "avatar",
+            "avatar_url",
             "preferredLanguage",
         ]
+
+    def get_avatar_url(self, user) -> str | None:
+        if not user.avatar:
+            return None
+        try:
+            return get_presigned_url(bucket_name=getattr(default_storage, "bucket_name", ""), object_key=user.avatar, expiration=3600)
+        except PresignedUrlError:
+            return None
 
 
 class PublicUserListSerializer(serializers.ModelSerializer):
@@ -83,18 +96,35 @@ class PublicUserResponseSerializer(serializers.Serializer):
     user = PublicUserSerializer()
 
 
+class PublicUserUpdatedSerializer(PublicUserResponseSerializer):
+    # Present when the email or password changed: the tokens carry the email, so new ones are issued.
+    access = serializers.CharField(required=False, help_text="A fresh access token, when the credentials changed.")
+
+
 class PublicUserAvatarResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
     # Null when the user has no picture.
     avatar_url = serializers.URLField(allow_null=True)
 
 
+# Fields the auth service owns: the view relays them there rather than storing them.
+CREDENTIAL_FIELDS = ("email", "password", "current_password")
+
+
 class PublicUserUpdateSerializer(serializers.ModelSerializer):
-    """What the owner may change. The email is the auth service's: it comes from the token, never from the body."""
+    """
+    What the owner may change in one PATCH: name, language, picture, and the
+    email and password, which belong to the auth service and are relayed to
+    it. The username cannot change.
+    """
 
     # Optional on a partial update, but a name can never be emptied.
     firstname = NameField(required=False)
     lastname = NameField(required=False)
+    avatar = AvatarImageField(required=False)
+    email = serializers.EmailField(required=False)
+    password = serializers.CharField(required=False, write_only=True, trim_whitespace=False)
+    current_password = serializers.CharField(required=False, write_only=True, trim_whitespace=False)
 
     class Meta:
         model = PublicUser
@@ -102,9 +132,15 @@ class PublicUserUpdateSerializer(serializers.ModelSerializer):
             "firstname",
             "lastname",
             "preferredLanguage",
+            "avatar",
+            "email",
+            "password",
+            "current_password",
         ]
 
     def validate(self, attrs):
+        if "username" in self.initial_data:
+            raise serializers.ValidationError({"username": "The username cannot be changed."})
         # With form data, DRF reads an empty optional field as "not sent".
         # An explicit empty name is a request to erase it, which is refused.
         for name in ("firstname", "lastname"):

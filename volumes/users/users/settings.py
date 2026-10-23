@@ -34,6 +34,10 @@ def secret_key(name: str) -> str:
 # service refuses to start without them. DEBUG is off unless asked for.
 SECRET_KEY = secret_key("USERS_SECRET_KEY")
 DEBUG = os.getenv("DJANGO_DEBUG", "0").strip().lower() in ("1", "true", "yes")
+
+# Internal URL of the auth service (server to server, plain HTTP on 8443), which
+# owns the email and the password: a profile update relays them there.
+AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth:8443")
 ALLOWED_HOSTS = [host.strip() for host in required_env("DJANGO_ALLOWED_HOSTS").split(",") if host.strip()]
 
 INSTALLED_APPS = [

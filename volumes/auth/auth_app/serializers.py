@@ -24,17 +24,46 @@ class UserSerializer(serializers.ModelSerializer):
     
 
 class UserUpdateSerializer(serializers.ModelSerializer):
-    """What a user may change on their own account: the email, which is the login."""
+    """
+    What a user may change on their own account: the email, and the password
+    when the current one is given. The username is fixed for life: comments
+    and profiles are known by it.
+    """
+
+    password = serializers.CharField(write_only=True, required=False, trim_whitespace=False)
+    current_password = serializers.CharField(write_only=True, required=False, trim_whitespace=False)
 
     class Meta:
         model = User
-        fields = ("email",)
+        fields = ("email", "password", "current_password")
 
     def validate_email(self, value):
         value = normalize_email(value)
         if User.objects.filter(email__iexact=value).exclude(pk=self.instance.pk).exists():
             raise serializers.ValidationError("This email already has an account")
         return value
+
+    def validate(self, attributes):
+        if "username" in self.initial_data:
+            raise serializers.ValidationError({"username": "The username cannot be changed."})
+        password = attributes.get("password")
+        current_password = attributes.pop("current_password", None)
+        if password is not None:
+            if not current_password:
+                raise serializers.ValidationError({"current_password": "Your current password is required to set a new one."})
+            if not self.instance.check_password(current_password):
+                raise serializers.ValidationError({"current_password": "Wrong password."})
+            try:
+                validate_password(password, user=self.instance)
+            except DjangoValidationError as exc:
+                raise serializers.ValidationError({"password": exc.messages})
+        return attributes
+
+    def update(self, user, validated_data):
+        password = validated_data.pop("password", None)
+        if password is not None:
+            user.set_password(password)
+        return super().update(user, validated_data)
 
 
 class RegisterSerializer(serializers.ModelSerializer):

@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from users_app.models import PublicUser
 from users_app.permissions import IsOwnerOrReadOnly, caller_id, is_owner
 from users_app.serializers import (
+    CREDENTIAL_FIELDS,
     MessageSerializer,
     PublicUserAvatarResponseSerializer,
     PublicUserAvatarUpdateSerializer,
@@ -19,8 +20,10 @@ from users_app.serializers import (
     PublicUserListSerializer,
     PublicUserResponseSerializer,
     PublicUserSerializer,
+    PublicUserUpdatedSerializer,
     PublicUserUpdateSerializer,
 )
+from users_app.services import account
 from users_app.services.avatars import (
     PresignedUrlError,
     delete_avatar,
@@ -97,16 +100,58 @@ class PublicUserView(APIView):
     @extend_schema(
         tags=["Public users"],
         operation_id="update_public_user",
-        request={"multipart/form-data": PublicUserUpdateSerializer},
-        responses={200: PublicUserResponseSerializer, 403: OpenApiResponse(description="Not your profile.")},
-        description="Met à jour partiellement son propre profil.",
+        request={"multipart/form-data": PublicUserUpdateSerializer, "application/json": PublicUserUpdateSerializer},
+        responses={
+            200: PublicUserUpdatedSerializer,
+            400: OpenApiResponse(description="Validation error, from this service or from the auth service."),
+            401: OpenApiResponse(description="The auth service did not accept the token."),
+            403: OpenApiResponse(description="Not your profile."),
+            503: OpenApiResponse(description="The auth service is unavailable: nothing was changed."),
+        },
+        description=(
+            "Met à jour son propre profil en un appel : prénom, nom, langue, photo (`avatar`, fichier), "
+            "email et mot de passe (`password` avec `current_password`). L'email et le mot de passe sont "
+            "relayés au service auth, qui les possède ; la réponse porte alors un nouveau jeton d'accès "
+            "dans `access`. Le username ne peut pas changer."
+        ),
     )
     def patch(self, request, id):
         user = _get_profile(request, id)
         serializer = PublicUserUpdateSerializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
+        fields = serializer.validated_data
+        credentials = {name: fields.pop(name) for name in CREDENTIAL_FIELDS if name in fields}
+        picture = fields.pop("avatar", None)
+
+        access = None
+        if credentials:
+            # The auth service decides: nothing is stored here until it has agreed.
+            try:
+                answer = account.update_credentials(credentials, request.META.get("HTTP_AUTHORIZATION", ""))
+            except account.CredentialsRejected as refusal:
+                return Response(refusal.body, status=refusal.status_code)
+            except account.AuthUnavailable:
+                return Response(
+                    {"detail": "The account service is unavailable right now: nothing was changed."},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+            access = answer.get("access")
+            email = answer.get("user", {}).get("email")
+            if email and email != user.email:
+                _forget_stale_profiles(user.pk, user.username, email)
+                _sync_email(user, email)
+
         serializer.save()
-        return _response("User updated successfully", user, request)
+        if picture is not None:
+            old_key = user.avatar or None
+            new_key = save_avatar(user, picture)
+            if old_key and old_key != new_key:
+                default_storage.delete(old_key)
+
+        body = {"message": "User updated successfully", "user": _profile(user, request)}
+        if access:
+            body["access"] = access
+        return Response(body)
 
     @extend_schema(
         tags=["Public users"],

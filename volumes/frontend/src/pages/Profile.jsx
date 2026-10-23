@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, Camera, Languages, Mail, ShieldAlert, Trash2, UserRound } from "lucide-react";
+import { CalendarDays, Camera, KeyRound, Languages, Mail, ShieldAlert, Trash2, UserRound } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -30,9 +30,12 @@ function pictureError(err) {
     return err.message;
 }
 
+// The password fields are never "saved": they are cleared once the change is made.
+const EMPTY_PASSWORDS = { currentPassword: "", password: "", passwordConfirm: "" };
+
 /**
- * The account of the connected user. The email lives in the auth service
- * (it is the login), everything else in the users service.
+ * The account of the connected user. One save sends everything to the users
+ * service, which relays the email and the password to the auth service.
  */
 export default function Profile() {
     const { user, updateUser, clearSession } = useAuth();
@@ -54,18 +57,19 @@ export default function Profile() {
 
     useEffect(() => {
         let cancelled = false;
-        Promise.all([usersApi.get(user.id), usersApi.avatarUrl(user.id).catch(() => null)])
-            .then(([profile, url]) => {
+        usersApi.get(user.id)
+            .then((profile) => {
                 if (cancelled) return;
                 const values = {
                     firstname: profile.firstname || "",
                     lastname: profile.lastname || "",
                     email: user.email || profile.email || "",
                     preferredLanguage: profile.preferredLanguage || "en",
+                    ...EMPTY_PASSWORDS,
                 };
                 setForm(values);
                 setSaved(values);
-                setAvatarUrl(url);
+                setAvatarUrl(profile.avatar_url);
             })
             .catch((err) => !cancelled && setError(err.message));
         return () => {
@@ -131,22 +135,28 @@ export default function Profile() {
     async function save(e) {
         e.preventDefault();
         if (!changed) return;
+        if (form.password && form.password !== form.passwordConfirm) {
+            toast.add({ title: "Passwords do not match", description: "Type the new password twice, the same way.", type: "error" });
+            return;
+        }
         setSaving(true);
         try {
             let profile;
             try {
-                // The auth service owns the email: change it there first. The users
-                // service reads it from the fresh token, so it is not sent to it.
-                if (form.email !== saved.email) {
-                    updateUser(await authApi.updateMe({ email: form.email }));
-                }
+                // Everything in one call. The email and the password are only sent
+                // when they change: the users service relays them to the auth service.
                 profile = await usersApi.update(user.id, {
                     firstname: form.firstname,
                     lastname: form.lastname,
                     preferredLanguage: form.preferredLanguage,
+                    email: form.email !== saved.email ? form.email : null,
+                    password: form.password || null,
+                    current_password: form.password ? form.currentPassword : null,
+                    avatar: avatarFile,
                 });
             } catch (err) {
-                toast.add({ title: "Could not save your information", description: err.message, type: "error" });
+                const title = avatarFile && err.data?.avatar ? "Could not save the picture" : "Could not save your information";
+                toast.add({ title, description: avatarFile && err.data?.avatar ? pictureError(err) : err.message, type: "error" });
                 return;
             }
             const values = {
@@ -154,20 +164,14 @@ export default function Profile() {
                 lastname: profile.lastname || "",
                 email: profile.email || form.email,
                 preferredLanguage: profile.preferredLanguage || "en",
+                ...EMPTY_PASSWORDS,
             };
             setForm(values);
             setSaved(values);
-
-            // The picture is a separate upload: its failure must not hide that the rest was saved.
-            try {
-                if (avatarFile) {
-                    await usersApi.updateAvatar(user.id, avatarFile);
-                    forgetAvatar(user.id);
-                    setAvatarUrl(await usersApi.avatarUrl(user.id));
-                }
-            } catch (err) {
-                toast.add({ title: "Could not save the picture", description: pictureError(err), type: "error" });
-                return;
+            if (values.email !== user.email) updateUser({ ...user, email: values.email });
+            if (avatarFile) {
+                forgetAvatar(user.id);
+                setAvatarUrl(profile.avatar_url);
             }
             setAvatarFile(null);
             setAvatarPreview(null);
@@ -292,6 +296,27 @@ export default function Profile() {
                                 <option key={value} value={value}>{name}</option>
                             ))}
                         </NativeSelect>
+                    </div>
+                </Section>
+
+                <Section
+                    icon={KeyRound}
+                    title="Password"
+                    description="Leave empty to keep your password. Your current password is required to set a new one."
+                >
+                    <div className="grid gap-2 sm:max-w-xs">
+                        <Label htmlFor="currentPassword">Current password</Label>
+                        <Input id="currentPassword" type="password" name="currentPassword" autoComplete="current-password" value={form.currentPassword} onChange={handleChange} required={Boolean(form.password)} />
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid gap-2">
+                            <Label htmlFor="password">New password</Label>
+                            <Input id="password" type="password" name="password" autoComplete="new-password" value={form.password} onChange={handleChange} minLength={8} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="passwordConfirm">Confirm new password</Label>
+                            <Input id="passwordConfirm" type="password" name="passwordConfirm" autoComplete="new-password" value={form.passwordConfirm} onChange={handleChange} required={Boolean(form.password)} />
+                        </div>
                     </div>
                 </Section>
 

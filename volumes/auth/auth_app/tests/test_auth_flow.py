@@ -3,7 +3,7 @@ import re
 from django.conf import settings
 from django.core import mail
 from django.test import TestCase
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from auth_app.models import User
 
@@ -80,6 +80,22 @@ class RefreshTests(AuthFlowTestCase):
 
     def test_refresh_needs_the_cookie(self):
         self.assertEqual(self.post("/api/auth/refresh/").status_code, 401)
+
+    def test_refreshed_tokens_carry_the_account_as_it_is_now(self):
+        # The email changed without this browser's cookie being rotated (through the users service, say).
+        self.login()
+        User.objects.filter(pk=self.user.pk).update(email="jane.new@example.com")
+        response = self.post("/api/auth/refresh/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(AccessToken(response.json()["access"])["email"], "jane.new@example.com")
+        self.assertEqual(RefreshToken(self.refresh_cookie(response).value)["email"], "jane.new@example.com")
+
+    def test_a_deleted_account_cannot_refresh(self):
+        self.login()
+        self.user.delete()
+        response = self.post("/api/auth/refresh/")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(self.refresh_cookie(response).value, "")
 
 
 class LogoutTests(AuthFlowTestCase):

@@ -40,9 +40,10 @@ class MeView(RetrieveAPIView):
         tags=["Authentication"],
         operation_id="auth_update_current_user",
         description=(
-            "Changes the email of the current user. The answer carries a new access token "
-            "and rotates the refresh cookie, so the tokens the other services read the email "
-            "from are up to date at once."
+            "Changes the email or the password of the current user; the password needs "
+            "`current_password` beside it, and the username cannot change. The answer carries "
+            "a new access token and rotates the refresh cookie when one is sent, so the tokens "
+            "the other services read the email from are up to date at once."
         ),
     )
     def patch(self, request, *args, **kwargs):

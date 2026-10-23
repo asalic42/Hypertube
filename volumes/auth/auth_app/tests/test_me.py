@@ -69,9 +69,53 @@ class UpdateEmailTests(TestCase):
         # Changing only the case of one's own address is allowed, and a no-op.
         self.assertEqual(self.patch("JANE.NEW@example.com").status_code, 200)
 
+    def test_the_username_cannot_change(self):
+        response = self.client.patch("/api/auth/me/", {"username": "janet"}, content_type="application/json", HTTP_AUTHORIZATION=self.bearer)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("username", response.json())
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, "jane")
+
     def test_new_tokens_carry_the_new_email(self):
         response = self.patch("jane.new@example.com")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(AccessToken(response.json()["access"])["email"], "jane.new@example.com")
         refresh = RefreshToken(response.cookies[settings.REFRESH_COOKIE_NAME].value)
         self.assertEqual(refresh["email"], "jane.new@example.com")
+
+
+class UpdatePasswordTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(email="jane@example.com", username="jane", password="Str0ng-pass!")
+        self.bearer = f"Bearer {CustomTokenObtainPairSerializer.get_token(self.user).access_token}"
+
+    def patch(self, **body):
+        return self.client.patch("/api/auth/me/", body, content_type="application/json", HTTP_AUTHORIZATION=self.bearer)
+
+    def login(self, password):
+        return self.client.post("/api/auth/login/", {"username": "jane", "password": password}, content_type="application/json")
+
+    def test_the_current_password_is_required_and_checked(self):
+        response = self.patch(password="N3w-pass-word!")
+        self.assertEqual((response.status_code, list(response.json())), (400, ["current_password"]))
+        response = self.patch(password="N3w-pass-word!", current_password="wrong")
+        self.assertEqual((response.status_code, list(response.json())), (400, ["current_password"]))
+        self.assertEqual(self.login("Str0ng-pass!").status_code, 200, "nothing changed")
+
+    def test_the_new_password_is_validated(self):
+        response = self.patch(password="short", current_password="Str0ng-pass!")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("password", response.json())
+        self.assertEqual(self.patch(password="", current_password="Str0ng-pass!").status_code, 400)
+
+    def test_the_password_changes(self):
+        response = self.patch(password="N3w-pass-word!", current_password="Str0ng-pass!")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("password", response.json()["user"])
+        self.assertEqual(self.login("Str0ng-pass!").status_code, 401)
+        self.assertEqual(self.login("N3w-pass-word!").status_code, 200)
+
+    def test_email_and_password_change_together(self):
+        response = self.patch(email="jane.new@example.com", password="N3w-pass-word!", current_password="Str0ng-pass!")
+        self.assertEqual((response.status_code, response.json()["user"]["email"]), (200, "jane.new@example.com"))
+        self.assertEqual(self.login("N3w-pass-word!").status_code, 200)
