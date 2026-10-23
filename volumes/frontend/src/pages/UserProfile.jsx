@@ -10,32 +10,32 @@ import { useAuth } from "@/hooks/useAuth";
 
 /** The public profile of any user: picture, username and name. The email stays private. */
 export default function UserProfile() {
-    const { username } = useParams();
+    const { id } = useParams();
     const { user: me } = useAuth();
-    // Keyed by username, so switching profiles shows "Loading" instead of the previous user.
-    const [loaded, setLoaded] = useState({ username: null, profile: null, error: null });
-    const pictureUrl = useAvatarUrl(username);
+    // Keyed by id, so switching profiles shows "Loading" instead of the previous user.
+    const [loaded, setLoaded] = useState({ id: null, profile: null, error: null });
+    const pictureUrl = useAvatarUrl(id);
 
     useEffect(() => {
         let cancelled = false;
-        usersApi.get(username)
-            .then((profile) => !cancelled && setLoaded({ username, profile, error: null }))
+        usersApi.get(id)
+            .then((profile) => !cancelled && setLoaded({ id, profile, error: null }))
             .catch((err) => !cancelled && setLoaded({
-                username,
+                id,
                 profile: null,
                 error: err.status === 404 ? "This user does not exist." : err.message,
             }));
         return () => {
             cancelled = true;
         };
-    }, [username]);
+    }, [id]);
 
-    const { profile, error } = loaded.username === username ? loaded : { profile: null, error: null };
+    const { profile, error } = loaded.id === id ? loaded : { profile: null, error: null };
 
     if (error) {
         return (
             <div className="w-full max-w-3xl p-4 sm:py-8 flex flex-col items-center gap-4 text-center">
-                <h1 className="text-2xl font-bold tracking-tight break-all">{username}</h1>
+                <h1 className="text-2xl font-bold tracking-tight">Profile</h1>
                 <p className="text-destructive">{error}</p>
                 <Button render={<Link to="/home" />} nativeButton={false} variant="outline">Back to the library</Button>
             </div>
@@ -47,7 +47,7 @@ export default function UserProfile() {
 
     const fullName = [profile.firstname, profile.lastname].filter(Boolean).join(" ");
     const languageName = LANGUAGES.find(([code]) => code === profile.preferredLanguage)?.[1];
-    const isMe = me?.username === profile.username;
+    const isMe = me?.id === profile.id;
 
     return (
         <div className="w-full max-w-3xl p-4 sm:py-8">

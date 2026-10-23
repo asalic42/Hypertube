@@ -83,7 +83,7 @@ class MeView(RetrieveAPIView):
         # The other services check the user's own token, so nothing but the
         # account owner can trigger this, and nothing is left behind.
         try:
-            delete_user_data(request.user.username, request.META.get("HTTP_AUTHORIZATION", ""))
+            delete_user_data(request.user.pk, request.META.get("HTTP_AUTHORIZATION", ""))
         except RemoteError as error:
             logger.error("account %s not deleted, a service kept its data: %s", request.user.pk, error)
             return Response(

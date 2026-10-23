@@ -54,7 +54,7 @@ export default function Profile() {
 
     useEffect(() => {
         let cancelled = false;
-        Promise.all([usersApi.get(user.username), usersApi.avatarUrl(user.username).catch(() => null)])
+        Promise.all([usersApi.get(user.id), usersApi.avatarUrl(user.id).catch(() => null)])
             .then(([profile, url]) => {
                 if (cancelled) return;
                 const values = {
@@ -71,7 +71,7 @@ export default function Profile() {
         return () => {
             cancelled = true;
         };
-    }, [user.username, user.email]);
+    }, [user.id, user.email]);
 
     // The preview of a chosen picture is an object URL: release it when replaced or on leave.
     useEffect(() => () => avatarPreview && URL.revokeObjectURL(avatarPreview), [avatarPreview]);
@@ -106,8 +106,8 @@ export default function Profile() {
         if (!avatarUrl) return;
         setRemovingAvatar(true);
         try {
-            await usersApi.deleteAvatar(user.username);
-            forgetAvatar(user.username);
+            await usersApi.deleteAvatar(user.id);
+            forgetAvatar(user.id);
             setAvatarUrl(null);
             toast.add({ title: "Picture removed", description: "Your profile has no picture anymore.", type: "success" });
         } catch (err) {
@@ -140,7 +140,7 @@ export default function Profile() {
                 if (form.email !== saved.email) {
                     updateUser(await authApi.updateMe({ email: form.email }));
                 }
-                profile = await usersApi.update(user.username, {
+                profile = await usersApi.update(user.id, {
                     firstname: form.firstname,
                     lastname: form.lastname,
                     preferredLanguage: form.preferredLanguage,
@@ -161,9 +161,9 @@ export default function Profile() {
             // The picture is a separate upload: its failure must not hide that the rest was saved.
             try {
                 if (avatarFile) {
-                    await usersApi.updateAvatar(user.username, avatarFile);
-                    forgetAvatar(user.username);
-                    setAvatarUrl(await usersApi.avatarUrl(user.username));
+                    await usersApi.updateAvatar(user.id, avatarFile);
+                    forgetAvatar(user.id);
+                    setAvatarUrl(await usersApi.avatarUrl(user.id));
                 }
             } catch (err) {
                 toast.add({ title: "Could not save the picture", description: pictureError(err), type: "error" });

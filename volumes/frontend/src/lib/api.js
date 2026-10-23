@@ -213,39 +213,39 @@ export const movies = {
 };
 
 export const users = {
-  async get(username) {
-    const data = await api(`/api/users/${encodeURIComponent(username)}/`);
+  async get(userId) {
+    const data = await api(`/api/users/${encodeURIComponent(userId)}/`);
     return data.user;
   },
-  async avatarUrl(username) {
+  async avatarUrl(userId) {
     try {
-      const data = await api(`/api/users/${encodeURIComponent(username)}/avatar/`);
+      const data = await api(`/api/users/${encodeURIComponent(userId)}/avatar/`);
       return data.avatar_url;
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) return null;
       throw err;
     }
   },
-  // The caller's own profile; the username and email come from the token.
+  // The caller's own profile; its id, username and email come from the token.
   async create(fields) {
     const body = new FormData();
     for (const [key, value] of Object.entries(fields)) if (value !== null && value !== undefined) body.append(key, value);
     const data = await api('/api/users/', { method: 'POST', body });
     return data.user;
   },
-  async update(username, fields) {
+  async update(userId, fields) {
     const body = new FormData();
     for (const [key, value] of Object.entries(fields)) body.append(key, value);
-    const data = await api(`/api/users/${encodeURIComponent(username)}/`, { method: 'PATCH', body });
+    const data = await api(`/api/users/${encodeURIComponent(userId)}/`, { method: 'PATCH', body });
     return data.user;
   },
-  updateAvatar(username, file) {
+  updateAvatar(userId, file) {
     const body = new FormData();
     body.append('avatar', file);
-    return api(`/api/users/${encodeURIComponent(username)}/avatar/`, { method: 'PATCH', body });
+    return api(`/api/users/${encodeURIComponent(userId)}/avatar/`, { method: 'PATCH', body });
   },
-  deleteAvatar(username) {
-    return api(`/api/users/${encodeURIComponent(username)}/avatar/`, { method: 'DELETE' });
+  deleteAvatar(userId) {
+    return api(`/api/users/${encodeURIComponent(userId)}/avatar/`, { method: 'DELETE' });
   },
 };
 

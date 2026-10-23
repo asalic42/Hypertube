@@ -23,12 +23,12 @@ def _delete(url, authorization, accepted=(204, 200, 404)):
         raise RemoteError(f"{url}: {response.status_code} {response.text[:200]}")
 
 
-def delete_user_data(username, authorization):
+def delete_user_data(user_id, authorization):
     """
     Erase what the users and movies services hold about an account: profile
     and picture, comments and watch history. A missing profile is fine.
     Raises RemoteError when any service could not do it, so the caller can
     keep the account rather than leave orphaned data behind.
     """
-    _delete(f"{settings.USERS_SERVICE_BASE_URL}/api/users/{username}/", authorization)
+    _delete(f"{settings.USERS_SERVICE_BASE_URL}/api/users/{user_id}/", authorization)
     _delete(f"{settings.MOVIES_SERVICE_BASE_URL}/api/movies/me/", authorization)

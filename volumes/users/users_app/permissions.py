@@ -1,9 +1,22 @@
+import uuid
+
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
 
-def is_owner(request, username):
-    """True when the token belongs to the profile at `username`."""
-    return bool(username) and getattr(request.user, "username", "") == username
+def caller_id(request):
+    """The account id from the token, or None when the token has none."""
+    try:
+        return uuid.UUID(str(getattr(request.user, "id", "") or ""))
+    except ValueError:
+        return None
+
+
+def is_owner(request, user_id):
+    """True when the token belongs to the profile at `user_id`."""
+    try:
+        return bool(user_id) and caller_id(request) == uuid.UUID(str(user_id))
+    except ValueError:
+        return False
 
 
 class IsOwnerOrReadOnly(BasePermission):
@@ -17,4 +30,4 @@ class IsOwnerOrReadOnly(BasePermission):
     def has_permission(self, request, view):
         if request.method in SAFE_METHODS:
             return True
-        return is_owner(request, view.kwargs.get("username"))
+        return is_owner(request, view.kwargs.get("id"))

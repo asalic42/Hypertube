@@ -213,8 +213,8 @@ function CommentItem({ comment, own, onChanged }) {
         }
     }
 
-    const profilePath = `/users/${encodeURIComponent(comment.username)}`;
-    const pictureUrl = useAvatarUrl(comment.username);
+    const profilePath = `/users/${comment.user_id}`;
+    const pictureUrl = useAvatarUrl(comment.user_id);
 
     return (
         <div className="flex gap-3">
@@ -322,7 +322,7 @@ function Comments({ movieId }) {
                     <CommentItem
                         key={comment.id}
                         comment={comment}
-                        own={comment.username === user.username}
+                        own={comment.user_id === user.id}
                         onChanged={(updated) => replace(comment.id, updated)}
                     />
                 ))}

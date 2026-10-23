@@ -31,7 +31,7 @@ function App() {
               <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
               <Route path="/movies/:id" element={<ProtectedRoute><Watch /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-              <Route path="/users/:username" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+              <Route path="/users/:id" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
             </Routes>
           </main>
           <Footer />

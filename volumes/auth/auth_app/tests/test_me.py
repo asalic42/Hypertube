@@ -26,7 +26,7 @@ class DeleteAccountTests(TestCase):
         self.assertFalse(User.objects.filter(pk=self.user.pk).exists())
         calls = [(call.args[0], call.kwargs["headers"]["Authorization"]) for call in remote.call_args_list]
         self.assertEqual(calls, [
-            (f"{settings.USERS_SERVICE_BASE_URL}/api/users/jane/", self.bearer),
+            (f"{settings.USERS_SERVICE_BASE_URL}/api/users/{self.user.pk}/", self.bearer),
             (f"{settings.MOVIES_SERVICE_BASE_URL}/api/movies/me/", self.bearer),
         ])
 

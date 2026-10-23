@@ -79,7 +79,7 @@ class MovieDownloadView(APIView):
         body.is_valid(raise_exception=True)
         language = (
             body.validated_data.get("language")
-            or users.preferred_language(request.user.username, request.headers.get("Authorization", ""))
+            or users.preferred_language(request.user.id, request.headers.get("Authorization", ""))
             or "en"
         )
 
