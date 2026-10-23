@@ -6,6 +6,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from auth_app.managers import normalize_email
+from auth_app.models import ApiClient
 from auth_app.validators import validate_username
 
 User = get_user_model()
@@ -170,3 +171,61 @@ class ResetPasswordSerializer(serializers.Serializer):
         )
 
         return attributes
+
+
+class OAuthTokenRequestSerializer(serializers.Serializer):
+    """
+    A token request as RFC 6749 shapes it, form-encoded or JSON. The client
+    credentials may also come in an HTTP Basic Authorization header.
+    """
+
+    grant_type = serializers.ChoiceField(choices=("client_credentials", "password"))
+    # A string, not a UUIDField: a malformed id is refused as an unknown client, not as a bad request.
+    client_id = serializers.CharField(required=False, max_length=64)
+    client_secret = serializers.CharField(required=False, trim_whitespace=False)
+    username = serializers.CharField(required=False)
+    password = serializers.CharField(required=False, trim_whitespace=False)
+
+
+class OAuthTokenResponseSerializer(serializers.Serializer):
+    access_token = serializers.CharField()
+    token_type = serializers.CharField(default="Bearer")
+    expires_in = serializers.IntegerField(help_text="Seconds before the token expires.")
+
+
+class OAuthErrorSerializer(serializers.Serializer):
+    error = serializers.ChoiceField(
+        choices=("invalid_request", "invalid_client", "invalid_grant", "unsupported_grant_type"),
+    )
+    error_description = serializers.CharField()
+
+
+class ApiClientSerializer(serializers.ModelSerializer):
+    client_id = serializers.UUIDField(source="id", read_only=True)
+
+    class Meta:
+        model = ApiClient
+        fields = ("client_id", "name", "created_at", "last_used_at")
+        read_only_fields = fields
+
+
+class ApiClientCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ApiClient
+        fields = ("name",)
+
+    def validate_name(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("This field may not be blank.")
+        return value
+
+
+class ApiClientCreatedSerializer(ApiClientSerializer):
+    """The one answer that carries the secret: it is not stored and cannot be shown again."""
+
+    client_secret = serializers.CharField(read_only=True)
+
+    class Meta(ApiClientSerializer.Meta):
+        fields = (*ApiClientSerializer.Meta.fields, "client_secret")
+        read_only_fields = fields

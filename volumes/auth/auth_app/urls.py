@@ -13,6 +13,9 @@ from .views import (
     ResetPasswordView,
     OAuthStartView,
     OAuthCallbackView,
+    OAuthTokenView,
+    ApiClientListView,
+    ApiClientDetailView,
 )
 
 
@@ -26,6 +29,9 @@ auth_urlpatterns = [
     path("verify/", VerifyView.as_view(), name="verify"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("me/", MeView.as_view(), name="me"),
+    path("oauth/token/", OAuthTokenView.as_view(), name="oauth-token"),
+    path("oauth/clients/", ApiClientListView.as_view(), name="oauth-clients"),
+    path("oauth/clients/<uuid:client_id>/", ApiClientDetailView.as_view(), name="oauth-client"),
     path(
         "oauth/42/start/",
         OAuthStartView.as_view(provider="42"),
