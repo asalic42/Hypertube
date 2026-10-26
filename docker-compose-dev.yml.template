@@ -123,22 +123,23 @@ services:
       context: ./db
       dockerfile: Dockerfile
     environment:
-      POSTGRES_DB: hypertube
-      POSTGRES_USER: hypertube
-      POSTGRES_PASSWORD: hypertube
+      # From the .env file: compose refuses to start when one is missing.
+      POSTGRES_DB: ${DB_NAME:?DB_NAME is not set in .env}
+      POSTGRES_USER: ${DB_USER:?DB_USER is not set in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is not set in .env}
     env_file: .env
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "hypertube"]
+      test: ["CMD", "pg_isready", "-U", "${DB_USER}", "-d", "${DB_NAME}"]
     restart: on-failure
   
   pgAdmin:
     image: docker.io/dpage/pgadmin4
     container_name: hypertube-pgadmin
     environment:
-      PGADMIN_DEFAULT_EMAIL: demo@example.com
-      PGADMIN_DEFAULT_PASSWORD: secret
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:?PGADMIN_EMAIL is not set in .env}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?PGADMIN_PASSWORD is not set in .env}
       PGADMIN_CONFIG_SERVER_MODE: 'False'
       MASTER_PASSWORD_REQUIRED: 'False'
     ports:
