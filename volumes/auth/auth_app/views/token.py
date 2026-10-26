@@ -1,8 +1,8 @@
 from django.conf import settings
 from drf_spectacular.utils import (
+    OpenApiResponse,
     extend_schema,
     extend_schema_view,
-
 )
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
@@ -53,8 +53,17 @@ class LoginView(TokenObtainPairView):
 @extend_schema_view(
     post=extend_schema(
         request=None,
+        responses={
+            200: OpenApiResponse(description="A new access token; the refresh cookie is rotated."),
+            204: OpenApiResponse(description="No session to refresh: the cookie is missing, expired, revoked or belongs to a deleted account. The session cookies are cleared."),
+        },
         tags=["Authentication"],
         operation_id="auth_refresh",
+        description=(
+            "The browser's session endpoint, driven by the refresh cookie. When there is no session "
+            "to refresh it answers 204 and clears the cookies rather than an error: the page asks on "
+            "every load, and a stale cookie is not a failure worth an error in the browser console."
+        ),
     )
 )
 class RefreshView(TokenRefreshView):
@@ -64,22 +73,13 @@ class RefreshView(TokenRefreshView):
 
     def post(self, request, *args, **kwargs):
         raw_refresh_token = request.COOKIES.get(settings.REFRESH_COOKIE_NAME)
-        if not raw_refresh_token:
-            return Response(
-                {
-                    "detail":"Refresh token missing."
-                },
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-        
         try:
+            if not raw_refresh_token:
+                raise TokenError("no cookie")
             old_refresh_token = RefreshToken(raw_refresh_token)
             user = User.objects.get(pk=old_refresh_token[api_settings.USER_ID_CLAIM])
         except (TokenError, User.DoesNotExist, KeyError):
-            response = Response(
-                {"detail": "The refresh token is invalid or revoked."},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            response = Response(status=status.HTTP_204_NO_CONTENT)
             delete_refresh_cookie(response)
             return response
 

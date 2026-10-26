@@ -72,14 +72,17 @@ class RefreshTests(AuthFlowTestCase):
         second = self.refresh_cookie(response).value
         self.assertNotEqual(first, second)
 
-        # The old token is single use.
+        # The old token is single use: no session, no error, the stale cookies go.
         self.client.cookies[settings.REFRESH_COOKIE_NAME] = first
         response = self.post("/api/auth/refresh/")
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 204)
         self.assertEqual(self.refresh_cookie(response).value, "", "a revoked cookie is cleared")
+        self.assertEqual(response.cookies[settings.SESSION_COOKIE_MARKER_NAME].value, "")
 
-    def test_refresh_needs_the_cookie(self):
-        self.assertEqual(self.post("/api/auth/refresh/").status_code, 401)
+    def test_without_a_cookie_there_is_no_session_and_no_error(self):
+        response = self.post("/api/auth/refresh/")
+        self.assertEqual(response.status_code, 204)
+        self.assertNotIn("access", response.content.decode())
 
     def test_refreshed_tokens_carry_the_account_as_it_is_now(self):
         # The email changed without this browser's cookie being rotated (through the users service, say).
@@ -94,7 +97,7 @@ class RefreshTests(AuthFlowTestCase):
         self.login()
         self.user.delete()
         response = self.post("/api/auth/refresh/")
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 204)
         self.assertEqual(self.refresh_cookie(response).value, "")
 
 
@@ -109,7 +112,7 @@ class LogoutTests(AuthFlowTestCase):
         self.assertEqual(response.cookies[settings.SESSION_COOKIE_MARKER_NAME].value, "")
 
         self.client.cookies[settings.REFRESH_COOKIE_NAME] = refresh
-        self.assertEqual(self.post("/api/auth/refresh/").status_code, 401)
+        self.assertEqual(self.post("/api/auth/refresh/").status_code, 204, "the revoked session gives no token")
 
     def test_logout_needs_a_token(self):
         self.login()
@@ -151,7 +154,7 @@ class PasswordResetTests(AuthFlowTestCase):
 
         # Sessions opened before the reset are revoked, and the link is single use.
         self.client.cookies[settings.REFRESH_COOKIE_NAME] = before
-        self.assertEqual(self.post("/api/auth/refresh/").status_code, 401)
+        self.assertEqual(self.post("/api/auth/refresh/").status_code, 204, "the sessions open before the reset are gone")
         self.assertEqual(self.reset(uid, token, "An0ther-pass!").status_code, 400)
 
     def test_bad_links_and_weak_or_mismatched_passwords_are_refused(self):
