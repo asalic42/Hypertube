@@ -123,7 +123,6 @@ services:
       context: ./db
       dockerfile: Dockerfile
     environment:
-      # From the .env file: compose refuses to start when one is missing.
       POSTGRES_DB: ${DB_NAME:?DB_NAME is not set in .env}
       POSTGRES_USER: ${DB_USER:?DB_USER is not set in .env}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is not set in .env}
