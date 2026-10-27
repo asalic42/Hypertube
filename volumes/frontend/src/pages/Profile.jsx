@@ -10,6 +10,8 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { toast } from "@/components/ui/toast";
 import { auth as authApi, users as usersApi } from "@/lib/api";
 import { LANGUAGES } from "@/lib/languages";
+import { languageName, t as translate } from "@/lib/i18n";
+import { useTranslation } from "@/hooks/useTranslation";
 import { forgetAvatar } from "@/lib/avatars";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -24,8 +26,8 @@ function pictureError(err) {
     if (err.status === 413) return TOO_LARGE;
     if (err.status === 400) {
         const reason = String(err.data?.avatar?.[0] || err.message);
-        if (/d[ée]passer|too large|size/i.test(reason)) return TOO_LARGE;
-        if (/JPEG|PNG|WebP|image/i.test(reason)) return BAD_TYPE;
+        if (/d[ée]passer|too large|size/i.test(reason)) return translate(TOO_LARGE);
+        if (/JPEG|PNG|WebP|image/i.test(reason)) return translate(BAD_TYPE);
     }
     return err.message;
 }
@@ -40,6 +42,7 @@ const EMPTY_PASSWORDS = { currentPassword: "", password: "", passwordConfirm: ""
 export default function Profile() {
     const { user, updateUser, clearSession } = useAuth();
     const navigate = useNavigate();
+    const { t, language, setLanguage } = useTranslation();
     const [form, setForm] = useState(null);
     // Values as last stored, to know what changed on save.
     const [saved, setSaved] = useState(null);
@@ -88,12 +91,12 @@ export default function Profile() {
         const file = e.target.files[0];
         if (!file) return;
         if (!AVATAR_TYPES.includes(file.type)) {
-            toast.add({ title: "Unsupported picture", description: BAD_TYPE, type: "error" });
+            toast.add({ title: t("Unsupported picture"), description: t(BAD_TYPE), type: "error" });
             e.target.value = "";
             return;
         }
         if (file.size > AVATAR_MAX_BYTES) {
-            toast.add({ title: "Picture too large", description: TOO_LARGE, type: "error" });
+            toast.add({ title: t("Picture too large"), description: t(TOO_LARGE), type: "error" });
             e.target.value = "";
             return;
         }
@@ -113,11 +116,11 @@ export default function Profile() {
             await usersApi.deleteAvatar(user.id);
             forgetAvatar(user.id);
             setAvatarUrl(null);
-            toast.add({ title: "Picture removed", description: "Your profile has no picture anymore.", type: "success" });
+            toast.add({ title: t("Picture removed"), description: t("Your profile has no picture anymore."), type: "success" });
         } catch (err) {
             // Already gone on the server: reflect it rather than complain.
             if (err.status === 404) setAvatarUrl(null);
-            else toast.add({ title: "Could not remove the picture", description: err.message, type: "error" });
+            else toast.add({ title: t("Could not remove the picture"), description: err.message, type: "error" });
         } finally {
             setRemovingAvatar(false);
         }
@@ -136,7 +139,7 @@ export default function Profile() {
         e.preventDefault();
         if (!changed) return;
         if (form.password && form.password !== form.passwordConfirm) {
-            toast.add({ title: "Passwords do not match", description: "Type the new password twice, the same way.", type: "error" });
+            toast.add({ title: t("Passwords do not match"), description: t("Type the new password twice, the same way."), type: "error" });
             return;
         }
         setSaving(true);
@@ -155,7 +158,7 @@ export default function Profile() {
                     avatar: avatarFile,
                 });
             } catch (err) {
-                const title = avatarFile && err.data?.avatar ? "Could not save the picture" : "Could not save your information";
+                const title = avatarFile && err.data?.avatar ? t("Could not save the picture") : t("Could not save your information");
                 toast.add({ title, description: avatarFile && err.data?.avatar ? pictureError(err) : err.message, type: "error" });
                 return;
             }
@@ -169,6 +172,8 @@ export default function Profile() {
             setForm(values);
             setSaved(values);
             if (values.email !== user.email) updateUser({ ...user, email: values.email });
+            // The site follows the preference at once.
+            setLanguage(values.preferredLanguage);
             if (avatarFile) {
                 forgetAvatar(user.id);
                 setAvatarUrl(profile.avatar_url);
@@ -176,7 +181,7 @@ export default function Profile() {
             setAvatarFile(null);
             setAvatarPreview(null);
             if (fileInputRef.current) fileInputRef.current.value = "";
-            toast.add({ title: "Profile updated", description: "Your information has been saved.", type: "success" });
+            toast.add({ title: t("Profile updated"), description: t("Your information has been saved."), type: "success" });
         } finally {
             setSaving(false);
         }
@@ -188,23 +193,23 @@ export default function Profile() {
             // The auth service erases the profile, comments and watch history with the account.
             await authApi.deleteMe();
         } catch (err) {
-            toast.add({ title: "Could not delete the account", description: err.message, type: "error" });
+            toast.add({ title: t("Could not delete the account"), description: err.message, type: "error" });
             setDeleting(false);
             return;
         }
         clearSession();
         navigate("/login", { replace: true });
-        toast.add({ title: "Account deleted", description: "Your account has been removed.", type: "success" });
+        toast.add({ title: t("Account deleted"), description: t("Your account has been removed."), type: "success" });
     }
 
     if (error) return <p className="p-8 text-destructive">{error}</p>;
-    if (!form) return <p className="p-8 text-muted-foreground">Loading...</p>;
+    if (!form) return <p className="p-8 text-muted-foreground">{t("Loading...")}</p>;
 
     const picture = avatarPreview || avatarUrl;
     const memberSince = user.date_joined
-        ? new Date(user.date_joined).toLocaleDateString(undefined, { year: "numeric", month: "long" })
+        ? new Date(user.date_joined).toLocaleDateString(language, { year: "numeric", month: "long" })
         : null;
-    const languageName = LANGUAGES.find(([value]) => value === form.preferredLanguage)?.[1];
+    const spoken = languageName(form.preferredLanguage, language);
 
     return (
         <div className="w-full max-w-3xl p-4 sm:py-8">
@@ -213,26 +218,26 @@ export default function Profile() {
                 type="file"
                 accept={AVATAR_TYPES.join(",")}
                 className="sr-only"
-                aria-label="Profile picture"
+                aria-label={t("Profile picture")}
                 onChange={choosePicture}
             />
 
             <form id="profile-form" onSubmit={save} className="flex flex-col gap-5">
                 {/* Identity: banner, picture and the facts that do not change here. */}
                 <section className="overflow-hidden rounded-2xl bg-card text-card-foreground shadow-xs ring-1 ring-foreground/10">
-                    <div className="h-28 bg-linear-to-r from-black via-primary/70 to-primary sm:h-32" aria-hidden="true" />
+                    <div className="h-28 bg-linear-to-r from-accent via-primary/35 to-primary/60 dark:from-black dark:via-primary/70 dark:to-primary sm:h-32" aria-hidden="true" />
                     <div className="px-5 pb-5 sm:px-6 sm:pb-6">
                         <div className="-mt-14 flex flex-col gap-4 sm:-mt-16 sm:flex-row sm:items-end sm:gap-5">
                             <div className="relative w-fit">
                                 <Avatar className="size-28 ring-4 ring-card sm:size-32">
-                                    {picture && <AvatarImage src={picture} alt="Your profile picture" />}
+                                    {picture && <AvatarImage src={picture} alt={t("Your profile picture")} />}
                                     <AvatarFallback className="text-4xl">{user.username[0].toUpperCase()}</AvatarFallback>
                                 </Avatar>
                                 <button
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
-                                    aria-label={picture ? "Change picture" : "Add a picture"}
-                                    title={picture ? "Change picture" : "Add a picture"}
+                                    aria-label={picture ? t("Change picture") : t("Add a picture")}
+                                    title={picture ? t("Change picture") : t("Add a picture")}
                                     className="absolute right-0 bottom-0 flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-card hover:bg-primary/80 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                                 >
                                     <Camera className="size-4" aria-hidden="true" />
@@ -242,58 +247,58 @@ export default function Profile() {
                                 <h1 className="truncate text-2xl font-bold tracking-tight">{user.username}</h1>
                                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                                     <span className="flex items-center gap-1.5"><Mail className="size-3.5" aria-hidden="true" />{saved.email}</span>
-                                    {languageName && (
-                                        <span className="flex items-center gap-1.5"><Languages className="size-3.5" aria-hidden="true" />{languageName}</span>
+                                    {spoken && (
+                                        <span className="flex items-center gap-1.5"><Languages className="size-3.5" aria-hidden="true" />{spoken}</span>
                                     )}
                                     {memberSince && (
-                                        <span className="flex items-center gap-1.5"><CalendarDays className="size-3.5" aria-hidden="true" />Member since {memberSince}</span>
+                                        <span className="flex items-center gap-1.5"><CalendarDays className="size-3.5" aria-hidden="true" />{t("Member since {date}", { date: memberSince })}</span>
                                     )}
                                 </div>
                             </div>
                             {picture && (
                                 <Button type="button" variant="ghost" size="sm" className="w-fit sm:self-end" onClick={removePicture} disabled={removingAvatar}>
                                     <Trash2 aria-hidden="true" />
-                                    {removingAvatar ? "Removing..." : avatarPreview ? "Discard picture" : "Remove picture"}
+                                    {removingAvatar ? t("Removing...") : avatarPreview ? t("Discard picture") : t("Remove picture")}
                                 </Button>
                             )}
                         </div>
                         {avatarPreview && (
-                            <p className="mt-3 text-xs text-muted-foreground">New picture selected. Save your changes to keep it.</p>
+                            <p className="mt-3 text-xs text-muted-foreground">{t("New picture selected. Save your changes to keep it.")}</p>
                         )}
                     </div>
                 </section>
 
                 <Section
                     icon={UserRound}
-                    title="Personal information"
-                    description="Your name as other viewers see it on your comments, and the email you log in with."
+                    title={t("Personal information")}
+                    description={t("Your name as other viewers see it on your comments, and the email you log in with.")}
                 >
                     <div className="grid gap-4 sm:grid-cols-2">
                         <div className="grid gap-2">
-                            <Label htmlFor="firstname">First name</Label>
+                            <Label htmlFor="firstname">{t("First name")}</Label>
                             <Input id="firstname" name="firstname" autoComplete="given-name" value={form.firstname} onChange={handleChange} required maxLength={128} />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="lastname">Last name</Label>
+                            <Label htmlFor="lastname">{t("Last name")}</Label>
                             <Input id="lastname" name="lastname" autoComplete="family-name" value={form.lastname} onChange={handleChange} required maxLength={128} />
                         </div>
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="email">{t("Email")}</Label>
                         <Input id="email" type="email" name="email" autoComplete="email" value={form.email} onChange={handleChange} required />
                     </div>
                 </Section>
 
                 <Section
                     icon={Languages}
-                    title="Preferences"
-                    description="Subtitles are requested in this language whenever a film has them."
+                    title={t("Preferences")}
+                    description={t("Subtitles are requested in this language whenever a film has them.")}
                 >
                     <div className="grid gap-2 sm:max-w-xs">
-                        <Label htmlFor="preferredLanguage">Language</Label>
+                        <Label htmlFor="preferredLanguage">{t("Language")}</Label>
                         <NativeSelect id="preferredLanguage" name="preferredLanguage" className="w-full" value={form.preferredLanguage} onChange={handleChange}>
-                            {LANGUAGES.map(([value, name]) => (
-                                <option key={value} value={value}>{name}</option>
+                            {LANGUAGES.map(([value]) => (
+                                <option key={value} value={value}>{languageName(value, language)}</option>
                             ))}
                         </NativeSelect>
                     </div>
@@ -301,20 +306,20 @@ export default function Profile() {
 
                 <Section
                     icon={KeyRound}
-                    title="Password"
-                    description="Leave empty to keep your password. Your current password is required to set a new one."
+                    title={t("Password")}
+                    description={t("Leave empty to keep your password. Your current password is required to set a new one.")}
                 >
                     <div className="grid gap-2 sm:max-w-xs">
-                        <Label htmlFor="currentPassword">Current password</Label>
+                        <Label htmlFor="currentPassword">{t("Current password")}</Label>
                         <Input id="currentPassword" type="password" name="currentPassword" autoComplete="current-password" value={form.currentPassword} onChange={handleChange} required={Boolean(form.password)} />
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                         <div className="grid gap-2">
-                            <Label htmlFor="password">New password</Label>
+                            <Label htmlFor="password">{t("New password")}</Label>
                             <Input id="password" type="password" name="password" autoComplete="new-password" value={form.password} onChange={handleChange} minLength={8} />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="passwordConfirm">Confirm new password</Label>
+                            <Label htmlFor="passwordConfirm">{t("Confirm new password")}</Label>
                             <Input id="passwordConfirm" type="password" name="passwordConfirm" autoComplete="new-password" value={form.passwordConfirm} onChange={handleChange} required={Boolean(form.password)} />
                         </div>
                     </div>
@@ -322,26 +327,26 @@ export default function Profile() {
 
                 <Section
                     icon={ShieldAlert}
-                    title="Danger zone"
-                    description="Deleting the account removes your login, profile and picture for good."
+                    title={t("Danger zone")}
+                    description={t("Deleting the account removes your login, profile and picture for good.")}
                     tone="danger"
                 >
                     <Button type="button" variant="destructive" className="w-fit" onClick={() => setConfirmingDelete(true)}>
                         <Trash2 aria-hidden="true" />
-                        Delete account
+                        {t("Delete account")}
                     </Button>
                 </Section>
 
                 {/* Follows the viewer while something is unsaved, so the action is never out of reach. */}
                 {changed && (
                     <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-primary px-4 py-3 text-primary-foreground shadow-lg">
-                        <p className="text-sm font-medium">You have unsaved changes</p>
+                        <p className="text-sm font-medium">{t("You have unsaved changes")}</p>
                         <div className="flex gap-2">
                             <Button type="button" variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground" onClick={discard} disabled={saving}>
-                                Discard
+                                {t("Discard")}
                             </Button>
                             <Button type="submit" variant="secondary" size="sm" disabled={saving}>
-                                {saving ? "Saving..." : "Save changes"}
+                                {saving ? t("Saving...") : t("Save changes")}
                             </Button>
                         </div>
                     </div>
@@ -351,15 +356,15 @@ export default function Profile() {
             <Dialog open={confirmingDelete} onOpenChange={(open) => !deleting && setConfirmingDelete(open)}>
                 <DialogContent showCloseButton={!deleting}>
                     <DialogHeader>
-                        <DialogTitle>Delete your account?</DialogTitle>
+                        <DialogTitle>{t("Delete your account?")}</DialogTitle>
                         <DialogDescription>
-                            This cannot be undone. Your profile and picture are erased and you are logged out.
+                            {t("This cannot be undone. Your profile and picture are erased and you are logged out.")}
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <DialogClose render={<Button variant="outline" />} disabled={deleting}>Cancel</DialogClose>
+                        <DialogClose render={<Button variant="outline" />} disabled={deleting}>{t("Cancel")}</DialogClose>
                         <Button type="button" variant="destructive" onClick={deleteAccount} disabled={deleting}>
-                            {deleting ? "Deleting..." : "Delete my account"}
+                            {deleting ? t("Deleting...") : t("Delete my account")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

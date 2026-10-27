@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useTranslation } from "@/hooks/useTranslation";
 
 // The auth service lands here after setting the refresh cookie. The page is a
 // full reload, so AuthProvider already exchanges that cookie for an access
@@ -9,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 export default function OAuthCallback() {
     const navigate = useNavigate();
     const { user, loading } = useAuth();
+    const { t } = useTranslation();
 
     useEffect(() => {
         if (loading) return;
@@ -19,5 +21,5 @@ export default function OAuthCallback() {
         }
     }, [loading, user, navigate]);
 
-    return <p className="text-muted-foreground">Signing you in...</p>;
+    return <p className="text-muted-foreground">{t("Signing you in...")}</p>;
 }
