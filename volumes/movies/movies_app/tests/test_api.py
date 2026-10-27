@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from movies_app.models import Comment, Download, Movie, Rendition, SourceItem, Subtitle, Torrent, WatchRecord
@@ -222,6 +223,21 @@ class PlaybackTests(ApiTestCase):
         self.movie.save()
         self.assertEqual(self.client.put(self.url, {"language": "es"}).status_code, 201)
         self.assertEqual(list(self.movie.subtitles.values_list("language", flat=True)), ["en", "es"])
+
+    def test_asking_again_for_a_stored_film_adds_subtitles_without_touching_it(self):
+        download = Download.objects.create(
+            movie=self.movie, status=Download.Status.READY, storage_key=f"{self.movie.pk}/video.mp4", storage_size=10, completed_at=timezone.now()
+        )
+        Subtitle.objects.create(movie=self.movie, language="en", status=Subtitle.Status.READY, storage_key="k/en")
+        with mock.patch("movies_app.services.renditions.remove_stored") as renditions_removed, \
+                mock.patch("movies_app.services.subtitles.remove_stored") as subtitles_removed:
+            response = self.client.put(self.url, {"language": "es"})
+        self.assertEqual((response.status_code, response.data["status"]), (200, "ready"))
+        download.refresh_from_db()
+        self.assertEqual((download.status, download.storage_key), (Download.Status.READY, f"{self.movie.pk}/video.mp4"))
+        renditions_removed.assert_not_called()
+        subtitles_removed.assert_not_called()
+        self.assertEqual(list(self.movie.subtitles.values_list("language", "status")), [("en", "ready"), ("es", "pending")])
 
     def test_failed_download_can_be_retried(self):
         Download.objects.create(movie=self.movie, status=Download.Status.FAILED, error="stalled", attempted_torrent_ids=[self.torrent.pk])

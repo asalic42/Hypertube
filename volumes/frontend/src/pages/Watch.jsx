@@ -36,6 +36,9 @@ function qualityKey(quality) {
 function Player({ movieId, initialStatus }) {
     const [download, setDownload] = useState(null);
     const [requested, setRequested] = useState(Boolean(initialStatus));
+    // A film already on the server is asked for again on arrival: the request is idempotent, nothing is
+    // downloaded twice, and it adds the subtitles of a viewer whose preferred language changed since.
+    const renewRef = useRef(Boolean(initialStatus) && initialStatus !== "failed");
     const [error, setError] = useState(null);
     const videoRef = useRef(null);
 
@@ -91,7 +94,9 @@ function Player({ movieId, initialStatus }) {
         let cancelled = false;
         async function poll() {
             try {
-                const data = await moviesApi.download(movieId);
+                const renew = renewRef.current;
+                renewRef.current = false;
+                const data = renew ? await moviesApi.requestDownload(movieId) : await moviesApi.download(movieId);
                 if (cancelled) return;
                 follow(data);
                 setError(null);
