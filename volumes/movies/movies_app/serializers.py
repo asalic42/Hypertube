@@ -114,7 +114,7 @@ class SubtitleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Subtitle
-        fields = ("language", "status", "url")
+        fields = ("language", "status", "aligned", "url")
 
     def get_url(self, subtitle) -> str | None:
         if subtitle.status != Subtitle.Status.READY:

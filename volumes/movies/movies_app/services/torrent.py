@@ -14,7 +14,7 @@ from django.db import connection
 from django.utils import timezone
 
 from movies_app.models import Download
-from movies_app.services import catalog, http, media, renditions, storage
+from movies_app.services import catalog, http, media, renditions, storage, subtitles
 
 logger = logging.getLogger(__name__)
 
@@ -250,6 +250,8 @@ class TorrentEngine:
         else:
             shutil.rmtree(media.download_directory(download.pk), ignore_errors=True)
 
+        # Whatever subtitle was matched to this file is for another one now.
+        subtitles.reset(download.movie)
         if download.torrent_id is not None:
             download.attempted_torrent_ids = [*download.attempted_torrent_ids, download.torrent_id]
         candidates = catalog.candidate_torrents(download.movie, exclude_ids=download.attempted_torrent_ids)
@@ -313,6 +315,7 @@ def finalize(download_id):
         download = Download.objects.get(pk=download_id)
         try:
             source = media.local_video_path(download)
+            profile = media.video_profile(source)
             path, content_type = media.prepare_for_storage(source, media.download_directory(download_id))
             key = f"{download.movie_id}/video{path.suffix.lower()}"
             storage.upload_file(path, key, content_type)
@@ -331,6 +334,7 @@ def finalize(download_id):
             storage_size=path.stat().st_size,
             content_type=content_type,
             needs_transcode=False,
+            **profile,
             completed_at=timezone.now(),
             updated_at=timezone.now(),
         )

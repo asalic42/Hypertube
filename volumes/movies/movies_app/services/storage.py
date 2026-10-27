@@ -55,6 +55,15 @@ def open_range(key, start, end):
     return response["Body"]
 
 
+def presigned_url(key, expires=3600):
+    """A URL a tool such as ffprobe can read the stored object from, without credentials."""
+    return _client().generate_presigned_url(
+        "get_object",
+        Params={"Bucket": settings.AWS_MOVIES_STORAGE_BUCKET_NAME, "Key": key},
+        ExpiresIn=expires,
+    )
+
+
 def read(key):
     response = _client().get_object(Bucket=settings.AWS_MOVIES_STORAGE_BUCKET_NAME, Key=key)
     return response["Body"].read()

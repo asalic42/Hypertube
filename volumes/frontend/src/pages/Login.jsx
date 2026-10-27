@@ -91,7 +91,6 @@ export default function Login() {
                         type="text"
                         name="username"
                         autoComplete="username"
-                        placeholder="jane.doe"
                         value={formData.username}
                         onChange={handleChange}
                         required

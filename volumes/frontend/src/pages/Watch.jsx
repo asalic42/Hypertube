@@ -44,6 +44,8 @@ function Player({ movieId, initialStatus }) {
     // The stream URLs are fixed once known: each poll signs a new token, and a
     // changing src would restart the film.
     const [sources, setSources] = useState({});
+    // Likewise for the subtitle tracks, renewed only when a track was lined up on the sound track.
+    const [tracks, setTracks] = useState({});
     const [quality, setQuality] = useState("original");
     // Position and play state to restore after a change of quality.
     const resumeRef = useRef(null);
@@ -55,6 +57,15 @@ function Player({ movieId, initialStatus }) {
             for (const item of data.qualities) {
                 const key = qualityKey(item);
                 if (item.stream_url && !next[key]) next[key] = item.stream_url;
+            }
+            return next;
+        });
+        setTracks((current) => {
+            const next = { ...current };
+            for (const subtitle of data.subtitles) {
+                if (subtitle.url && (!next[subtitle.language] || next[subtitle.language].aligned !== subtitle.aligned)) {
+                    next[subtitle.language] = { url: subtitle.url, aligned: subtitle.aligned };
+                }
             }
             return next;
         });
@@ -85,7 +96,7 @@ function Player({ movieId, initialStatus }) {
                 follow(data);
                 setError(null);
                 const settled = data.status === "ready" || data.status === "failed";
-                const subtitlesPending = data.subtitles.some((subtitle) => subtitle.status === "pending");
+                const subtitlesPending = data.subtitles.some((subtitle) => subtitle.status === "pending" || (subtitle.status === "ready" && !subtitle.aligned));
                 const qualitiesPending = data.qualities.some((item) => item.status === "pending");
                 if (!settled || subtitlesPending || qualitiesPending) timer = setTimeout(poll, POLL_INTERVAL);
             } catch (err) {
@@ -132,7 +143,7 @@ function Player({ movieId, initialStatus }) {
                                 <track
                                     key={subtitle.language}
                                     kind="subtitles"
-                                    src={subtitle.url}
+                                    src={tracks[subtitle.language]?.url || subtitle.url}
                                     srcLang={subtitle.language}
                                     label={languageName(subtitle.language)}
                                     default={subtitle.language === "en"}
@@ -181,7 +192,7 @@ function Player({ movieId, initialStatus }) {
                     <p>
                         {download.status === "ready" ? "Stored on the server." : download.status === "downloading" ? `Download: ${download.progress}%` : null}
                         {download.subtitles.length > 0 && (
-                            <> · Subtitles: {download.subtitles.map((subtitle) => `${languageName(subtitle.language)} (${subtitle.status})`).join(", ")}</>
+                            <> · Subtitles: {download.subtitles.map((subtitle) => `${languageName(subtitle.language)} (${subtitle.status === "ready" && !subtitle.aligned ? "syncing" : subtitle.status})`).join(", ")}</>
                         )}
                     </p>
                 </div>

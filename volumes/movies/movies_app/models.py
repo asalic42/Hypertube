@@ -166,6 +166,11 @@ class Download(models.Model):
     width = models.PositiveIntegerField(null=True, blank=True)
     height = models.PositiveIntegerField(null=True, blank=True)
     renditions_planned = models.BooleanField(default=False)
+    # What the subtitles are matched against: the running time and frame rate
+    # of the video, and the OpenSubtitles hash of the file the torrent brought.
+    duration = models.FloatField(null=True, blank=True, help_text="Seconds.")
+    frame_rate = models.FloatField(null=True, blank=True)
+    file_hash = models.CharField(max_length=16, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -215,6 +220,8 @@ class Subtitle(models.Model):
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True)
     origin = models.CharField(max_length=32, blank=True)
     storage_key = models.CharField(max_length=512, blank=True)
+    # The cues were lined up on the sound track. A subtitle is served before that, as it came.
+    aligned = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

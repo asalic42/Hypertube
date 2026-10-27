@@ -12,7 +12,7 @@ from rest_framework_simplejwt.authentication import JWTStatelessUserAuthenticati
 from movies_app.authentication import IgnoreClientContentNegotiation, StreamTokenAuthentication
 from movies_app.models import Download, Movie, Rendition, Subtitle, WatchRecord
 from movies_app.serializers import DownloadRequestSerializer, DownloadSerializer, SubtitleSerializer
-from movies_app.services import catalog, media, renditions, storage, streaming, users
+from movies_app.services import catalog, media, renditions, storage, streaming, subtitles, users
 
 from .common import get_movie_or_404
 
@@ -106,8 +106,9 @@ class MovieDownloadView(APIView):
                     "renditions_planned": False,
                 },
             )
-            # A previous attempt left nothing worth keeping.
+            # A previous attempt left nothing worth keeping: its subtitles were matched to a file that is gone.
             renditions.remove_stored(download)
+            subtitles.remove_stored(movie)
 
         _request_subtitles(movie, language)
         download = Download.objects.select_related("movie").get(pk=download.pk)

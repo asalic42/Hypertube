@@ -166,7 +166,6 @@ export default function Signup() {
                                 type="email"
                                 name="email"
                                 autoComplete="email"
-                                placeholder="m@example.com"
                                 value={formData.email}
                                 onChange={handleChange}
                                 required

@@ -25,11 +25,13 @@ CATALOG_BATCH = 40
 
 
 def process_subtitles():
+    """Resolve the subtitles asked for, then line up on the sound track those served as they came."""
     for subtitle in Subtitle.objects.filter(status=Subtitle.Status.PENDING).select_related("movie")[:10]:
         try:
             subtitles.process(subtitle)
         except storage.StorageError as error:
             logger.warning("subtitle %s could not be stored: %s", subtitle.pk, error)
+    subtitles.align_pending()
 
 
 def process_renditions():
@@ -83,8 +85,10 @@ class Command(BaseCommand):
         engine = TorrentEngine(listen_port=settings.TORRENT_LISTEN_PORT)
         background = ThreadPoolExecutor(max_workers=1, thread_name_prefix="background")
         encoder = ThreadPoolExecutor(max_workers=1, thread_name_prefix="renditions")
+        # Aligning a subtitle takes a minute of CPU: it must not hold the catalogue up, nor be held up by it.
+        aligner = ThreadPoolExecutor(max_workers=1, thread_name_prefix="subtitles")
         tasks = [
-            [process_subtitles, SUBTITLES_INTERVAL, 0.0, None, background],
+            [process_subtitles, SUBTITLES_INTERVAL, 0.0, None, aligner],
             [warm_catalog, CATALOG_INTERVAL, 0.0, None, background],
             [purge, PURGE_INTERVAL, 0.0, None, background],
             [process_renditions, RENDITIONS_INTERVAL, 0.0, None, encoder],
@@ -112,6 +116,7 @@ class Command(BaseCommand):
         engine.shutdown()
         background.shutdown(wait=False, cancel_futures=True)
         encoder.shutdown(wait=False, cancel_futures=True)
+        aligner.shutdown(wait=False, cancel_futures=True)
         self.stdout.write("torrent worker stopped")
 
     def stop(self, *args):
