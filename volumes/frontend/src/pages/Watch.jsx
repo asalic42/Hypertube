@@ -30,6 +30,9 @@ function Player({ movieId, initialStatus }) {
     const { t, language } = useTranslation();
     const [download, setDownload] = useState(null);
     const [requested, setRequested] = useState(Boolean(initialStatus));
+    // A film already on the server is asked for again on arrival: the request is idempotent, nothing is
+    // downloaded twice, and it adds the subtitles of a viewer whose preferred language changed since.
+    const renewRef = useRef(Boolean(initialStatus) && initialStatus !== "failed");
     const [error, setError] = useState(null);
     const videoRef = useRef(null);
 
@@ -85,7 +88,9 @@ function Player({ movieId, initialStatus }) {
         let cancelled = false;
         async function poll() {
             try {
-                const data = await moviesApi.download(movieId);
+                const renew = renewRef.current;
+                renewRef.current = false;
+                const data = renew ? await moviesApi.requestDownload(movieId) : await moviesApi.download(movieId);
                 if (cancelled) return;
                 follow(data);
                 setError(null);
@@ -108,6 +113,9 @@ function Player({ movieId, initialStatus }) {
     }, [movieId, requested]);
 
     const source = sources[quality] || sources.original || null;
+    // English is always requested; a track in another language is the viewer's own and comes first.
+    const readySubtitles = download?.subtitles.filter((subtitle) => subtitle.status === "ready") ?? [];
+    const defaultSubtitle = (readySubtitles.find((subtitle) => subtitle.language !== "en") || readySubtitles[0])?.language;
     const qualities = download?.qualities ?? [];
     const selectable = qualities.filter((item) => item.status === "ready" && sources[qualityKey(item)]);
 
@@ -131,18 +139,16 @@ function Player({ movieId, initialStatus }) {
             <div className="aspect-video w-full overflow-hidden rounded-lg bg-black flex items-center justify-center">
                 {source ? (
                     <video ref={videoRef} src={source} controls autoPlay className="h-full w-full" crossOrigin="use-credentials" onLoadedMetadata={resume}>
-                        {download.subtitles
-                            .filter((subtitle) => subtitle.status === "ready")
-                            .map((subtitle) => (
-                                <track
-                                    key={subtitle.language}
-                                    kind="subtitles"
-                                    src={tracks[subtitle.language]?.url || subtitle.url}
-                                    srcLang={subtitle.language}
-                                    label={languageName(subtitle.language, language)}
-                                    default={subtitle.language === "en"}
-                                />
-                            ))}
+                        {readySubtitles.map((subtitle) => (
+                            <track
+                                key={subtitle.language}
+                                kind="subtitles"
+                                src={tracks[subtitle.language]?.url || subtitle.url}
+                                srcLang={subtitle.language}
+                                label={languageName(subtitle.language, language)}
+                                default={subtitle.language === defaultSubtitle}
+                            />
+                        ))}
                     </video>
                 ) : !requested ? (
                     <Button size="lg" onClick={requestDownload} disabled={starting}>{starting ? t("Starting...") : t("▶ Play")}</Button>
