@@ -9,3 +9,5 @@ libtorrent==2.0.13
 requests==2.34.0
 djangorestframework-simplejwt[crypto]==5.5.1
 boto3==1.28.26
+django-cors-headers==4.3.0
+ffsubsync==0.5.1

@@ -86,11 +86,13 @@ class MovieDetailSerializer(MovieListSerializer):
 class CommentSerializer(serializers.ModelSerializer):
     comment = serializers.CharField(source="content", max_length=2000, trim_whitespace=True)
     movie_id = serializers.IntegerField(read_only=True)
+    # The author's account id, which addresses their profile in the users service.
+    user_id = serializers.UUIDField(read_only=True)
 
     class Meta:
         model = Comment
-        fields = ("id", "movie_id", "username", "comment", "created_at", "updated_at")
-        read_only_fields = ("id", "username", "created_at", "updated_at")
+        fields = ("id", "movie_id", "user_id", "username", "comment", "created_at", "updated_at")
+        read_only_fields = ("id", "user_id", "username", "created_at", "updated_at")
 
     def validate_comment(self, value):
         value = _CONTROL_CHARACTERS.sub("", value).strip()
@@ -112,7 +114,7 @@ class SubtitleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Subtitle
-        fields = ("language", "status", "url")
+        fields = ("language", "status", "aligned", "url")
 
     def get_url(self, subtitle) -> str | None:
         if subtitle.status != Subtitle.Status.READY:

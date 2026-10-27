@@ -16,3 +16,4 @@ dbgate-data
 
 volumes/movies/films
 volumes/users/media
+db.sqlite3

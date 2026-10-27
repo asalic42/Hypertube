@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import subprocess
 from pathlib import Path
 
@@ -69,26 +70,63 @@ def _run(command, timeout):
         raise MediaError(f"{command[0]} failed: {stderr.decode(errors='replace')[-500:] or error}") from error
 
 
+def _frame_rate(stream):
+    """The average frame rate of a stream as a float; None when ffprobe does not know it."""
+    try:
+        numerator, denominator = (stream.get("avg_frame_rate") or "0/0").split("/")
+        return round(int(numerator) / int(denominator), 3) or None
+    except (ValueError, ZeroDivisionError):
+        return None
+
+
 def probe(path):
-    """Codecs and frame size of a video, as ffprobe reports them."""
+    """Codecs, frame size, frame rate and running time of a video, as ffprobe reports them. `path` may be a URL."""
     output = _run(
         [
             "ffprobe", "-v", "error",
-            "-show_entries", "stream=codec_type,codec_name,width,height",
+            "-show_entries", "stream=codec_type,codec_name,width,height,avg_frame_rate:format=duration",
             "-of", "json", str(path),
         ],  # fmt: skip
         timeout=120,
     ).stdout
-    streams = json.loads(output or b"{}").get("streams", [])
+    report = json.loads(output or b"{}")
+    streams = report.get("streams", [])
     video = [stream for stream in streams if stream.get("codec_type") == "video"]
     sized = [stream for stream in video if stream.get("width") and stream.get("height")]
     main = max(sized, key=lambda stream: stream["width"] * stream["height"], default=None)
+    try:
+        duration = float(report.get("format", {}).get("duration")) or None
+    except (TypeError, ValueError):
+        duration = None
     return {
         "video_codecs": {stream["codec_name"] for stream in video},
         "audio_codecs": {stream["codec_name"] for stream in streams if stream.get("codec_type") == "audio"},
         "width": main["width"] if main else None,
         "height": main["height"] if main else None,
+        "frame_rate": _frame_rate(main) if main else None,
+        "duration": duration,
     }
+
+
+HASH_CHUNK = 64 * 1024
+
+
+def opensubtitles_hash(path):
+    """
+    The OpenSubtitles hash of a file: its size plus the first and last 64 KiB
+    read as little-endian 64-bit words, summed modulo 2**64. It identifies a
+    release exactly, so a subtitle found by it is in sync with this very file.
+    """
+    size = path.stat().st_size
+    if size < HASH_CHUNK:
+        raise MediaError("file too small to hash")
+    total = size
+    with path.open("rb") as handle:
+        for offset in (0, size - HASH_CHUNK):
+            handle.seek(offset)
+            chunk = handle.read(HASH_CHUNK)
+            total += sum(int.from_bytes(chunk[i : i + 8], "little") for i in range(0, len(chunk) - 7, 8))
+    return f"{total & 0xFFFFFFFFFFFFFFFF:016x}"
 
 
 def is_browser_ready(path):
@@ -148,3 +186,54 @@ def prepare_for_storage(source, workdir):
         timeout=6 * 3600,
     )
     return target, "video/mp4"
+
+
+def video_profile(path):
+    """
+    What subtitles are matched against: `duration`, `frame_rate` and the
+    OpenSubtitles `file_hash` of the file. Whatever cannot be read is left
+    empty rather than failing: the film is still worth storing.
+    """
+    profile = {"duration": None, "frame_rate": None, "file_hash": ""}
+    try:
+        info = probe(path)
+        profile.update(duration=info["duration"], frame_rate=info["frame_rate"])
+    except MediaError as error:
+        logger.warning("%s: running time unknown: %s", path.name, error)
+    try:
+        profile["file_hash"] = opensubtitles_hash(path)
+    except (MediaError, OSError) as error:
+        logger.warning("%s: not hashed: %s", path.name, error)
+    return profile
+
+
+# Transfers of a film differ by seconds of leader, not minutes: a wider search only finds false matches.
+ALIGN_MAX_OFFSET = 60
+_ALIGN_SCORE = re.compile(r"score:\s*(-?[\d.]+)")
+_ALIGN_OFFSET = re.compile(r"offset seconds:\s*(-?[\d.]+)")
+_ALIGN_SCALE = re.compile(r"framerate scale factor:\s*([\d.]+)")
+
+
+def align_subtitle(source, srt_in, srt_out):
+    """
+    Shift and stretch a SubRip file onto the speech of a video with ffsubsync,
+    which detects voice in the sound track and finds the offset that best lines
+    the cues up. `source` may be a URL; it must be the whole film, the cues of
+    a partial one line up on noise. Returns (offset seconds, scale factor).
+    """
+    result = _run(
+        [
+            "ffsubsync", str(source), "-i", str(srt_in), "-o", str(srt_out),
+            "--max-offset-seconds", str(ALIGN_MAX_OFFSET),
+        ],  # fmt: skip
+        timeout=1800,
+    )
+    report = result.stderr.decode(errors="replace")
+    score, offset, scale = _ALIGN_SCORE.search(report), _ALIGN_OFFSET.search(report), _ALIGN_SCALE.search(report)
+    if offset is None or not Path(srt_out).is_file():
+        raise MediaError(f"ffsubsync reported no alignment: {report[-300:]}")
+    # The score counts the frames where speech and cues agree minus those where they do not.
+    if score is not None and float(score.group(1)) <= 0:
+        raise MediaError(f"the cues do not line up with any speech (score {score.group(1)})")
+    return float(offset.group(1)), float(scale.group(1)) if scale else 1.0
+

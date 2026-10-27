@@ -2,12 +2,34 @@ from pathlib import Path
 from datetime import timedelta
 import os
 
+from django.core.exceptions import ImproperlyConfigured
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-hypertube-dev-secret-key")
-DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
-ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "*").split(",")
+def required_env(name: str) -> str:
+    """A setting that must come from the environment: no fallback, start-up fails without it."""
+    value = os.getenv(name, "").strip()
+    if not value:
+        raise ImproperlyConfigured(f"{name} is not set. Add it to the .env file at the root of the project.")
+    return value
+
+
+def secret_key(name: str) -> str:
+    key = required_env(name)
+    if len(key) < 50 or key.startswith("django-insecure-"):
+        raise ImproperlyConfigured(
+            f"{name} is too weak: use at least 50 random characters, never committed, made with "
+            "python3 -c \"import secrets; print(secrets.token_urlsafe(64))\""
+        )
+    return key
+
+
+# Security settings have no safe default: each one is read from .env, and the
+# service refuses to start without them. DEBUG is off unless asked for.
+SECRET_KEY = secret_key("MOVIES_SECRET_KEY")
+DEBUG = os.getenv("DJANGO_DEBUG", "0").strip().lower() in ("1", "true", "yes")
+ALLOWED_HOSTS = [host.strip() for host in required_env("DJANGO_ALLOWED_HOSTS").split(",") if host.strip()]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -18,10 +40,12 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
+    "corsheaders",
     "movies_app",
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -62,6 +86,9 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # One proxy (nginx) stands in front: the client address is the one it
+    # writes in X-Forwarded-For, not whatever the client put there itself.
+    "NUM_PROXIES": 1,
     "DEFAULT_THROTTLE_CLASSES": (
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
@@ -125,7 +152,6 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # File storage (S3) for the downloaded movies and their subtitles.
 AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")

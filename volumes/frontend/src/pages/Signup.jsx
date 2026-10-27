@@ -17,7 +17,7 @@ import { auth as authApi, users as usersApi } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import AuthLayout from "@/components/AuthLayout";
-import { LANGUAGES, defaultLanguage } from "@/lib/languages";
+import { LANGUAGES } from "@/lib/languages";
 
 const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
@@ -34,7 +34,7 @@ export default function Signup() {
         lastname: '',
         firstname: '',
         avatar: null,
-        preferredLanguage: defaultLanguage()
+        preferredLanguage: "en"
     });
     const [preview, setPreview] = useState(null);
     const [submitting, setSubmitting] = useState(false);
@@ -152,6 +152,10 @@ export default function Signup() {
                                 value={formData.username}
                                 onChange={handleChange}
                                 required
+                                minLength={3}
+                                maxLength={30}
+                                pattern="[A-Za-z0-9][A-Za-z0-9._\-]*"
+                                title="3 to 30 letters, digits, dots, underscores or dashes, starting with a letter or digit."
                             />
                         </div>
 
@@ -162,7 +166,6 @@ export default function Signup() {
                                 type="email"
                                 name="email"
                                 autoComplete="email"
-                                placeholder="m@example.com"
                                 value={formData.email}
                                 onChange={handleChange}
                                 required
@@ -180,6 +183,7 @@ export default function Signup() {
                                     value={formData.firstname}
                                     onChange={handleChange}
                                     required
+                                    maxLength={128}
                                 />
                             </div>
 
@@ -193,6 +197,7 @@ export default function Signup() {
                                     value={formData.lastname}
                                     onChange={handleChange}
                                     required
+                                    maxLength={128}
                                 />
                             </div>
                         </div>

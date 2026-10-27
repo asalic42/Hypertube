@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
+import CoverPlaceholder from "@/components/CoverPlaceholder";
 
 function FilmCard({ film }) {
     return (
@@ -14,7 +15,7 @@ function FilmCard({ film }) {
                             className="w-full h-full object-cover"
                         />
                     ) : (
-                        <div className="flex h-full items-center justify-center text-muted-foreground text-sm">No cover</div>
+                        <CoverPlaceholder title={film.title} year={film.year} />
                     )}
                     {film.watched && (
                         <span className="absolute top-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-xs text-white">

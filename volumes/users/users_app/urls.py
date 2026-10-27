@@ -6,8 +6,8 @@ from . import views
 
 user_urlpatterns = [
         path('', views.PublicUserListCreate.as_view(), name='user-list'),
-        path('<str:username>/', views.PublicUserView.as_view(), name='user'),
-        path('<str:username>/avatar/', views.PublicUserAvatarView.as_view(), name='user-avatar'),
+        path('<uuid:id>/', views.PublicUserView.as_view(), name='user'),
+        path('<uuid:id>/avatar/', views.PublicUserAvatarView.as_view(), name='user-avatar'),
 ]
 
 

@@ -7,3 +7,4 @@ from .csrf import CsrfTokenView
 from .forgot_pass import ForgotPasswordView
 from .reset_pass import ResetPasswordView
 from .oauth import OAuthStartView, OAuthCallbackView
+from .oauth_token import OAuthTokenView, ApiClientListView, ApiClientDetailView

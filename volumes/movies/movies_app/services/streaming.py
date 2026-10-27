@@ -4,6 +4,8 @@ import subprocess
 import threading
 import time
 
+import uuid
+
 from django.conf import settings
 from django.core import signing
 from django.db import connection
@@ -43,7 +45,12 @@ def read_token(token, movie_id):
         payload = signing.loads(token, salt=TOKEN_SALT, max_age=settings.STREAM_TOKEN_MAX_AGE)
     except signing.BadSignature:
         return None
-    return payload.get("u") if payload.get("m") == movie_id else None
+    if payload.get("m") != movie_id:
+        return None
+    try:
+        return str(uuid.UUID(str(payload.get("u"))))
+    except ValueError:
+        return None
 
 
 # --- Byte ranges ------------------------------------------------------------

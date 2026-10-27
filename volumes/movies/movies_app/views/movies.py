@@ -23,8 +23,8 @@ ORDERINGS = {
     "-year": (F("year").desc(nulls_last=True),),
     "rating": (F("rating").asc(nulls_last=True),),
     "-rating": (F("rating").desc(nulls_last=True),),
-    "popularity": ("popularity", "vote_count"),
-    "-popularity": ("-popularity", "-vote_count"),
+    "popularity": ("rank", "popularity", "vote_count"),
+    "-popularity": ("-rank", "-popularity", "-vote_count"),
 }
 
 
@@ -69,7 +69,7 @@ class MovieListView(GenericAPIView):
             catalog.refresh_search(words)
             movies = catalog.filter_by_words(movies, words)
             # Filters and sorting rely on metadata: fetch it for the best matches right away.
-            catalog.enrich_listing(movies.order_by("-popularity"), *SEARCH_ENRICHMENT)
+            catalog.enrich_listing(movies.order_by("-rank", "-popularity"), *SEARCH_ENRICHMENT)
         else:
             catalog.refresh_popular()
 

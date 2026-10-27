@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
@@ -7,8 +7,8 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/toast";
 import { movies as moviesApi, comments as commentsApi } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
-import UserProfileDialog from "@/components/UserProfileDialog";
 import { useAvatarUrl } from "@/lib/avatars";
+import CoverPlaceholder from "@/components/CoverPlaceholder";
 
 const POLL_INTERVAL = 2000;
 const LANGUAGE_NAMES = new Intl.DisplayNames(["en"], { type: "language" });
@@ -44,6 +44,8 @@ function Player({ movieId, initialStatus }) {
     // The stream URLs are fixed once known: each poll signs a new token, and a
     // changing src would restart the film.
     const [sources, setSources] = useState({});
+    // Likewise for the subtitle tracks, renewed only when a track was lined up on the sound track.
+    const [tracks, setTracks] = useState({});
     const [quality, setQuality] = useState("original");
     // Position and play state to restore after a change of quality.
     const resumeRef = useRef(null);
@@ -55,6 +57,15 @@ function Player({ movieId, initialStatus }) {
             for (const item of data.qualities) {
                 const key = qualityKey(item);
                 if (item.stream_url && !next[key]) next[key] = item.stream_url;
+            }
+            return next;
+        });
+        setTracks((current) => {
+            const next = { ...current };
+            for (const subtitle of data.subtitles) {
+                if (subtitle.url && (!next[subtitle.language] || next[subtitle.language].aligned !== subtitle.aligned)) {
+                    next[subtitle.language] = { url: subtitle.url, aligned: subtitle.aligned };
+                }
             }
             return next;
         });
@@ -85,7 +96,7 @@ function Player({ movieId, initialStatus }) {
                 follow(data);
                 setError(null);
                 const settled = data.status === "ready" || data.status === "failed";
-                const subtitlesPending = data.subtitles.some((subtitle) => subtitle.status === "pending");
+                const subtitlesPending = data.subtitles.some((subtitle) => subtitle.status === "pending" || (subtitle.status === "ready" && !subtitle.aligned));
                 const qualitiesPending = data.qualities.some((item) => item.status === "pending");
                 if (!settled || subtitlesPending || qualitiesPending) timer = setTimeout(poll, POLL_INTERVAL);
             } catch (err) {
@@ -132,7 +143,7 @@ function Player({ movieId, initialStatus }) {
                                 <track
                                     key={subtitle.language}
                                     kind="subtitles"
-                                    src={subtitle.url}
+                                    src={tracks[subtitle.language]?.url || subtitle.url}
                                     srcLang={subtitle.language}
                                     label={languageName(subtitle.language)}
                                     default={subtitle.language === "en"}
@@ -181,7 +192,7 @@ function Player({ movieId, initialStatus }) {
                     <p>
                         {download.status === "ready" ? "Stored on the server." : download.status === "downloading" ? `Download: ${download.progress}%` : null}
                         {download.subtitles.length > 0 && (
-                            <> · Subtitles: {download.subtitles.map((subtitle) => `${languageName(subtitle.language)} (${subtitle.status})`).join(", ")}</>
+                            <> · Subtitles: {download.subtitles.map((subtitle) => `${languageName(subtitle.language)} (${subtitle.status === "ready" && !subtitle.aligned ? "syncing" : subtitle.status})`).join(", ")}</>
                         )}
                     </p>
                 </div>
@@ -190,7 +201,7 @@ function Player({ movieId, initialStatus }) {
     );
 }
 
-function CommentItem({ comment, own, onChanged, onShowProfile }) {
+function CommentItem({ comment, own, onChanged }) {
     const [editing, setEditing] = useState(false);
     const [text, setText] = useState(comment.comment);
 
@@ -213,21 +224,20 @@ function CommentItem({ comment, own, onChanged, onShowProfile }) {
         }
     }
 
-    // The author's public profile opens in a modal above the page.
-    const showProfile = () => onShowProfile(comment.username);
-    const pictureUrl = useAvatarUrl(comment.username);
+    const profilePath = `/users/${comment.user_id}`;
+    const pictureUrl = useAvatarUrl(comment.user_id);
 
     return (
         <div className="flex gap-3">
-            <button type="button" onClick={showProfile} aria-label={`Profile of ${comment.username}`} className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+            <Link to={profilePath} aria-label={`Profile of ${comment.username}`} className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
                 <Avatar className="size-8">
                     {pictureUrl && <AvatarImage src={pictureUrl} alt="" />}
                     <AvatarFallback>{comment.username[0].toUpperCase()}</AvatarFallback>
                 </Avatar>
-            </button>
+            </Link>
             <div className="flex flex-1 flex-col gap-1">
                 <div className="flex items-center gap-2">
-                    <button type="button" onClick={showProfile} className="font-medium text-sm underline-offset-4 hover:underline">{comment.username}</button>
+                    <Link to={profilePath} className="font-medium text-sm underline-offset-4 hover:underline">{comment.username}</Link>
                     <span className="text-xs text-muted-foreground">{new Date(comment.created_at).toLocaleString()}</span>
                     {own && !editing && (
                         <span className="ml-auto flex gap-1">
@@ -263,8 +273,6 @@ function Comments({ movieId }) {
     const [comments, setComments] = useState([]);
     const [nextPage, setNextPage] = useState(null);
     const [text, setText] = useState("");
-    // Username whose profile is open in the modal, null when closed.
-    const [profileUser, setProfileUser] = useState(null);
 
     function showError(err) {
         toast.add({ title: "Error", description: err.message, type: "error" });
@@ -325,16 +333,14 @@ function Comments({ movieId }) {
                     <CommentItem
                         key={comment.id}
                         comment={comment}
-                        own={comment.username === user.username}
+                        own={comment.user_id === user.id}
                         onChanged={(updated) => replace(comment.id, updated)}
-                        onShowProfile={setProfileUser}
                     />
                 ))}
                 {nextPage && (
                     <Button type="button" variant="outline" className="self-center" onClick={loadMore}>Load more</Button>
                 )}
             </div>
-            <UserProfileDialog username={profileUser} onClose={() => setProfileUser(null)} />
         </div>
     );
 }
@@ -384,7 +390,13 @@ function MoviePage({ id }) {
             </div>
             <Separator />
             <div className="grid gap-6 md:grid-cols-[200px_1fr]">
-                {film.cover_url && <img src={film.cover_url} alt="" className="w-full rounded-lg object-cover" />}
+                {film.cover_url ? (
+                    <img src={film.cover_url} alt="" className="w-full rounded-lg object-cover" />
+                ) : (
+                    <div className="aspect-[2/3] w-full overflow-hidden rounded-lg">
+                        <CoverPlaceholder title={film.title} year={film.year} />
+                    </div>
+                )}
                 <div className="flex flex-col gap-3">
                     <p className="text-muted-foreground">{film.overview || "No summary available."}</p>
                     {people.map(([role, names]) => (

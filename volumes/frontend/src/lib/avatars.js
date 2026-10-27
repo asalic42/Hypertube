@@ -4,28 +4,28 @@ import { users as usersApi } from "@/lib/api";
 const TTL = 50 * 60 * 1000;
 const cache = new Map();
 
-export function avatarUrl(username) {
-    const entry = cache.get(username);
+export function avatarUrl(userId) {
+    const entry = cache.get(userId);
     if (entry && entry.expires > Date.now()) return entry.promise;
-    const promise = usersApi.avatarUrl(username).catch(() => null);
-    cache.set(username, { promise, expires: Date.now() + TTL });
+    const promise = usersApi.avatarUrl(userId).catch(() => null);
+    cache.set(userId, { promise, expires: Date.now() + TTL });
     return promise;
 }
 
-export function forgetAvatar(username) {
-    cache.delete(username);
+export function forgetAvatar(userId) {
+    cache.delete(userId);
 }
 
-export function useAvatarUrl(username) {
-    const [known, setKnown] = useState({ username: null, url: null });
+export function useAvatarUrl(userId) {
+    const [known, setKnown] = useState({ userId: null, url: null });
 
     useEffect(() => {
         let cancelled = false;
-        avatarUrl(username).then((url) => !cancelled && setKnown({ username, url }));
+        avatarUrl(userId).then((url) => !cancelled && setKnown({ userId, url }));
         return () => {
             cancelled = true;
         };
-    }, [username]);
+    }, [userId]);
 
-    return known.username === username ? known.url : null;
+    return known.userId === userId ? known.url : null;
 }

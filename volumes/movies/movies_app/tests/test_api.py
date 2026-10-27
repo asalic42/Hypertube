@@ -60,9 +60,9 @@ class AuthenticationTests(ApiTestCase):
 class MovieListTests(ApiTestCase):
     def setUp(self):
         super().setUp()
-        self.charade = self.make_movie("Charade", year=1963, rating=7.7, popularity=50)
-        self.zorro = self.make_movie("Zorro", year=1975, rating=6.1, popularity=90)
-        self.alibi = self.make_movie("alibi", year=1929, rating=5.6, popularity=10)
+        self.charade = self.make_movie("Charade", year=1963, rating=7.7, rank=50)
+        self.zorro = self.make_movie("Zorro", year=1975, rating=6.1, rank=90)
+        self.alibi = self.make_movie("alibi", year=1929, rating=5.6, rank=10)
 
     def titles(self, query=""):
         response = self.client.get(f"/api/movies/{query}")
@@ -154,6 +154,26 @@ class CommentTests(ApiTestCase):
         url = f"/api/comments/{own.pk}/"
         self.assertEqual(self.client.patch(url, {"comment": "edited"}).data["comment"], "edited")
         self.assertEqual(self.client.delete(url).status_code, 204)
+
+
+class AccountTests(ApiTestCase):
+    def test_deleting_my_data_erases_only_mine(self):
+        movie = self.make_movie()
+        other = uuid.uuid4()
+        Comment.objects.create(movie=movie, user_id=self.user.id, username="ana", content="mine")
+        Comment.objects.create(movie=movie, user_id=other, username="bob", content="theirs")
+        WatchRecord.objects.create(movie=movie, user_id=self.user.id)
+        WatchRecord.objects.create(movie=movie, user_id=other)
+
+        self.assertEqual(self.client.delete("/api/movies/me/").status_code, 204)
+
+        self.assertEqual(list(Comment.objects.values_list("username", flat=True)), ["bob"])
+        self.assertEqual(list(WatchRecord.objects.values_list("user_id", flat=True)), [other])
+        self.assertTrue(Movie.objects.filter(pk=movie.pk).exists())
+
+    def test_my_data_needs_a_token(self):
+        self.client.force_authenticate(None)
+        self.assertEqual(self.client.delete("/api/movies/me/").status_code, 401)
 
 
 class PlaybackTests(ApiTestCase):

@@ -15,6 +15,7 @@ from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from auth_app.managers import normalize_email
 from auth_app.models import User
 from auth_app.serializers import ForgotPasswordSerializer
 
@@ -47,7 +48,7 @@ class ForgotPasswordView(CreateAPIView):
         serializer.is_valid(raise_exception=True)
 
         user = User.objects.filter(
-            email=serializer.validated_data["email"],
+            email__iexact=normalize_email(serializer.validated_data["email"]),
         ).first()
 
         if user:

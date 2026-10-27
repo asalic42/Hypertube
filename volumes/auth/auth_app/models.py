@@ -36,8 +36,8 @@ class User(AbstractBaseUser):
 
     objects = UserManager()
 
-    USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["username"]
+    USERNAME_FIELD = "username"
+    REQUIRED_FIELDS = ["email"]
     EMAIL_FIELD = "email"
 
     class Meta:
@@ -78,3 +78,47 @@ class OAuthAccount(models.Model):
 
     def __str__(self) -> str:
         return f"{self.provider}:{self.provider_user_id}"
+
+
+class ApiClient(models.Model):
+    """
+    Credentials a user issues to a program so it can call the API in their
+    name: the client id and a secret, shown once and stored hashed. The
+    OAuth2 token endpoint turns them into an access token for that user.
+    """
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="api_clients",
+    )
+
+    name = models.CharField(
+        max_length=64,
+    )
+
+    secret_hash = models.CharField(
+        max_length=128,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    last_used_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "api_client"
+        ordering = ("created_at",)
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.user.username})"

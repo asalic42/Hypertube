@@ -29,7 +29,7 @@ export default function Login() {
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams] = useSearchParams();
-    const [formData, setFormData] = useState({email: '', password: ''});
+    const [formData, setFormData] = useState({username: '', password: ''});
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
@@ -55,7 +55,7 @@ export default function Login() {
         e.preventDefault();
         setSubmitting(true);
         try {
-            await login(formData.email, formData.password);
+            await login(formData.username, formData.password);
             navigate(location.state?.from?.pathname || '/home', { replace: true });
         } catch (err) {
             toast.add({
@@ -73,7 +73,7 @@ export default function Login() {
             <CardHeader>
                 <CardTitle>Login to your account</CardTitle>
                 <CardDescription>
-                Enter your email below to login to your account
+                Enter your username below to login to your account
                 </CardDescription>
                 <CardAction>
                 <Button render={<Link to="/signup" />} nativeButton={false} variant="link">
@@ -85,14 +85,13 @@ export default function Login() {
                 <form id="login-form" onSubmit={handleSubmit}>
                 <div className="flex flex-col gap-5 sm:gap-6">
                     <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="username">Username</Label>
                     <Input
-                        id="email"
-                        type="email"
-                        name="email"
-                        autoComplete="email"
-                        placeholder="m@example.com"
-                        value={formData.email}
+                        id="username"
+                        type="text"
+                        name="username"
+                        autoComplete="username"
+                        value={formData.username}
                         onChange={handleChange}
                         required
                     />

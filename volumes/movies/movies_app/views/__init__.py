@@ -1,3 +1,4 @@
+from .account import MyDataView
 from .comments import CommentDetailView, CommentListView, MovieCommentListView
 from .health import HealthView
 from .movies import GenreListView, MovieDetailView, MovieListView
@@ -15,4 +16,5 @@ __all__ = [
     "MovieStreamView",
     "MovieSubtitleListView",
     "MovieSubtitleView",
+    "MyDataView",
 ]
