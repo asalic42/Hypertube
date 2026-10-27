@@ -114,6 +114,9 @@ function Player({ movieId, initialStatus }) {
     }, [movieId, requested]);
 
     const source = sources[quality] || sources.original || null;
+    // English is always requested; a track in another language is the viewer's own and comes first.
+    const readySubtitles = download?.subtitles.filter((subtitle) => subtitle.status === "ready") ?? [];
+    const defaultSubtitle = (readySubtitles.find((subtitle) => subtitle.language !== "en") || readySubtitles[0])?.language;
     const qualities = download?.qualities ?? [];
     const selectable = qualities.filter((item) => item.status === "ready" && sources[qualityKey(item)]);
 
@@ -137,18 +140,16 @@ function Player({ movieId, initialStatus }) {
             <div className="aspect-video w-full overflow-hidden rounded-lg bg-black flex items-center justify-center">
                 {source ? (
                     <video ref={videoRef} src={source} controls autoPlay className="h-full w-full" crossOrigin="use-credentials" onLoadedMetadata={resume}>
-                        {download.subtitles
-                            .filter((subtitle) => subtitle.status === "ready")
-                            .map((subtitle) => (
-                                <track
-                                    key={subtitle.language}
-                                    kind="subtitles"
-                                    src={tracks[subtitle.language]?.url || subtitle.url}
-                                    srcLang={subtitle.language}
-                                    label={languageName(subtitle.language)}
-                                    default={subtitle.language === "en"}
-                                />
-                            ))}
+                        {readySubtitles.map((subtitle) => (
+                            <track
+                                key={subtitle.language}
+                                kind="subtitles"
+                                src={tracks[subtitle.language]?.url || subtitle.url}
+                                srcLang={subtitle.language}
+                                label={languageName(subtitle.language)}
+                                default={subtitle.language === defaultSubtitle}
+                            />
+                        ))}
                     </video>
                 ) : !requested ? (
                     <Button size="lg" onClick={requestDownload} disabled={starting}>{starting ? "Starting..." : "▶ Play"}</Button>

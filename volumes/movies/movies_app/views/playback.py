@@ -32,11 +32,15 @@ def _serialize(download, request, status_code=status.HTTP_200_OK):
 
 
 def _request_subtitles(movie, language):
-    """English whenever it exists, plus the viewer's language when the film is in another one."""
+    """
+    English in every case, plus the viewer's language when the film is in
+    another one (or its language is unknown). Whether they exist is found
+    out by the worker.
+    """
     wanted = {"en"}
     if language != movie.original_language:
         wanted.add(language)
-    for code in wanted:
+    for code in sorted(wanted):
         subtitle, created = Subtitle.objects.get_or_create(movie=movie, language=code)
         retry = subtitle.status == Subtitle.Status.UNAVAILABLE and subtitle.updated_at < timezone.now() - SUBTITLE_RETRY_DELAY
         if not created and retry:
@@ -70,7 +74,8 @@ class MovieDownloadView(APIView):
         },
         description=(
             "Idempotent. Starts the torrent in the background when the movie is not on the server yet, "
-            "and requests the subtitles for `language` (default: the preferred language of the user)."
+            "and requests English subtitles, plus subtitles in `language` (default: the preferred "
+            "language of the user) when the film is in another language."
         ),
     )
     def put(self, request, movie_id):
