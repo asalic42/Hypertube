@@ -13,6 +13,8 @@ import { Label } from "@/components/ui/label"
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useTranslation } from "@/hooks/useTranslation";
+import { t as translate } from "@/lib/i18n";
 import AuthLayout from "@/components/AuthLayout";
 import { GoogleIcon, GithubIcon, DiscordIcon, FortyTwoIcon } from "@/components/icons/oauth-icons";
 
@@ -26,6 +28,7 @@ const OAUTH_ERRORS = {
 
 export default function Login() {
     const { login } = useAuth();
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams] = useSearchParams();
@@ -36,8 +39,8 @@ export default function Login() {
         const error = searchParams.get('error');
         if (error) {
             toast.add({
-                title: "Error",
-                description: OAUTH_ERRORS[error] || "OAuth login failed.",
+                title: translate("Error"),
+                description: translate(OAUTH_ERRORS[error] || "OAuth login failed."),
                 type: "error",
             });
         }
@@ -59,7 +62,7 @@ export default function Login() {
             navigate(location.state?.from?.pathname || '/home', { replace: true });
         } catch (err) {
             toast.add({
-                title: "Login failed",
+                title: t("Login failed"),
                 description: err.message,
                 type: "error",
             });
@@ -71,13 +74,13 @@ export default function Login() {
     return (
         <AuthLayout className="max-w-md">
             <CardHeader>
-                <CardTitle>Login to your account</CardTitle>
+                <CardTitle>{t("Login to your account")}</CardTitle>
                 <CardDescription>
-                Enter your username below to login to your account
+                {t("Enter your username below to login to your account")}
                 </CardDescription>
                 <CardAction>
                 <Button render={<Link to="/signup" />} nativeButton={false} variant="link">
-                    Sign Up
+                    {t("Sign Up")}
                 </Button>
                 </CardAction>
             </CardHeader>
@@ -85,7 +88,7 @@ export default function Login() {
                 <form id="login-form" onSubmit={handleSubmit}>
                 <div className="flex flex-col gap-5 sm:gap-6">
                     <div className="grid gap-2">
-                    <Label htmlFor="username">Username</Label>
+                    <Label htmlFor="username">{t("Username")}</Label>
                     <Input
                         id="username"
                         type="text"
@@ -98,12 +101,12 @@ export default function Login() {
                     </div>
                     <div className="grid gap-2">
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                        <Label htmlFor="password">Password</Label>
+                        <Label htmlFor="password">{t("Password")}</Label>
                         <Link
                           to="/forgot-password"
                           className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
                         >
-                          Forgot your password?
+                          {t("Forgot your password?")}
                         </Link>
                     </div>
                     <Input
@@ -121,7 +124,7 @@ export default function Login() {
             </CardContent>
             <CardFooter className="flex-col gap-4">
                 <Button type="submit" form="login-form" className="h-10 w-full sm:h-9" disabled={submitting}>
-                {submitting ? "Logging in..." : "Login"}
+                {submitting ? t("Logging in...") : t("Login")}
                 </Button>
                 <div className="relative w-full">
                     <span className="absolute inset-0 flex items-center">
@@ -129,7 +132,7 @@ export default function Login() {
                     </span>
                     <span className="relative flex justify-center text-xs uppercase">
                         <span className="bg-card px-2 text-muted-foreground">
-                            or continue with
+                            {t("or continue with")}
                         </span>
                     </span>
                 </div>
@@ -139,8 +142,8 @@ export default function Login() {
                         variant="outline"
                         size="icon-lg"
                         className="rounded-full"
-                        aria-label="Login with 42"
-                        title="Login with 42"
+                        aria-label={t("Login with {provider}", { provider: "42" })}
+                        title={t("Login with {provider}", { provider: "42" })}
                         onClick={() => startOAuth('42')}
                     >
                         <FortyTwoIcon className="size-5" />
@@ -150,8 +153,8 @@ export default function Login() {
                         variant="outline"
                         size="icon-lg"
                         className="rounded-full"
-                        aria-label="Login with GitHub"
-                        title="Login with GitHub"
+                        aria-label={t("Login with {provider}", { provider: "GitHub" })}
+                        title={t("Login with {provider}", { provider: "GitHub" })}
                         onClick={() => startOAuth('github')}
                     >
                         <GithubIcon className="size-5" />
@@ -161,8 +164,8 @@ export default function Login() {
                         variant="outline"
                         size="icon-lg"
                         className="rounded-full"
-                        aria-label="Login with Google"
-                        title="Login with Google"
+                        aria-label={t("Login with {provider}", { provider: "Google" })}
+                        title={t("Login with {provider}", { provider: "Google" })}
                         onClick={() => startOAuth('google')}
                     >
                         <GoogleIcon className="size-5" />
@@ -172,8 +175,8 @@ export default function Login() {
                         variant="outline"
                         size="icon-lg"
                         className="rounded-full"
-                        aria-label="Login with Discord"
-                        title="Login with Discord"
+                        aria-label={t("Login with {provider}", { provider: "Discord" })}
+                        title={t("Login with {provider}", { provider: "Discord" })}
                         onClick={() => startOAuth('discord')}
                     >
                         <DiscordIcon className="size-5" />

@@ -1,4 +1,6 @@
 
+import { t } from '@/lib/i18n';
+
 let accessToken = null;
 // Expiry of the access token (ms since epoch), read from its payload.
 let accessExpiry = 0;
@@ -11,7 +13,7 @@ const SESSION_MARKER = 'logged_in';
 
 export class ApiError extends Error {
   constructor(status, data) {
-    super(data?.detail || fieldErrors(data) || `Request failed (${status})`);
+    super(data?.detail || fieldErrors(data) || t('Request failed ({status})', { status }));
     this.status = status;
     this.data = data;
   }
@@ -40,7 +42,7 @@ function fieldErrors(data) {
   if (!data || typeof data !== 'object') return null;
   const parts = Object.entries(data).map(([field, messages]) => {
     const message = Array.isArray(messages) ? messages.join(' ') : String(messages);
-    return field === 'non_field_errors' ? message : `${FIELD_LABELS[field] || field}: ${message}`;
+    return field === 'non_field_errors' ? message : `${t(FIELD_LABELS[field] || field)}: ${message}`;
   });
   return parts.length ? parts.join(' ') : null;
 }

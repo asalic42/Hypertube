@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from movies_app.models import Comment, Download, Movie, Rendition, SourceItem, Subtitle, Torrent, WatchRecord
@@ -200,8 +201,43 @@ class PlaybackTests(ApiTestCase):
         download = Download.objects.get()
         self.assertEqual((download.status, download.torrent), (Download.Status.QUEUED, self.torrent))
         self.assertEqual((first.data["playable"], first.data["stream_url"]), (False, None))
-        # English always, plus the language of a viewer who does not speak the film's one.
-        self.assertEqual(sorted(self.movie.subtitles.values_list("language", flat=True)), ["en", "fr"])
+        # English in every case, plus the language of a viewer who does not speak the film's one.
+        self.assertEqual(list(self.movie.subtitles.values_list("language", flat=True)), ["en", "fr"])
+
+    def test_english_only_for_a_viewer_who_speaks_the_language_of_the_film(self):
+        with mock.patch("movies_app.services.users.preferred_language", return_value="en"):
+            self.assertEqual(self.client.put(self.url).status_code, 201)
+        self.assertEqual(list(self.movie.subtitles.values_list("language", flat=True)), ["en"])
+        # Another viewer, another language: added to the same download.
+        self.assertEqual(self.client.put(self.url, {"language": "es"}).status_code, 200)
+        self.assertEqual(list(self.movie.subtitles.values_list("language", flat=True)), ["en", "es"])
+
+    def test_a_french_film_watched_in_french_still_gets_english_subtitles(self):
+        self.movie.original_language = "fr"
+        self.movie.save()
+        self.assertEqual(self.client.put(self.url, {"language": "fr"}).status_code, 201)
+        self.assertEqual(list(self.movie.subtitles.values_list("language", flat=True)), ["en"])
+
+    def test_a_film_of_unknown_language_gets_the_viewer_language_too(self):
+        self.movie.original_language = ""
+        self.movie.save()
+        self.assertEqual(self.client.put(self.url, {"language": "es"}).status_code, 201)
+        self.assertEqual(list(self.movie.subtitles.values_list("language", flat=True)), ["en", "es"])
+
+    def test_asking_again_for_a_stored_film_adds_subtitles_without_touching_it(self):
+        download = Download.objects.create(
+            movie=self.movie, status=Download.Status.READY, storage_key=f"{self.movie.pk}/video.mp4", storage_size=10, completed_at=timezone.now()
+        )
+        Subtitle.objects.create(movie=self.movie, language="en", status=Subtitle.Status.READY, storage_key="k/en")
+        with mock.patch("movies_app.services.renditions.remove_stored") as renditions_removed, \
+                mock.patch("movies_app.services.subtitles.remove_stored") as subtitles_removed:
+            response = self.client.put(self.url, {"language": "es"})
+        self.assertEqual((response.status_code, response.data["status"]), (200, "ready"))
+        download.refresh_from_db()
+        self.assertEqual((download.status, download.storage_key), (Download.Status.READY, f"{self.movie.pk}/video.mp4"))
+        renditions_removed.assert_not_called()
+        subtitles_removed.assert_not_called()
+        self.assertEqual(list(self.movie.subtitles.values_list("language", "status")), [("en", "ready"), ("es", "pending")])
 
     def test_failed_download_can_be_retried(self):
         Download.objects.create(movie=self.movie, status=Download.Status.FAILED, error="stalled", attempted_torrent_ids=[self.torrent.pk])

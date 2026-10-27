@@ -9,17 +9,10 @@ import { movies as moviesApi, comments as commentsApi } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useAvatarUrl } from "@/lib/avatars";
 import CoverPlaceholder from "@/components/CoverPlaceholder";
+import { useTranslation } from "@/hooks/useTranslation";
+import { languageName, t as translate } from "@/lib/i18n";
 
 const POLL_INTERVAL = 2000;
-const LANGUAGE_NAMES = new Intl.DisplayNames(["en"], { type: "language" });
-
-function languageName(code) {
-    try {
-        return LANGUAGE_NAMES.of(code);
-    } catch {
-        return code;
-    }
-}
 
 function Badge({ children, variant = "default" }) {
     const styles = variant === "secondary"
@@ -34,8 +27,12 @@ function qualityKey(quality) {
 }
 
 function Player({ movieId, initialStatus }) {
+    const { t, language } = useTranslation();
     const [download, setDownload] = useState(null);
     const [requested, setRequested] = useState(Boolean(initialStatus));
+    // A film already on the server is asked for again on arrival: the request is idempotent, nothing is
+    // downloaded twice, and it adds the subtitles of a viewer whose preferred language changed since.
+    const renewRef = useRef(Boolean(initialStatus) && initialStatus !== "failed");
     const [error, setError] = useState(null);
     const videoRef = useRef(null);
 
@@ -91,7 +88,9 @@ function Player({ movieId, initialStatus }) {
         let cancelled = false;
         async function poll() {
             try {
-                const data = await moviesApi.download(movieId);
+                const renew = renewRef.current;
+                renewRef.current = false;
+                const data = renew ? await moviesApi.requestDownload(movieId) : await moviesApi.download(movieId);
                 if (cancelled) return;
                 follow(data);
                 setError(null);
@@ -114,6 +113,9 @@ function Player({ movieId, initialStatus }) {
     }, [movieId, requested]);
 
     const source = sources[quality] || sources.original || null;
+    // English is always requested; a track in another language is the viewer's own and comes first.
+    const readySubtitles = download?.subtitles.filter((subtitle) => subtitle.status === "ready") ?? [];
+    const defaultSubtitle = (readySubtitles.find((subtitle) => subtitle.language !== "en") || readySubtitles[0])?.language;
     const qualities = download?.qualities ?? [];
     const selectable = qualities.filter((item) => item.status === "ready" && sources[qualityKey(item)]);
 
@@ -137,36 +139,34 @@ function Player({ movieId, initialStatus }) {
             <div className="aspect-video w-full overflow-hidden rounded-lg bg-black flex items-center justify-center">
                 {source ? (
                     <video ref={videoRef} src={source} controls autoPlay className="h-full w-full" crossOrigin="use-credentials" onLoadedMetadata={resume}>
-                        {download.subtitles
-                            .filter((subtitle) => subtitle.status === "ready")
-                            .map((subtitle) => (
-                                <track
-                                    key={subtitle.language}
-                                    kind="subtitles"
-                                    src={tracks[subtitle.language]?.url || subtitle.url}
-                                    srcLang={subtitle.language}
-                                    label={languageName(subtitle.language)}
-                                    default={subtitle.language === "en"}
-                                />
-                            ))}
+                        {readySubtitles.map((subtitle) => (
+                            <track
+                                key={subtitle.language}
+                                kind="subtitles"
+                                src={tracks[subtitle.language]?.url || subtitle.url}
+                                srcLang={subtitle.language}
+                                label={languageName(subtitle.language, language)}
+                                default={subtitle.language === defaultSubtitle}
+                            />
+                        ))}
                     </video>
                 ) : !requested ? (
-                    <Button size="lg" onClick={requestDownload} disabled={starting}>{starting ? "Starting..." : "▶ Play"}</Button>
+                    <Button size="lg" onClick={requestDownload} disabled={starting}>{starting ? t("Starting...") : t("▶ Play")}</Button>
                 ) : download?.status === "failed" ? (
                     <div className="text-center text-white p-4">
-                        <p className="font-medium">This movie could not be downloaded.</p>
+                        <p className="font-medium">{t("This movie could not be downloaded.")}</p>
                         <p className="text-sm text-white/70">{download.error}</p>
-                        <Button className="mt-3" variant="secondary" onClick={requestDownload}>Retry</Button>
+                        <Button className="mt-3" variant="secondary" onClick={requestDownload}>{t("Retry")}</Button>
                     </div>
                 ) : (
                     <div className="text-center text-white p-4">
                         <p className="font-medium">
-                            {download?.status === "queued" && "Waiting for the download to start..."}
-                            {download?.status === "downloading" && `Downloading ${download.progress}% (${Math.round(download.download_rate / 1024)} KiB/s, ${download.num_peers} peer${download.num_peers === 1 ? "" : "s"})`}
-                            {download?.status === "processing" && "Preparing the file..."}
-                            {!download && "Starting..."}
+                            {download?.status === "queued" && t("Waiting for the download to start...")}
+                            {download?.status === "downloading" && t(download.num_peers === 1 ? "Downloading {progress}% ({rate} KiB/s, {peers} peer)" : "Downloading {progress}% ({rate} KiB/s, {peers} peers)", { progress: download.progress, rate: Math.round(download.download_rate / 1024), peers: download.num_peers })}
+                            {download?.status === "processing" && t("Preparing the file...")}
+                            {!download && t("Starting...")}
                         </p>
-                        <p className="text-sm text-white/70">Playback starts as soon as enough data is available.</p>
+                        <p className="text-sm text-white/70">{t("Playback starts as soon as enough data is available.")}</p>
                     </div>
                 )}
             </div>
@@ -175,14 +175,14 @@ function Player({ movieId, initialStatus }) {
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     {qualities.length > 1 && (
                         <label className="flex items-center gap-2">
-                            <span>Quality</span>
+                            <span>{t("Quality")}</span>
                             <NativeSelect size="sm" value={sources[quality] ? quality : "original"} onChange={changeQuality} disabled={!source}>
                                 {qualities.map((item) => {
                                     const key = qualityKey(item);
                                     const ready = selectable.includes(item);
                                     return (
                                         <NativeSelectOption key={key} value={key} disabled={!ready}>
-                                            {item.label}{item.original ? " (source)" : ""}{ready ? "" : " – preparing..."}
+                                            {item.label}{item.original ? ` ${t("(source)")}` : ""}{ready ? "" : ` ${t("– preparing...")}`}
                                         </NativeSelectOption>
                                     );
                                 })}
@@ -190,9 +190,9 @@ function Player({ movieId, initialStatus }) {
                         </label>
                     )}
                     <p>
-                        {download.status === "ready" ? "Stored on the server." : download.status === "downloading" ? `Download: ${download.progress}%` : null}
+                        {download.status === "ready" ? t("Stored on the server.") : download.status === "downloading" ? t("Download: {progress}%", { progress: download.progress }) : null}
                         {download.subtitles.length > 0 && (
-                            <> · Subtitles: {download.subtitles.map((subtitle) => `${languageName(subtitle.language)} (${subtitle.status === "ready" && !subtitle.aligned ? "syncing" : subtitle.status})`).join(", ")}</>
+                            <> · {t("Subtitles: {list}", { list: download.subtitles.map((subtitle) => `${languageName(subtitle.language, language)} (${t(subtitle.status === "ready" && !subtitle.aligned ? "syncing" : subtitle.status)})`).join(", ") })}</>
                         )}
                     </p>
                 </div>
@@ -202,6 +202,7 @@ function Player({ movieId, initialStatus }) {
 }
 
 function CommentItem({ comment, own, onChanged }) {
+    const { t, language } = useTranslation();
     const [editing, setEditing] = useState(false);
     const [text, setText] = useState(comment.comment);
 
@@ -211,7 +212,7 @@ function CommentItem({ comment, own, onChanged }) {
             onChanged(await commentsApi.update(comment.id, text));
             setEditing(false);
         } catch (err) {
-            toast.add({ title: "Error", description: err.message, type: "error" });
+            toast.add({ title: t("Error"), description: err.message, type: "error" });
         }
     }
 
@@ -220,7 +221,7 @@ function CommentItem({ comment, own, onChanged }) {
             await commentsApi.remove(comment.id);
             onChanged(null);
         } catch (err) {
-            toast.add({ title: "Error", description: err.message, type: "error" });
+            toast.add({ title: t("Error"), description: err.message, type: "error" });
         }
     }
 
@@ -229,7 +230,7 @@ function CommentItem({ comment, own, onChanged }) {
 
     return (
         <div className="flex gap-3">
-            <Link to={profilePath} aria-label={`Profile of ${comment.username}`} className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+            <Link to={profilePath} aria-label={t("Profile of {username}", { username: comment.username })} className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
                 <Avatar className="size-8">
                     {pictureUrl && <AvatarImage src={pictureUrl} alt="" />}
                     <AvatarFallback>{comment.username[0].toUpperCase()}</AvatarFallback>
@@ -238,11 +239,11 @@ function CommentItem({ comment, own, onChanged }) {
             <div className="flex flex-1 flex-col gap-1">
                 <div className="flex items-center gap-2">
                     <Link to={profilePath} className="font-medium text-sm underline-offset-4 hover:underline">{comment.username}</Link>
-                    <span className="text-xs text-muted-foreground">{new Date(comment.created_at).toLocaleString()}</span>
+                    <span className="text-xs text-muted-foreground">{new Date(comment.created_at).toLocaleString(language)}</span>
                     {own && !editing && (
                         <span className="ml-auto flex gap-1">
-                            <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(true)}>Edit</Button>
-                            <Button type="button" variant="ghost" size="sm" onClick={remove}>Delete</Button>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(true)}>{t("Edit")}</Button>
+                            <Button type="button" variant="ghost" size="sm" onClick={remove}>{t("Delete")}</Button>
                         </span>
                     )}
                 </div>
@@ -256,8 +257,8 @@ function CommentItem({ comment, own, onChanged }) {
                             onChange={(e) => setText(e.target.value)}
                         />
                         <div className="flex gap-2 self-end">
-                            <Button type="button" variant="outline" size="sm" onClick={() => { setEditing(false); setText(comment.comment); }}>Cancel</Button>
-                            <Button type="submit" size="sm">Save</Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => { setEditing(false); setText(comment.comment); }}>{t("Cancel")}</Button>
+                            <Button type="submit" size="sm">{t("Save")}</Button>
                         </div>
                     </form>
                 ) : (
@@ -268,15 +269,17 @@ function CommentItem({ comment, own, onChanged }) {
     );
 }
 
+// Used from effects too: the module-level translation keeps them free of the hook.
+function showError(err) {
+    toast.add({ title: translate("Error"), description: err.message, type: "error" });
+}
+
 function Comments({ movieId }) {
     const { user } = useAuth();
+    const { t } = useTranslation();
     const [comments, setComments] = useState([]);
     const [nextPage, setNextPage] = useState(null);
     const [text, setText] = useState("");
-
-    function showError(err) {
-        toast.add({ title: "Error", description: err.message, type: "error" });
-    }
 
     useEffect(() => {
         let cancelled = false;
@@ -305,7 +308,7 @@ function Comments({ movieId }) {
             setComments((current) => [created, ...current]);
             setText("");
         } catch (err) {
-            toast.add({ title: "Error", description: err.message, type: "error" });
+            showError(err);
         }
     }
 
@@ -315,20 +318,20 @@ function Comments({ movieId }) {
 
     return (
         <div className="flex flex-col gap-4">
-            <h2 className="text-lg font-semibold">Comments</h2>
+            <h2 className="text-lg font-semibold">{t("Comments")}</h2>
             <form onSubmit={submit} className="flex flex-col gap-2">
                 <textarea
                     className="min-h-20 rounded-md border border-input bg-transparent px-2.5 py-1 text-sm"
-                    placeholder="Write a comment..."
+                    placeholder={t("Write a comment...")}
                     value={text}
                     maxLength={2000}
                     onChange={(e) => setText(e.target.value)}
                 />
-                <Button type="submit" className="self-end" disabled={!text.trim()}>Publish</Button>
+                <Button type="submit" className="self-end" disabled={!text.trim()}>{t("Publish")}</Button>
             </form>
             <Separator />
             <div className="flex flex-col gap-4">
-                {comments.length === 0 && <p className="text-sm text-muted-foreground">No comment yet.</p>}
+                {comments.length === 0 && <p className="text-sm text-muted-foreground">{t("No comment yet.")}</p>}
                 {comments.map((comment) => (
                     <CommentItem
                         key={comment.id}
@@ -338,7 +341,7 @@ function Comments({ movieId }) {
                     />
                 ))}
                 {nextPage && (
-                    <Button type="button" variant="outline" className="self-center" onClick={loadMore}>Load more</Button>
+                    <Button type="button" variant="outline" className="self-center" onClick={loadMore}>{t("Load more")}</Button>
                 )}
             </div>
         </div>
@@ -352,6 +355,7 @@ export default function Watch() {
 }
 
 function MoviePage({ id }) {
+    const { t } = useTranslation();
     const [film, setFilm] = useState(null);
     const [error, setError] = useState(null);
 
@@ -364,12 +368,12 @@ function MoviePage({ id }) {
     }, [id]);
 
     if (error) return <p className="p-8 text-destructive">{error}</p>;
-    if (!film) return <p className="p-8 text-muted-foreground">Loading...</p>;
+    if (!film) return <p className="p-8 text-muted-foreground">{t("Loading...")}</p>;
 
     const people = [
-        ["Director", film.directors],
-        ["Producer", film.producers],
-    ].filter(([, names]) => names.length > 0);
+        ["Director", "Directors", film.directors],
+        ["Producer", "Producers", film.producers],
+    ].filter(([, , names]) => names.length > 0);
 
     return (
         <div className="w-full max-w-4xl mx-auto p-4 flex flex-col gap-4">
@@ -377,12 +381,12 @@ function MoviePage({ id }) {
 
             <div className="flex items-start justify-between gap-4">
                 <h1 className="text-2xl font-bold">{film.title}</h1>
-                {film.watched && <Badge variant="secondary">Watched</Badge>}
+                {film.watched && <Badge variant="secondary">{t("Watched")}</Badge>}
             </div>
             <div className="flex flex-wrap gap-2">
                 {film.rating != null && <Badge>⭐ {film.rating.toFixed(1)}/10</Badge>}
                 {film.year && <Badge variant="secondary">{film.year}</Badge>}
-                {film.runtime && <Badge variant="secondary">{film.runtime} min</Badge>}
+                {film.runtime && <Badge variant="secondary">{t("{runtime} min", { runtime: film.runtime })}</Badge>}
                 {film.genres.map((genre) => <Badge key={genre} variant="secondary">{genre}</Badge>)}
                 {film.imdb_id && (
                     <a className="text-xs underline self-center" href={`https://www.imdb.com/title/${film.imdb_id}/`} target="_blank" rel="noreferrer">IMDb</a>
@@ -398,13 +402,13 @@ function MoviePage({ id }) {
                     </div>
                 )}
                 <div className="flex flex-col gap-3">
-                    <p className="text-muted-foreground">{film.overview || "No summary available."}</p>
-                    {people.map(([role, names]) => (
-                        <p key={role} className="text-sm"><span className="font-medium">{role}{names.length > 1 ? "s" : ""}:</span> {names.join(", ")}</p>
+                    <p className="text-muted-foreground">{film.overview || t("No summary available.")}</p>
+                    {people.map(([one, many, names]) => (
+                        <p key={one} className="text-sm"><span className="font-medium">{t(names.length > 1 ? many : one)}:</span> {names.join(", ")}</p>
                     ))}
                     {film.cast.length > 0 && (
                         <div>
-                            <p className="text-sm font-medium">Cast</p>
+                            <p className="text-sm font-medium">{t("Cast")}</p>
                             <ul className="mt-1 flex flex-wrap gap-2">
                                 {film.cast.map((member) => (
                                     <li key={member.name} className="flex items-center gap-2 rounded-md bg-muted px-2 py-1 text-xs">
@@ -413,14 +417,14 @@ function MoviePage({ id }) {
                                             {member.picture_url && <AvatarImage src={member.picture_url} alt="" />}
                                             <AvatarFallback>{member.name[0]}</AvatarFallback>
                                         </Avatar>
-                                        <span>{member.name}{member.character && <span className="text-muted-foreground"> as {member.character}</span>}</span>
+                                        <span>{member.character ? t("{name} as {character}", { name: member.name, character: member.character }) : member.name}</span>
                                     </li>
                                 ))}
                             </ul>
                         </div>
                     )}
                     <p className="text-xs text-muted-foreground">
-                        Source{film.sources.length > 1 ? "s" : ""}: {film.sources.map((source, index) => (
+                        {t(film.sources.length > 1 ? "Sources" : "Source")}: {film.sources.map((source, index) => (
                             <span key={source.url}>{index > 0 && ", "}<a className="underline" href={source.url} target="_blank" rel="noreferrer">{source.provider}</a></span>
                         ))}
                     </p>

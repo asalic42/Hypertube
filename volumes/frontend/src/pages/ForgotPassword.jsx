@@ -14,10 +14,12 @@ import { Link } from "react-router-dom";
 import { toast } from "@/components/ui/toast";
 import { api } from "@/lib/api";
 import AuthLayout from "@/components/AuthLayout";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function ForgotPassword() {
     const [formData, setFormData] = useState({ email: '' })
     const [loading, setLoading] = useState(false)
+    const { t } = useTranslation();
 
     function handleChange(e) {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -30,13 +32,13 @@ export default function ForgotPassword() {
             // Anonymous endpoint: no access token, but the CSRF cookie and header.
             await api('/api/auth/forgot-password/', { method: 'POST', body: formData, auth: false, csrf: true });
             toast.add({
-                title: "Email sent",
-                description: "If an account matches this address, you will receive a reset link.",
+                title: t("Email sent"),
+                description: t("If an account matches this address, you will receive a reset link."),
                 type: "success",
             });
         } catch (err) {
             toast.add({
-                title: "Error",
+                title: t("Error"),
                 description: err.message,
                 type: "error",
             });
@@ -47,13 +49,13 @@ export default function ForgotPassword() {
     return(
         <AuthLayout className="max-w-md">
             <CardHeader>
-                <CardTitle>Forgot password</CardTitle>
+                <CardTitle>{t("Forgot password")}</CardTitle>
                 <CardDescription>
-                Enter your email to reset your password 
+                {t("Enter your email to reset your password")}
                 </CardDescription>
                 <CardAction>
                 <Button render={<Link to="/login" />} nativeButton={false} variant="link">
-                    Login
+                    {t("Login")}
                 </Button>
                 </CardAction>
             </CardHeader>
@@ -61,7 +63,7 @@ export default function ForgotPassword() {
                 <form id="forgot-password-form" onSubmit={handleSubmit}>
                 <div className="flex flex-col gap-5 sm:gap-6">
                     <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">{t("Email")}</Label>
                     <Input
                         id="email"
                         type="email"
@@ -77,7 +79,7 @@ export default function ForgotPassword() {
             </CardContent>
             <CardFooter className="flex-col gap-2">
                 <Button type="submit" form="forgot-password-form" className="h-10 w-full sm:h-9" disabled={loading}>
-                {loading ? "Sending..." : "Send"}
+                {loading ? t("Sending...") : t("Send")}
                 </Button>
             </CardFooter>
         </AuthLayout>

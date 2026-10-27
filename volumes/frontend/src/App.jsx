@@ -13,11 +13,15 @@ import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute';
 import { Toaster } from "@/components/ui/toast";
 import { AuthProvider } from '@/lib/auth';
+import { I18nProvider } from '@/lib/i18nProvider';
+import { ThemeProvider } from '@/lib/theme';
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <I18nProvider>
+        <ThemeProvider>
         <div className='flex flex-col min-h-screen'>
           <Header />
           <main className="flex-1 flex items-start justify-center">
@@ -37,6 +41,8 @@ function App() {
           <Footer />
           <Toaster />
         </div>
+        </ThemeProvider>
+        </I18nProvider>
       </AuthProvider>
     </BrowserRouter>
   );

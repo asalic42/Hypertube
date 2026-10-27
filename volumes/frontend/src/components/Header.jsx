@@ -4,11 +4,15 @@ import { LogOut, Menu, Search, UserRound, X } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useTranslation } from "@/hooks/useTranslation";
+import ThemeToggle from "@/components/ThemeToggle";
 
-const linkClass = "flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium text-white/85 hover:bg-primary/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/70";
+// Dark chrome in the dark theme; in the light one the header is a card in the page's own colors.
+const linkClass = "flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium text-foreground/85 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/70 dark:text-white/85 dark:hover:bg-primary/40 dark:hover:text-white";
 
 function Header() {
     const { user, logout } = useAuth();
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams] = useSearchParams();
@@ -40,7 +44,7 @@ function Header() {
         try {
             await logout();
         } catch (err) {
-            toast.add({ title: "Error", description: err.message, type: "error" });
+            toast.add({ title: t("Error"), description: err.message, type: "error" });
         } finally {
             navigate('/login');
         }
@@ -58,13 +62,14 @@ function Header() {
             </Link>
             <button type="button" onClick={handleLogout} className={linkClass}>
                 <LogOut className="size-4 shrink-0" aria-hidden="true" />
-                Logout
+                {t("Logout")}
             </button>
+            <ThemeToggle className="hover:bg-accent dark:hover:bg-primary/40" />
         </>
     );
 
     return (
-        <header className="sticky top-0 z-10 border-b border-primary/60 bg-black text-white shadow-md shadow-black/40">
+        <header className="sticky top-0 z-10 border-b border-border bg-card text-foreground shadow-md shadow-black/10 dark:border-primary/60 dark:bg-black dark:text-white dark:shadow-black/40">
             <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 sm:flex-nowrap sm:gap-x-4">
                 <Link to="/home" className="flex min-h-11 items-center text-lg font-bold tracking-tight">
                     Hyper<span className="text-brand">tube</span>
@@ -72,26 +77,26 @@ function Header() {
 
                 <form onSubmit={handleSearch} role="search" className="order-last w-full sm:order-none sm:ml-auto sm:w-auto sm:max-w-sm sm:flex-1">
                     <div className="relative">
-                        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-white/50" aria-hidden="true" />
+                        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground dark:text-white/50" aria-hidden="true" />
                         <Input
                             type="search"
-                            aria-label="Search"
-                            placeholder="Search movies..."
-                            className="h-10 w-full border-white/15 bg-white/5 pl-8 text-white placeholder:text-white/40 focus-visible:border-brand focus-visible:ring-brand/40 sm:h-9"
+                            aria-label={t("Search")}
+                            placeholder={t("Search movies...")}
+                            className="h-10 w-full border-border bg-muted pl-8 text-foreground placeholder:text-muted-foreground focus-visible:border-brand focus-visible:ring-brand/40 sm:h-9 dark:border-white/15 dark:bg-white/5 dark:text-white dark:placeholder:text-white/40"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
                 </form>
 
-                <nav className="hidden items-stretch gap-1 sm:flex" aria-label="Account">
+                <nav className="hidden items-center gap-1 sm:flex" aria-label={t("Account")}>
                     {menu}
                 </nav>
 
                 <button
                     type="button"
-                    className="ml-auto flex size-11 items-center justify-center rounded-md hover:bg-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/70 sm:hidden"
-                    aria-label={menuOpen ? "Close menu" : "Open menu"}
+                    className="ml-auto flex size-11 items-center justify-center rounded-md hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/70 sm:hidden dark:hover:bg-primary/40"
+                    aria-label={menuOpen ? t("Close menu") : t("Open menu")}
                     aria-expanded={menuOpen}
                     aria-controls="mobile-menu"
                     onClick={() => setMenuOpen((open) => !open)}
@@ -101,7 +106,7 @@ function Header() {
             </div>
 
             {menuOpen && (
-                <nav id="mobile-menu" className="flex flex-col gap-1 border-t border-white/10 px-4 py-2 sm:hidden" aria-label="Account">
+                <nav id="mobile-menu" className="flex flex-col gap-1 border-t border-border px-4 py-2 sm:hidden dark:border-white/10" aria-label={t("Account")}>
                     {menu}
                 </nav>
             )}

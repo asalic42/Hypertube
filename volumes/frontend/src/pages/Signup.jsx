@@ -18,6 +18,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import AuthLayout from "@/components/AuthLayout";
 import { LANGUAGES } from "@/lib/languages";
+import { languageName } from "@/lib/i18n";
+import { useTranslation } from "@/hooks/useTranslation";
 
 const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
@@ -26,6 +28,7 @@ const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 export default function Signup() {
     const navigate = useNavigate();
     const { updateUser } = useAuth();
+    const { t, language, setLanguage } = useTranslation();
     const [formData, setFormData] = useState({
         email: '',
         username: '',
@@ -49,12 +52,12 @@ export default function Signup() {
         if (!file) return;
         // Same limits as the users service, so a bad picture is refused before the upload.
         if (!AVATAR_TYPES.includes(file.type)) {
-            toast.add({ title: "Unsupported picture", description: "Use a JPEG, PNG or WebP image.", type: "error" });
+            toast.add({ title: t("Unsupported picture"), description: t("Use a JPEG, PNG or WebP image."), type: "error" });
             e.target.value = "";
             return;
         }
         if (file.size > AVATAR_MAX_BYTES) {
-            toast.add({ title: "Picture too large", description: "Choose an image of 5 MB or less.", type: "error" });
+            toast.add({ title: t("Picture too large"), description: t("Choose an image of 5 MB or less."), type: "error" });
             e.target.value = "";
             return;
         }
@@ -80,7 +83,7 @@ export default function Signup() {
     async function handleSubmit(e) {
         e.preventDefault();
         if (formData.password !== formData.confirm_password) {
-            toast.add({ title: "Error", description: "The passwords do not match.", type: "error" });
+            toast.add({ title: t("Error"), description: t("The passwords do not match."), type: "error" });
             return;
         }
         setSubmitting(true);
@@ -103,7 +106,7 @@ export default function Signup() {
             // The account first: its token is what allows the profile to be created.
             me = await authApi.register(account);
         } catch (err) {
-            toast.add({ title: "Could not create the account", description: err.message, type: "error" });
+            toast.add({ title: t("Could not create the account"), description: err.message, type: "error" });
             setSubmitting(false);
             return;
         }
@@ -112,13 +115,14 @@ export default function Signup() {
             await usersApi.create(profile);
         } catch (err) {
             // The account exists and is logged in: the profile can be completed from its page.
-            toast.add({ title: "Account created, profile incomplete", description: err.message, type: "error" });
+            toast.add({ title: t("Account created, profile incomplete"), description: err.message, type: "error" });
             navigate('/profile');
             return;
         }
+        setLanguage(formData.preferredLanguage);
         toast.add({
-            title: "Welcome!",
-            description: "Your account is ready.",
+            title: t("Welcome!"),
+            description: t("Your account is ready."),
             type: "success",
         });
         navigate('/home');
@@ -127,13 +131,13 @@ export default function Signup() {
     return (
         <AuthLayout>
             <CardHeader>
-                <CardTitle>Create account</CardTitle>
+                <CardTitle>{t("Create account")}</CardTitle>
                 <CardDescription>
-                    Enter your information to create an account
+                    {t("Enter your information to create an account")}
                 </CardDescription>
                 <CardAction>
                     <Button render={<Link to="/login" />} nativeButton={false} variant="link">
-                        Login
+                        {t("Login")}
                     </Button>
                 </CardAction>
             </CardHeader>
@@ -143,7 +147,7 @@ export default function Signup() {
                     <div className="flex flex-col gap-5 sm:gap-6">
 
                         <div className="grid gap-2">
-                            <Label htmlFor="username">Username</Label>
+                            <Label htmlFor="username">{t("Username")}</Label>
                             <Input
                                 id="username"
                                 type="text"
@@ -155,12 +159,12 @@ export default function Signup() {
                                 minLength={3}
                                 maxLength={30}
                                 pattern="[A-Za-z0-9][A-Za-z0-9._\-]*"
-                                title="3 to 30 letters, digits, dots, underscores or dashes, starting with a letter or digit."
+                                title={t("3 to 30 letters, digits, dots, underscores or dashes, starting with a letter or digit.")}
                             />
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="email">Email</Label>
+                            <Label htmlFor="email">{t("Email")}</Label>
                             <Input
                                 id="email"
                                 type="email"
@@ -174,7 +178,7 @@ export default function Signup() {
 
                         <div className="grid gap-5 sm:grid-cols-2 sm:gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="firstname">First name</Label>
+                                <Label htmlFor="firstname">{t("First name")}</Label>
                                 <Input
                                     id="firstname"
                                     type="text"
@@ -188,7 +192,7 @@ export default function Signup() {
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="lastname">Last name</Label>
+                                <Label htmlFor="lastname">{t("Last name")}</Label>
                                 <Input
                                     id="lastname"
                                     type="text"
@@ -204,7 +208,7 @@ export default function Signup() {
 
                         <div className="grid gap-5 sm:grid-cols-2 sm:gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="password">Password</Label>
+                                <Label htmlFor="password">{t("Password")}</Label>
                                 <Input
                                     id="password"
                                     type="password"
@@ -217,7 +221,7 @@ export default function Signup() {
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="confirm_password">Password confirmation</Label>
+                                <Label htmlFor="confirm_password">{t("Password confirmation")}</Label>
                                 <Input
                                     id="confirm_password"
                                     type="password"
@@ -231,11 +235,11 @@ export default function Signup() {
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="profilePic">Avatar</Label>
+                            <Label htmlFor="profilePic">{t("Avatar")}</Label>
                             {preview && (
                             <div className="flex items-center gap-3">
                                 <Avatar className="size-20 sm:size-24">
-                                    <AvatarImage src={preview} alt="Preview" />
+                                    <AvatarImage src={preview} alt={t("Preview")} />
                                     <AvatarFallback>?</AvatarFallback>
                                 </Avatar>
                                 <Button
@@ -243,7 +247,7 @@ export default function Signup() {
                                     variant="ghost"
                                     size="sm"
                                     onClick={handleRemovePhoto}
-                                >Remove photo</Button>
+                                >{t("Remove photo")}</Button>
                             </div>
                             )}
                             <Input
@@ -258,7 +262,7 @@ export default function Signup() {
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="preferredLanguage">Language</Label>
+                            <Label htmlFor="preferredLanguage">{t("Language")}</Label>
                             <NativeSelect
                                 id="preferredLanguage"
                                 name="preferredLanguage"
@@ -266,14 +270,14 @@ export default function Signup() {
                                 value={formData.preferredLanguage}
                                 onChange={handleChange}
                             >
-                                {LANGUAGES.map(([value, name]) => (
-                                    <option key={value} value={value}>{name}</option>
+                                {LANGUAGES.map(([value]) => (
+                                    <option key={value} value={value}>{languageName(value, language)}</option>
                                 ))}
                             </NativeSelect>
                         </div>
 
                         <Button type="submit" className="h-10 w-full sm:h-9" disabled={submitting}>
-                            {submitting ? "Creating the account..." : "Signup"}
+                            {submitting ? t("Creating the account...") : t("Signup")}
                         </Button>
                     </div>
                 </form>

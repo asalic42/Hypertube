@@ -14,6 +14,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "@/components/ui/toast";
 import { api } from "@/lib/api";
 import AuthLayout from "@/components/AuthLayout";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function ResetPassword() {
     const navigate = useNavigate();
@@ -24,6 +25,7 @@ export default function ResetPassword() {
 
     const [formData, setFormData] = useState({ new_password: '', confirm_password: '' })
     const [loading, setLoading] = useState(false)
+    const { t } = useTranslation();
 
     function handleChange(e) {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -32,7 +34,7 @@ export default function ResetPassword() {
     async function handleSubmit(e) {
         e.preventDefault();
         if (formData.new_password !== formData.confirm_password) {
-            toast.add({ title: "Error", description: "The passwords do not match.", type: "error" });
+            toast.add({ title: t("Error"), description: t("The passwords do not match."), type: "error" });
             return;
         }
         setLoading(true);
@@ -41,14 +43,14 @@ export default function ResetPassword() {
             // Anonymous endpoint: no access token, but the CSRF cookie and header.
             await api(`/api/auth/reset-password/?${query}`, { method: 'POST', body: formData, auth: false, csrf: true });
             toast.add({
-                title: "Password updated",
-                description: "You can now log in with your new password.",
+                title: t("Password updated"),
+                description: t("You can now log in with your new password."),
                 type: "success",
             });
             navigate('/login');
         } catch (err) {
             toast.add({
-                title: "Error",
+                title: t("Error"),
                 description: err.message,
                 type: "error",
             });
@@ -61,14 +63,14 @@ export default function ResetPassword() {
         return (
             <AuthLayout className="max-w-md">
                 <CardHeader>
-                    <CardTitle>Reset password</CardTitle>
+                    <CardTitle>{t("Reset password")}</CardTitle>
                     <CardDescription>
-                    This link is not valid. Please request a new reset link.
+                    {t("This link is not valid. Please request a new reset link.")}
                     </CardDescription>
                 </CardHeader>
                 <CardFooter className="flex-col gap-2">
                     <Button render={<Link to="/forgot-password" />} nativeButton={false} className="h-10 w-full sm:h-9">
-                        Request a new link
+                        {t("Request a new link")}
                     </Button>
                 </CardFooter>
             </AuthLayout>
@@ -78,13 +80,13 @@ export default function ResetPassword() {
     return(
         <AuthLayout className="max-w-md">
             <CardHeader>
-                <CardTitle>Reset password</CardTitle>
+                <CardTitle>{t("Reset password")}</CardTitle>
                 <CardDescription>
-                Choose a new password for your account
+                {t("Choose a new password for your account")}
                 </CardDescription>
                 <CardAction>
                 <Button render={<Link to="/login" />} nativeButton={false} variant="link">
-                    Login
+                    {t("Login")}
                 </Button>
                 </CardAction>
             </CardHeader>
@@ -92,7 +94,7 @@ export default function ResetPassword() {
                 <form id="reset-password-form" onSubmit={handleSubmit}>
                 <div className="flex flex-col gap-5 sm:gap-6">
                     <div className="grid gap-2">
-                    <Label htmlFor="new_password">New password</Label>
+                    <Label htmlFor="new_password">{t("New password")}</Label>
                     <Input
                         id="new_password"
                         type="password"
@@ -104,7 +106,7 @@ export default function ResetPassword() {
                     />
                     </div>
                     <div className="grid gap-2">
-                    <Label htmlFor="confirm_password">Password confirmation</Label>
+                    <Label htmlFor="confirm_password">{t("Password confirmation")}</Label>
                     <Input
                         id="confirm_password"
                         type="password"
@@ -120,7 +122,7 @@ export default function ResetPassword() {
             </CardContent>
             <CardFooter className="flex-col gap-2">
                 <Button type="submit" form="reset-password-form" className="h-10 w-full sm:h-9" disabled={loading}>
-                {loading ? "Saving..." : "Change password"}
+                {loading ? t("Saving...") : t("Change password")}
                 </Button>
             </CardFooter>
         </AuthLayout>
