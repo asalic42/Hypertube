@@ -162,7 +162,9 @@ class SubtitleMatchingTests(TestCase):
         # The 23.976 one is for another cut; the one of unknown speed has no link; the 25 fps one fits once rescaled.
         texts = {"https://dl/2397": srt_ending_at(700), "https://dl/25": srt_ending_at(5256)}
         post = lambda url, json, headers: json_response({"link": None if json["file_id"] == 0 else f"https://dl/{json['file_id']}"})  # noqa: E731
-        calls = self.process(entries=entries, fetch=lambda url, headers=None: texts[url], post=post)
+        with self.assertLogs("movies_app.services.subtitles", level="WARNING") as logs:
+            calls = self.process(entries=entries, fetch=lambda url, headers=None: texts[url], post=post)
+        self.assertTrue(any("no download link" in message for message in logs.output))
         self.assertEqual([call.kwargs["json"]["file_id"] for call in calls.post.call_args_list], [2397, 0, 25])
         self.assertEqual(calls.get.call_args.kwargs["params"]["imdb_id"], 32599)
         self.assertEqual((self.subtitle.status, self.subtitle.origin), ("ready", "opensubtitles"))
@@ -255,7 +257,9 @@ class SubtitleMatchingTests(TestCase):
 
     def test_a_failed_alignment_keeps_the_subtitle_as_it_came(self):
         entries = [{"attributes": {"fps": 29.97, "download_count": 1, "files": [{"file_id": 7}]}}]
-        calls = self.process(entries=entries, fetch=lambda url, headers=None: srt_ending_at(5400), align=media.MediaError("ffsubsync failed"))
+        with self.assertLogs("movies_app.services.subtitles", level="WARNING") as logs:
+            calls = self.process(entries=entries, fetch=lambda url, headers=None: srt_ending_at(5400), align=media.MediaError("ffsubsync failed"))
+        self.assertTrue(any("not aligned on the sound track: ffsubsync failed" in message for message in logs.output))
         self.assertIn("01:30:00.000 --> 01:30:00.500\nLast", calls.upload.call_args.args[0].decode())
         self.assertEqual((self.subtitle.status, self.subtitle.aligned), ("ready", True), "not tried again and again")
 
@@ -334,7 +338,9 @@ class VideoProfileTests(SimpleTestCase):
         with tempfile.TemporaryDirectory() as root, mock.patch("movies_app.services.media.probe", side_effect=media.MediaError("bad")):
             path = Path(root, "video.mp4")
             path.write_bytes(bytes(2 * 64 * 1024))
-            self.assertEqual(media.video_profile(path), {"duration": None, "frame_rate": None, "file_hash": f"{2 * 64 * 1024:016x}"})
+            with self.assertLogs("movies_app.services.media", level="WARNING") as logs:
+                self.assertEqual(media.video_profile(path), {"duration": None, "frame_rate": None, "file_hash": f"{2 * 64 * 1024:016x}"})
+        self.assertIn("running time unknown: bad", logs.output[0])
 
 
 class RangeTests(SimpleTestCase):
@@ -420,8 +426,10 @@ class RenditionWorkerTests(TestCase):
 
     def test_unreadable_file_makes_no_rendition(self):
         download = self.make_download()
-        with mock.patch("movies_app.services.media.probe", side_effect=media.MediaError("bad")):
+        with mock.patch("movies_app.services.media.probe", side_effect=media.MediaError("bad")), \
+                self.assertLogs("movies_app.services.renditions", level="WARNING") as logs:
             renditions.plan(download, Path("/x/final.mp4"))
+        self.assertIn("frame size unknown", logs.output[0])
         download.refresh_from_db()
         self.assertEqual((download.height, download.renditions_planned, download.renditions.count()), (None, True, 0))
 
@@ -456,8 +464,10 @@ class RenditionWorkerTests(TestCase):
         Rendition.objects.create(download=download, height=480)
         with tempfile.TemporaryDirectory() as root, override_settings(MOVIES_DOWNLOAD_DIR=root), \
                 mock.patch("movies_app.services.storage.download_file", side_effect=lambda key, path: Path(path).write_bytes(b"src")), \
-                mock.patch("movies_app.services.media.encode_rendition", side_effect=media.MediaError("ffmpeg failed")):
+                mock.patch("movies_app.services.media.encode_rendition", side_effect=media.MediaError("ffmpeg failed")), \
+                self.assertLogs("movies_app.services.renditions", level="ERROR") as logs:
             self.assertTrue(renditions.process_next())
+        self.assertIn("the 480p rendition failed", logs.output[0])
         rendition = download.renditions.get()
         self.assertEqual((rendition.status, rendition.error), ("failed", "ffmpeg failed"))
         self.assertIsNone(renditions.next_download())
@@ -466,8 +476,10 @@ class RenditionWorkerTests(TestCase):
         download = self.make_download()
         error = ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject")
         with tempfile.TemporaryDirectory() as root, override_settings(MOVIES_DOWNLOAD_DIR=root), \
-                mock.patch("movies_app.services.storage.download_file", side_effect=error):
+                mock.patch("movies_app.services.storage.download_file", side_effect=error), \
+                self.assertLogs("movies_app.services.renditions", level="WARNING") as logs:
             self.assertTrue(renditions.process_next())
+        self.assertIn("stored file unavailable", logs.output[0])
         download.refresh_from_db()
         self.assertTrue(download.renditions_planned)
         self.assertIsNone(renditions.next_download())

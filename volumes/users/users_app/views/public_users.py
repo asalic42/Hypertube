@@ -110,8 +110,9 @@ class PublicUserView(APIView):
         },
         description=(
             "Met à jour son propre profil en un appel : prénom, nom, langue, photo (`avatar`, fichier), "
-            "email et mot de passe (`password` avec `current_password`). L'email et le mot de passe sont "
-            "relayés au service auth, qui les possède ; la réponse porte alors un nouveau jeton d'accès "
+            "email et mot de passe (`password`, avec `current_password` quand le compte en a déjà un). "
+            "Un compte créé via OAuth peut ainsi créer son premier mot de passe. L'email et le mot de passe "
+            "sont relayés au service auth, qui les possède ; la réponse porte alors un nouveau jeton d'accès "
             "dans `access`. Le username ne peut pas changer."
         ),
     )

@@ -8,6 +8,7 @@ from django.urls import reverse
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from auth_app.models import OAuthAccount, User
+from auth_app.serializers import CustomTokenObtainPairSerializer
 from auth_app.views.oauth import _state_session_key
 
 PROFILE = {
@@ -101,3 +102,14 @@ class OAuthCallbackTests(TestCase):
 
         self.assertEqual(response["Location"], settings.OAUTH_FRONTEND_CALLBACK)
         self.assertIn(settings.REFRESH_COOKIE_NAME, response.cookies)
+
+    def test_a_new_oauth_account_has_no_password_and_reports_its_provider(self):
+        self._callback()
+        user = User.objects.get(email="jane@example.com")
+        self.assertFalse(user.has_usable_password())
+
+        bearer = CustomTokenObtainPairSerializer.get_token(user).access_token
+        response = self.client.get("/api/auth/me/", HTTP_AUTHORIZATION=f"Bearer {bearer}")
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["has_password"])
+        self.assertEqual(response.json()["oauth_providers"], ["google"])

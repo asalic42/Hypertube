@@ -43,6 +43,10 @@ def update_credentials(fields, authorization):
         response = session.patch(
             f"{base}/api/auth/me/",
             json=fields,
+            # The auth cookie is Secure, and this internal call is plain HTTP: the
+            # session alone would not send it. Passing it explicitly keeps the
+            # double-submit check satisfied without weakening the cookie for browsers.
+            cookies={CSRF_COOKIE: csrf_token},
             headers={"Authorization": authorization, CSRF_HEADER: csrf_token, "Referer": f"{base}/"},
             timeout=TIMEOUT,
         )

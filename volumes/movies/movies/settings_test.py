@@ -13,3 +13,9 @@ DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memor
 REST_FRAMEWORK = {**REST_FRAMEWORK, "DEFAULT_THROTTLE_CLASSES": ()}  # noqa: F405
 TMDB_API_KEY = ""
 OPENSUBTITLES_API_KEY = ""
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {"console": {"class": "logging.StreamHandler", "level": "WARNING"}},
+    "loggers": {"movies_app": {"handlers": ["console"], "level": "WARNING"}},
+}

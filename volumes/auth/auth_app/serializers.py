@@ -12,6 +12,10 @@ from auth_app.validators import validate_username
 User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
+    # How the account can be used: a password, one or more OAuth providers, or both.
+    has_password = serializers.SerializerMethodField()
+    oauth_providers = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = (
@@ -19,8 +23,16 @@ class UserSerializer(serializers.ModelSerializer):
             "username",
             "email",
             "date_joined",
+            "has_password",
+            "oauth_providers",
         )
         read_only_fields = fields
+
+    def get_has_password(self, user) -> bool:
+        return user.has_usable_password()
+
+    def get_oauth_providers(self, user) -> list[str]:
+        return sorted(user.oauth_accounts.values_list("provider", flat=True))
     
 
 class UserUpdateSerializer(serializers.ModelSerializer):
@@ -49,10 +61,11 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         password = attributes.get("password")
         current_password = attributes.pop("current_password", None)
         if password is not None:
-            if not current_password:
-                raise serializers.ValidationError({"current_password": "Your current password is required to set a new one."})
-            if not self.instance.check_password(current_password):
-                raise serializers.ValidationError({"current_password": "Wrong password."})
+            if self.instance.has_usable_password():
+                if not current_password:
+                    raise serializers.ValidationError({"current_password": "Your current password is required to set a new one."})
+                if not self.instance.check_password(current_password):
+                    raise serializers.ValidationError({"current_password": "Wrong password."})
             try:
                 validate_password(password, user=self.instance)
             except DjangoValidationError as exc:

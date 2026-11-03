@@ -14,6 +14,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 
 from auth_app.serializers import CustomTokenObtainPairSerializer, UserSerializer, UserUpdateSerializer
 from auth_app.cookies import delete_refresh_cookie, set_refresh_cookie
+from auth_app.notifications import send_password_notification
 from auth_app.services import RemoteError, delete_user_data
 
 logger = logging.getLogger(__name__)
@@ -40,16 +41,22 @@ class MeView(RetrieveAPIView):
         tags=["Authentication"],
         operation_id="auth_update_current_user",
         description=(
-            "Changes the email or the password of the current user; the password needs "
-            "`current_password` beside it, and the username cannot change. The answer carries "
-            "a new access token and rotates the refresh cookie when one is sent, so the tokens "
-            "the other services read the email from are up to date at once."
+            "Changes the email or the password of the current user; changing an existing password "
+            "needs `current_password` beside it, while an account with no usable password (created "
+            "through OAuth) can create its first one without it. The username cannot change. The "
+            "answer carries a new access token and rotates the refresh cookie when one is sent, so "
+            "the tokens the other services read the email from are up to date at once."
         ),
     )
     def patch(self, request, *args, **kwargs):
         serializer = UserUpdateSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
+        # Read before save: the serializer pops the password from its validated data.
+        password_was_set = serializer.validated_data.get("password") is not None
+        had_password = request.user.has_usable_password()
         serializer.save()
+        if password_was_set:
+            send_password_notification(request.user, created=not had_password)
 
         self._blacklist_refresh_cookie(request)
         refresh = CustomTokenObtainPairSerializer.get_token(request.user)
