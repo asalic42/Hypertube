@@ -89,6 +89,18 @@ class UsersApiTests(APITestCase):
         response = self.client.get(self.url(self.bob, "avatar/"))
         self.assertEqual((response.status_code, response.data["avatar_url"]), (200, None))
 
+    def test_another_user_can_load_a_public_profile_avatar(self):
+        self.bob.avatar = "avatars/bob.png"
+        self.bob.save(update_fields=["avatar"])
+        url = "https://files.example.test/avatars/bob.png"
+        with mock.patch("users_app.serializers.get_presigned_url", return_value=url), \
+                mock.patch("users_app.views.public_users.get_presigned_url", return_value=url), \
+                mock.patch("users_app.views.public_users.default_storage", mock.Mock(bucket_name="users")):
+            profile = self.client.get(self.url(self.bob)).data["user"]
+            avatar = self.client.get(self.url(self.bob, "avatar/")).data["avatar_url"]
+        self.assertEqual(profile["avatar_url"], url)
+        self.assertEqual(avatar, url)
+
     def test_names_are_required(self):
         eve = token_user("eve", "eve@example.test")
         self.client.force_authenticate(eve)

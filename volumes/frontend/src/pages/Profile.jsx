@@ -265,8 +265,8 @@ export default function Profile() {
                 <section className="overflow-hidden rounded-2xl bg-card text-card-foreground shadow-xs ring-1 ring-foreground/10">
                     <div className="h-28 bg-linear-to-r from-accent via-primary/35 to-primary/60 dark:from-black dark:via-primary/70 dark:to-primary sm:h-32" aria-hidden="true" />
                     <div className="px-5 pb-5 sm:px-6 sm:pb-6">
-                        <div className="-mt-14 flex flex-col gap-4 sm:-mt-16 sm:flex-row sm:items-end sm:gap-5">
-                            <div className="relative w-fit">
+                        <div className="-mt-14 flex flex-col gap-4 sm:mt-0 sm:flex-row sm:items-start sm:gap-5">
+                            <div className="relative w-fit sm:-mb-16 sm:-translate-y-16">
                                 <Avatar className="size-28 ring-4 ring-card sm:size-32">
                                     {picture && <AvatarImage src={picture} alt={t("Your profile picture")} />}
                                     <AvatarFallback className="text-4xl">{user.username[0].toUpperCase()}</AvatarFallback>
@@ -280,8 +280,20 @@ export default function Profile() {
                                 >
                                     <Camera className="size-4" aria-hidden="true" />
                                 </button>
+                                {picture && (
+                                    <button
+                                        type="button"
+                                        onClick={removePicture}
+                                        disabled={removingAvatar}
+                                        aria-label={removingAvatar ? t("Removing...") : avatarPreview ? t("Discard picture") : t("Remove picture")}
+                                        title={removingAvatar ? t("Removing...") : avatarPreview ? t("Discard picture") : t("Remove picture")}
+                                        className="absolute top-0 right-0 flex size-8 items-center justify-center rounded-full bg-black text-destructive-foreground shadow-md ring-2 ring-card hover:bg-black/80 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
+                                    >
+                                        <Trash2 className="size-3.5" aria-hidden="true" />
+                                    </button>
+                                )}
                             </div>
-                            <div className="flex min-w-0 flex-1 flex-col gap-1 sm:pb-1">
+                            <div className="flex min-w-0 flex-1 flex-col gap-1">
                                 <h1 className="truncate text-2xl font-bold tracking-tight">{user.username}</h1>
                                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                                     <span className="flex items-center gap-1.5"><Mail className="size-3.5" aria-hidden="true" />{saved.email}</span>
@@ -309,12 +321,6 @@ export default function Profile() {
                                     )}
                                 </div>
                             </div>
-                            {picture && (
-                                <Button type="button" variant="ghost" size="sm" className="w-fit sm:self-end" onClick={removePicture} disabled={removingAvatar}>
-                                    <Trash2 aria-hidden="true" />
-                                    {removingAvatar ? t("Removing...") : avatarPreview ? t("Discard picture") : t("Remove picture")}
-                                </Button>
-                            )}
                         </div>
                         {avatarPreview && (
                             <p className="mt-3 text-xs text-muted-foreground">{t("New picture selected. Save your changes to keep it.")}</p>
