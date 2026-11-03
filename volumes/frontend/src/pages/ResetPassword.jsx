@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "@/components/ui/toast";
+import { PASSWORD_PROBLEM_PARAMS, passwordProblem } from "@/lib/passwordRules";
 import { api } from "@/lib/api";
 import AuthLayout from "@/components/AuthLayout";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -35,6 +36,11 @@ export default function ResetPassword() {
         e.preventDefault();
         if (formData.new_password !== formData.confirm_password) {
             toast.add({ title: t("Error"), description: t("The passwords do not match."), type: "error" });
+            return;
+        }
+        const problem = passwordProblem(formData.new_password);
+        if (problem) {
+            toast.add({ title: t("Error"), description: t(problem, PASSWORD_PROBLEM_PARAMS), type: "error" });
             return;
         }
         setLoading(true);

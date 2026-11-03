@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { toast } from "@/components/ui/toast";
+import { PASSWORD_PROBLEM_PARAMS, passwordProblem } from "@/lib/passwordRules";
 import { auth as authApi, users as usersApi } from "@/lib/api";
 import { LANGUAGES } from "@/lib/languages";
 import { languageName, t as translate } from "@/lib/i18n";
@@ -140,6 +141,11 @@ export default function Profile() {
         if (!changed) return;
         if (form.password && form.password !== form.passwordConfirm) {
             toast.add({ title: t("Passwords do not match"), description: t("Type the new password twice, the same way."), type: "error" });
+            return;
+        }
+        const problem = form.password ? passwordProblem(form.password, { username: user.username, email: form.email }) : null;
+        if (problem) {
+            toast.add({ title: t("Error"), description: t(problem, PASSWORD_PROBLEM_PARAMS), type: "error" });
             return;
         }
         setSaving(true);

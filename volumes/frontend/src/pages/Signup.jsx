@@ -19,6 +19,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import AuthLayout from "@/components/AuthLayout";
 import { LANGUAGES } from "@/lib/languages";
 import { languageName } from "@/lib/i18n";
+import { PASSWORD_PROBLEM_PARAMS, passwordProblem } from "@/lib/passwordRules";
 import { useTranslation } from "@/hooks/useTranslation";
 
 const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -84,6 +85,11 @@ export default function Signup() {
         e.preventDefault();
         if (formData.password !== formData.confirm_password) {
             toast.add({ title: t("Error"), description: t("The passwords do not match."), type: "error" });
+            return;
+        }
+        const problem = passwordProblem(formData.password, { username: formData.username, email: formData.email });
+        if (problem) {
+            toast.add({ title: t("Could not create the account"), description: t(problem, PASSWORD_PROBLEM_PARAMS), type: "error" });
             return;
         }
         setSubmitting(true);
