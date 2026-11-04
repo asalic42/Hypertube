@@ -153,7 +153,7 @@ services:
       - ./servers.json:/pgadmin4/servers.json
 
   file-storage:
-    image: rustfs/rustfs:rc-glibc
+    image: docker.io/rustfs/rustfs:rc-glibc
     container_name: hypertube-fs
     volumes:
       - file-storage:/data
@@ -189,7 +189,7 @@ services:
     restart: "no"
 
   mailpit:
-    image: axllent/mailpit:latest
+    image: docker.io/axllent/mailpit:latest
     container_name: hypertube-mailpit
     networks:
       - hypertube
@@ -199,7 +199,7 @@ services:
     restart: unless-stopped
 
   dbgate:
-    image: dbgate/dbgate
+    image: docker.io/dbgate/dbgate
     container_name: hypertube-dbgate
     networks:
       - hypertube

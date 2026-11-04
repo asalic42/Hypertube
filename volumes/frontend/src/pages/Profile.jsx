@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, Camera, KeyRound, Languages, Mail, ShieldAlert, Trash2, UserRound } from "lucide-react";
+import { CalendarDays, Camera, KeyRound, Languages, Link2, Mail, ShieldAlert, Trash2, UserRound } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,12 +14,21 @@ import { languageName, t as translate } from "@/lib/i18n";
 import { useTranslation } from "@/hooks/useTranslation";
 import { forgetAvatar } from "@/lib/avatars";
 import { useAuth } from "@/hooks/useAuth";
+import { DiscordIcon, FortyTwoIcon, GithubIcon, GoogleIcon } from "@/components/icons/oauth-icons";
 
 // Same limits as the users service, so a bad picture is refused before the upload.
 const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 const TOO_LARGE = "The picture is too large: choose an image of 5 MB or less.";
 const BAD_TYPE = "Use a JPEG, PNG or WebP image.";
+
+// The providers the auth service can link to an account, with their display name.
+const PROVIDERS = {
+    "42": { label: "42", Icon: FortyTwoIcon },
+    github: { label: "GitHub", Icon: GithubIcon },
+    google: { label: "Google", Icon: GoogleIcon },
+    discord: { label: "Discord", Icon: DiscordIcon },
+};
 
 // A plain sentence for a failed picture upload, whatever layer refused it.
 function pictureError(err) {
@@ -43,6 +52,9 @@ export default function Profile() {
     const { user, updateUser, clearSession } = useAuth();
     const navigate = useNavigate();
     const { t, language, setLanguage } = useTranslation();
+    // Accounts created through OAuth have no password yet: they can create one.
+    const hasPassword = Boolean(user.has_password);
+    const providers = Array.isArray(user.oauth_providers) ? user.oauth_providers : [];
     const [form, setForm] = useState(null);
     // Values as last stored, to know what changed on save.
     const [saved, setSaved] = useState(null);
@@ -142,21 +154,25 @@ export default function Profile() {
             toast.add({ title: t("Passwords do not match"), description: t("Type the new password twice, the same way."), type: "error" });
             return;
         }
+        const passwordWasSet = Boolean(form.password);
         setSaving(true);
         try {
             let profile;
             try {
                 // Everything in one call. The email and the password are only sent
                 // when they change: the users service relays them to the auth service.
-                profile = await usersApi.update(user.id, {
+                const fields = {
                     firstname: form.firstname,
                     lastname: form.lastname,
                     preferredLanguage: form.preferredLanguage,
                     email: form.email !== saved.email ? form.email : null,
                     password: form.password || null,
-                    current_password: form.password ? form.currentPassword : null,
                     avatar: avatarFile,
-                });
+                };
+                // A current password only exists once the account has one. An OAuth
+                // account creating its first password must not be asked for it.
+                if (passwordWasSet && hasPassword) fields.current_password = form.currentPassword;
+                profile = await usersApi.update(user.id, fields);
             } catch (err) {
                 const title = avatarFile && err.data?.avatar ? t("Could not save the picture") : t("Could not save your information");
                 toast.add({ title, description: avatarFile && err.data?.avatar ? pictureError(err) : err.message, type: "error" });
@@ -171,7 +187,19 @@ export default function Profile() {
             };
             setForm(values);
             setSaved(values);
-            if (values.email !== user.email) updateUser({ ...user, email: values.email });
+            // Keep the session in step: a new email changes the token claims, and a
+            // new password turns the "create" section into the "change" one at once.
+            const nextUser = { ...user };
+            let userChanged = false;
+            if (values.email !== user.email) {
+                nextUser.email = values.email;
+                userChanged = true;
+            }
+            if (passwordWasSet) {
+                nextUser.has_password = true;
+                userChanged = true;
+            }
+            if (userChanged) updateUser(nextUser);
             // The site follows the preference at once.
             setLanguage(values.preferredLanguage);
             if (avatarFile) {
@@ -181,7 +209,17 @@ export default function Profile() {
             setAvatarFile(null);
             setAvatarPreview(null);
             if (fileInputRef.current) fileInputRef.current.value = "";
-            toast.add({ title: t("Profile updated"), description: t("Your information has been saved."), type: "success" });
+            if (passwordWasSet) {
+                toast.add({
+                    title: hasPassword ? t("Password changed") : t("Password created"),
+                    description: hasPassword
+                        ? t("Your new password is now active.")
+                        : t("You can now also log in with your username and password."),
+                    type: "success",
+                });
+            } else {
+                toast.add({ title: t("Profile updated"), description: t("Your information has been saved."), type: "success" });
+            }
         } finally {
             setSaving(false);
         }
@@ -227,8 +265,8 @@ export default function Profile() {
                 <section className="overflow-hidden rounded-2xl bg-card text-card-foreground shadow-xs ring-1 ring-foreground/10">
                     <div className="h-28 bg-linear-to-r from-accent via-primary/35 to-primary/60 dark:from-black dark:via-primary/70 dark:to-primary sm:h-32" aria-hidden="true" />
                     <div className="px-5 pb-5 sm:px-6 sm:pb-6">
-                        <div className="-mt-14 flex flex-col gap-4 sm:-mt-16 sm:flex-row sm:items-end sm:gap-5">
-                            <div className="relative w-fit">
+                        <div className="-mt-14 flex flex-col gap-4 sm:mt-0 sm:flex-row sm:items-start sm:gap-5">
+                            <div className="relative w-fit sm:-mb-16 sm:-translate-y-16">
                                 <Avatar className="size-28 ring-4 ring-card sm:size-32">
                                     {picture && <AvatarImage src={picture} alt={t("Your profile picture")} />}
                                     <AvatarFallback className="text-4xl">{user.username[0].toUpperCase()}</AvatarFallback>
@@ -242,8 +280,20 @@ export default function Profile() {
                                 >
                                     <Camera className="size-4" aria-hidden="true" />
                                 </button>
+                                {picture && (
+                                    <button
+                                        type="button"
+                                        onClick={removePicture}
+                                        disabled={removingAvatar}
+                                        aria-label={removingAvatar ? t("Removing...") : avatarPreview ? t("Discard picture") : t("Remove picture")}
+                                        title={removingAvatar ? t("Removing...") : avatarPreview ? t("Discard picture") : t("Remove picture")}
+                                        className="absolute top-0 right-0 flex size-8 items-center justify-center rounded-full bg-black text-destructive-foreground shadow-md ring-2 ring-card hover:bg-black/80 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
+                                    >
+                                        <Trash2 className="size-3.5" aria-hidden="true" />
+                                    </button>
+                                )}
                             </div>
-                            <div className="flex min-w-0 flex-1 flex-col gap-1 sm:pb-1">
+                            <div className="flex min-w-0 flex-1 flex-col gap-1">
                                 <h1 className="truncate text-2xl font-bold tracking-tight">{user.username}</h1>
                                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                                     <span className="flex items-center gap-1.5"><Mail className="size-3.5" aria-hidden="true" />{saved.email}</span>
@@ -253,14 +303,24 @@ export default function Profile() {
                                     {memberSince && (
                                         <span className="flex items-center gap-1.5"><CalendarDays className="size-3.5" aria-hidden="true" />{t("Member since {date}", { date: memberSince })}</span>
                                     )}
+                                    {providers.length > 0 && (
+                                        <span className="flex flex-wrap items-center gap-1.5">
+                                            <Link2 className="size-3.5" aria-hidden="true" />
+                                            <span>{t("Linked accounts:")}</span>
+                                            {providers.map((provider) => {
+                                                const info = PROVIDERS[provider] || { label: provider, Icon: null };
+                                                const ProviderIcon = info.Icon;
+                                                return (
+                                                    <span key={provider} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
+                                                        {ProviderIcon && <ProviderIcon className="size-3" />}
+                                                        {info.label}
+                                                    </span>
+                                                );
+                                            })}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
-                            {picture && (
-                                <Button type="button" variant="ghost" size="sm" className="w-fit sm:self-end" onClick={removePicture} disabled={removingAvatar}>
-                                    <Trash2 aria-hidden="true" />
-                                    {removingAvatar ? t("Removing...") : avatarPreview ? t("Discard picture") : t("Remove picture")}
-                                </Button>
-                            )}
                         </div>
                         {avatarPreview && (
                             <p className="mt-3 text-xs text-muted-foreground">{t("New picture selected. Save your changes to keep it.")}</p>
@@ -306,13 +366,17 @@ export default function Profile() {
 
                 <Section
                     icon={KeyRound}
-                    title={t("Password")}
-                    description={t("Leave empty to keep your password. Your current password is required to set a new one.")}
+                    title={hasPassword ? t("Change password") : t("Create a password")}
+                    description={hasPassword
+                        ? t("Leave empty to keep your password. Your current password is required to set a new one.")
+                        : t("Add a password to also sign in with your username and password.")}
                 >
-                    <div className="grid gap-2 sm:max-w-xs">
-                        <Label htmlFor="currentPassword">{t("Current password")}</Label>
-                        <Input id="currentPassword" type="password" name="currentPassword" autoComplete="current-password" value={form.currentPassword} onChange={handleChange} required={Boolean(form.password)} />
-                    </div>
+                    {hasPassword && (
+                        <div className="grid gap-2 sm:max-w-xs">
+                            <Label htmlFor="currentPassword">{t("Current password")}</Label>
+                            <Input id="currentPassword" type="password" name="currentPassword" autoComplete="current-password" value={form.currentPassword} onChange={handleChange} required={Boolean(form.password)} />
+                        </div>
+                    )}
                     <div className="grid gap-4 sm:grid-cols-2">
                         <div className="grid gap-2">
                             <Label htmlFor="password">{t("New password")}</Label>

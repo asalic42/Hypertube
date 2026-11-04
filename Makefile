@@ -2,6 +2,7 @@ FILE := ./docker-compose-dev.yml
 CERT_DIR := certs
 JWT_DIR := jwt_keys
 RM := rm -rf
+TEST_SERVICES := auth users movies frontend
 
 all: cert jwt compose
 	docker compose -f ${FILE} up -d --build 
@@ -15,6 +16,26 @@ compose :
 
 down:
 	docker compose -f ${FILE} down -t 10
+
+check-launching:
+	@set -eu; \
+	running_services="$$(docker compose -f "$(FILE)" ps --status running --services)"; \
+	missing_services=""; \
+	for service in $(TEST_SERVICES); do \
+		if ! printf '%s\n' "$$running_services" | grep -Fxq "$$service"; then \
+			missing_services="$$missing_services $$service"; \
+		fi; \
+	done; \
+	if [ -n "$$missing_services" ]; then \
+		echo "Les conteneurs suivants ne sont pas lances:$$missing_services" >&2; \
+		echo "Lancez-les avant les tests avec 'make'." >&2; \
+		exit 1; \
+	fi
+
+test: check-launching
+	docker compose -f "$(FILE)" exec -T auth python3 manage.py test auth_app --settings=auth.settings_test
+	docker compose -f "$(FILE)" exec -T users python3 manage.py test users_app --settings=users.settings_test
+	docker compose -f "$(FILE)" exec -T movies python3 manage.py test movies_app --settings=movies.settings_test
 
 
 ${JWT_DIR}:
@@ -56,4 +77,4 @@ clean: down clean_certs clean_docker
 prune: down clean
 	echo "y" | docker system prune -a
 
-.PHONY : all down clean re clean_docker prune fclean
+.PHONY : all down clean re clean_docker prune fclean check-launching test
