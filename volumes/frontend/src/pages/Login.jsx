@@ -63,7 +63,7 @@ export default function Login() {
         } catch (err) {
             toast.add({
                 title: t("Login failed"),
-                description: err.message,
+                description: t(err.message),
                 type: "error",
             });
         } finally {

@@ -16,11 +16,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { forgetAvatar } from "@/lib/avatars";
 import { useAuth } from "@/hooks/useAuth";
 
-// Same limits as the users service, so a bad picture is refused before the upload.
-const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
-const TOO_LARGE = "The picture is too large: choose an image of 5 MB or less.";
-const BAD_TYPE = "Use a JPEG, PNG or WebP image.";
+import { AVATAR_TYPES, BAD_TYPE, TOO_LARGE, avatarFileProblem } from "@/lib/avatarFile";
 
 // A plain sentence for a failed picture upload, whatever layer refused it.
 function pictureError(err) {
@@ -88,17 +84,14 @@ export default function Profile() {
         setForm({ ...form, [e.target.name]: e.target.value });
     }
 
-    function choosePicture(e) {
-        const file = e.target.files[0];
+    async function choosePicture(e) {
+        const input = e.target;
+        const file = input.files[0];
         if (!file) return;
-        if (!AVATAR_TYPES.includes(file.type)) {
-            toast.add({ title: t("Unsupported picture"), description: t(BAD_TYPE), type: "error" });
-            e.target.value = "";
-            return;
-        }
-        if (file.size > AVATAR_MAX_BYTES) {
-            toast.add({ title: t("Picture too large"), description: t(TOO_LARGE), type: "error" });
-            e.target.value = "";
+        const problem = await avatarFileProblem(file);
+        if (problem) {
+            toast.add({ title: t(problem.title), description: t(problem.description), type: "error" });
+            input.value = "";
             return;
         }
         setAvatarFile(file);

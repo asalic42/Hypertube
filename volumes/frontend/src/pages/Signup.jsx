@@ -21,10 +21,18 @@ import { LANGUAGES } from "@/lib/languages";
 import { languageName } from "@/lib/i18n";
 import { PASSWORD_PROBLEM_PARAMS, passwordProblem } from "@/lib/passwordRules";
 import { useTranslation } from "@/hooks/useTranslation";
+import { AVATAR_TYPES, avatarFileProblem } from "@/lib/avatarFile";
 
-const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 
+/** Saves the new account's profile: created, or completed when the users service already holds one. */
+async function saveProfile(userId, profile) {
+    try {
+        return await usersApi.create(profile);
+    } catch (err) {
+        if (err.status !== 409) throw err;
+        return usersApi.update(userId, profile);
+    }
+}
 
 export default function Signup() {
     const navigate = useNavigate();
@@ -48,21 +56,19 @@ export default function Signup() {
     // The preview is an object URL: release it when replaced or when leaving the page.
     useEffect(() => () => preview && URL.revokeObjectURL(preview), [preview]);
 
-    function handleFileChange(e) {
-        const file = e.target.files[0];
+    async function handleFileChange(e) {
+        const input = e.target;
+        const file = input.files[0];
         if (!file) return;
-        // Same limits as the users service, so a bad picture is refused before the upload.
-        if (!AVATAR_TYPES.includes(file.type)) {
-            toast.add({ title: t("Unsupported picture"), description: t("Use a JPEG, PNG or WebP image."), type: "error" });
-            e.target.value = "";
+        // Same limits as the users service, and a decode, so a bad picture is
+        // refused here and never blocks the rest of the form.
+        const problem = await avatarFileProblem(file);
+        if (problem) {
+            toast.add({ title: t(problem.title), description: t(problem.description), type: "error" });
+            input.value = "";
             return;
         }
-        if (file.size > AVATAR_MAX_BYTES) {
-            toast.add({ title: t("Picture too large"), description: t("Choose an image of 5 MB or less."), type: "error" });
-            e.target.value = "";
-            return;
-        }
-        setFormData({ ...formData, avatar: file });
+        setFormData((current) => ({ ...current, avatar: file }));
         setPreview(URL.createObjectURL(file));
     }
 
@@ -116,16 +122,33 @@ export default function Signup() {
             setSubmitting(false);
             return;
         }
-        updateUser(me);
+        // The profile is saved before the app learns of the login: once it does, the
+        // language provider reads the profile, and the users service would create an
+        // empty one for the owner, which the creation below would then collide with.
+        let pictureError = null;
         try {
-            await usersApi.create(profile);
+            await saveProfile(me.id, profile);
         } catch (err) {
-            // The account exists and is logged in: the profile can be completed from its page.
-            toast.add({ title: t("Account created, profile incomplete"), description: err.message, type: "error" });
+            // Only the picture refused: the names are saved without it.
+            const retried = profile.avatar && err.data?.avatar
+                ? await saveProfile(me.id, { ...profile, avatar: null }).then(() => null, (retryErr) => retryErr)
+                : err;
+            if (retried) {
+                // The account exists and is logged in: the profile can be completed from its page.
+                updateUser(me);
+                toast.add({ title: t("Account created, profile incomplete"), description: retried.message, type: "error" });
+                navigate('/profile');
+                return;
+            }
+            pictureError = err;
+        }
+        updateUser(me);
+        setLanguage(formData.preferredLanguage);
+        if (pictureError) {
+            toast.add({ title: t("Account created without the picture"), description: pictureError.message, type: "error" });
             navigate('/profile');
             return;
         }
-        setLanguage(formData.preferredLanguage);
         toast.add({
             title: t("Welcome!"),
             description: t("Your account is ready."),

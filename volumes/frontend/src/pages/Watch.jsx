@@ -6,6 +6,7 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/toast";
 import { movies as moviesApi, comments as commentsApi } from "@/lib/api";
+import { COMMENT_MAX_LENGTH } from "@/lib/limits";
 import { useAuth } from "@/hooks/useAuth";
 import { useAvatarUrl } from "@/lib/avatars";
 import CoverPlaceholder from "@/components/CoverPlaceholder";
@@ -236,7 +237,8 @@ function CommentItem({ comment, own, onChanged }) {
                     <AvatarFallback>{comment.username[0].toUpperCase()}</AvatarFallback>
                 </Avatar>
             </Link>
-            <div className="flex flex-1 flex-col gap-1">
+            {/* min-w-0: a flex item otherwise grows with its longest word and overflows the page. */}
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <div className="flex items-center gap-2">
                     <Link to={profilePath} className="font-medium text-sm underline-offset-4 hover:underline">{comment.username}</Link>
                     <span className="text-xs text-muted-foreground">{new Date(comment.created_at).toLocaleString(language)}</span>
@@ -252,7 +254,7 @@ function CommentItem({ comment, own, onChanged }) {
                         <textarea
                             className="min-h-16 rounded-md border border-input bg-transparent px-2.5 py-1 text-sm"
                             value={text}
-                            maxLength={2000}
+                            maxLength={COMMENT_MAX_LENGTH}
                             required
                             onChange={(e) => setText(e.target.value)}
                         />
@@ -262,7 +264,8 @@ function CommentItem({ comment, own, onChanged }) {
                         </div>
                     </form>
                 ) : (
-                    <p className="text-sm whitespace-pre-wrap break-words">{comment.comment}</p>
+                    // Sentences wrap at their spaces; a single word too long for the line scrolls instead of being cut.
+                    <p className="overflow-x-auto text-sm whitespace-pre-wrap">{comment.comment}</p>
                 )}
             </div>
         </div>
@@ -324,7 +327,7 @@ function Comments({ movieId }) {
                     className="min-h-20 rounded-md border border-input bg-transparent px-2.5 py-1 text-sm"
                     placeholder={t("Write a comment...")}
                     value={text}
-                    maxLength={2000}
+                    maxLength={COMMENT_MAX_LENGTH}
                     onChange={(e) => setText(e.target.value)}
                 />
                 <Button type="submit" className="self-end" disabled={!text.trim()}>{t("Publish")}</Button>

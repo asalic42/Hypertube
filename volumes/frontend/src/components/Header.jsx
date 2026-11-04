@@ -6,6 +6,7 @@ import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "@/hooks/useTranslation";
 import ThemeToggle from "@/components/ThemeToggle";
+import { SEARCH_MAX_LENGTH } from "@/lib/limits";
 
 // Dark chrome in the dark theme; in the light one the header is a card in the page's own colors.
 const linkClass = "flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium text-foreground/85 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/70 dark:text-white/85 dark:hover:bg-primary/40 dark:hover:text-white";
@@ -36,7 +37,8 @@ function Header() {
     function handleSearch(e) {
         e.preventDefault();
         const params = new URLSearchParams();
-        if (search.trim()) params.set('search', search.trim());
+        const query = search.trim().slice(0, SEARCH_MAX_LENGTH);
+        if (query) params.set('search', query);
         navigate(`/home?${params}`);
     }
 
@@ -84,6 +86,7 @@ function Header() {
                             placeholder={t("Search movies...")}
                             className="h-10 w-full border-border bg-muted pl-8 text-foreground placeholder:text-muted-foreground focus-visible:border-brand focus-visible:ring-brand/40 sm:h-9 dark:border-white/15 dark:bg-white/5 dark:text-white dark:placeholder:text-white/40"
                             value={search}
+                            maxLength={SEARCH_MAX_LENGTH}
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>

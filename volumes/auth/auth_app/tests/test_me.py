@@ -112,7 +112,7 @@ class UpdatePasswordTests(TestCase):
         response = self.patch(password="N3w-pass-word!", current_password="Str0ng-pass!")
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("password", response.json()["user"])
-        self.assertEqual(self.login("Str0ng-pass!").status_code, 401)
+        self.assertNotIn("access", self.login("Str0ng-pass!").json())
         self.assertEqual(self.login("N3w-pass-word!").status_code, 200)
 
     def test_email_and_password_change_together(self):

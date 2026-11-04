@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core import mail
 from django.test import TestCase
 
@@ -16,24 +17,25 @@ class RegisterTests(TestCase):
         self.assertEqual(response.json()["user"]["username"], "jane.doe")
         self.assertIn("access", response.json())
 
+    def refused(self, response, field, message=None):
+        # A refusal is an expected answer, sent as 200 so the browser logs no error: no token, no cookie.
+        self.assertEqual(response.status_code, 200, message)
+        self.assertEqual(list(response.json()), ["errors"], message)
+        self.assertIn(field, response.json()["errors"], message)
+        self.assertNotIn(settings.REFRESH_COOKIE_NAME, response.cookies, message)
+
     def test_malformed_usernames_are_refused(self):
         for username in ("ab", "a" * 31, "jane doe", "<script>", "jane@doe", ".jane", "", "   "):
-            response = self.register(username=username)
-            self.assertEqual(response.status_code, 400, repr(username))
-            self.assertIn("username", response.json())
+            self.refused(self.register(username=username), "username", repr(username))
         self.assertEqual(User.objects.count(), 0)
 
     def test_username_is_unique_whatever_the_case(self):
         self.assertEqual(self.register().status_code, 201)
-        response = self.register(username="Jane.Doe", email="other@example.com")
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("username", response.json())
+        self.refused(self.register(username="Jane.Doe", email="other@example.com"), "username")
 
     def test_email_is_unique_whatever_the_case(self):
         self.assertEqual(self.register().status_code, 201)
-        response = self.register(username="other", email="  Jane@Example.COM ")
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("email", response.json())
+        self.refused(self.register(username="other", email="  Jane@Example.COM "), "email")
         self.assertEqual(User.objects.count(), 1)
 
     def test_email_is_stored_lower_case(self):
