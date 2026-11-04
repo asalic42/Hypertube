@@ -81,7 +81,8 @@ def _unique_username(raw_username: str | None, email: str) -> str:
 
     username = base
     suffix = 2
-    while User.objects.filter(username=username).exists():
+    # Case-insensitive like registration and login: "Alice" and "alice" are the same account name.
+    while User.objects.filter(username__iexact=username).exists():
         tail = f"_{suffix}"
         username = base[: 30 - len(tail)] + tail
         suffix += 1

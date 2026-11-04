@@ -1,10 +1,12 @@
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 from drf_spectacular.utils import (
+    OpenApiResponse,
     extend_schema,
     extend_schema_view,
 )
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -19,7 +21,16 @@ from auth_app.serializers import CustomTokenObtainPairSerializer, RegisterSerial
     post=extend_schema(
         tags=["Authentication"],
         operation_id="auth_register",
-        responses={201: CustomTokenObtainPairSerializer},
+        responses={
+            201: CustomTokenObtainPairSerializer,
+            200: OpenApiResponse(
+                description=(
+                    "The account was refused: `errors` maps each field to its messages (a taken "
+                    "username or email, a weak password...). No account, no token, no cookie. "
+                    "Sent as 200 because it is an expected answer, not an error the browser should log."
+                )
+            ),
+        },
         description=(
             "Creates the account and logs it in: the answer carries the access token "
             "and sets the refresh cookie, like a login, so the profile can be created right away."
@@ -35,7 +46,10 @@ class RegisterView(CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationError as refusal:
+            return Response({"errors": refusal.detail})
         user = serializer.save()
         refresh = CustomTokenObtainPairSerializer.get_token(user)
         response = Response(

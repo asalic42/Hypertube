@@ -41,9 +41,11 @@ class LoginTests(AuthFlowTestCase):
         self.assertFalse(response.cookies[settings.SESSION_COOKIE_MARKER_NAME]["httponly"])
 
     def test_wrong_credentials_are_refused_without_a_cookie(self):
+        # A refusal is an expected answer, sent as 200 so the browser logs no error: no token, no cookie.
         for username, password in ((USERNAME, "wrong"), ("nobody", PASSWORD), (EMAIL, PASSWORD)):
             response = self.login(username, password)
-            self.assertEqual(response.status_code, 401, username)
+            self.assertEqual(response.status_code, 200, username)
+            self.assertEqual(list(response.json()), ["detail"], username)
             self.assertIsNone(self.refresh_cookie(response))
 
     def test_login_takes_the_username_whatever_its_case(self):
@@ -149,7 +151,7 @@ class PasswordResetTests(AuthFlowTestCase):
         uid, token = self.link_from_mail()
 
         self.assertEqual(self.reset(uid, token).status_code, 200)
-        self.assertEqual(self.login().status_code, 401, "the old password is gone")
+        self.assertNotIn("access", self.login().json(), "the old password is gone")
         self.assertEqual(self.login(password="N3w-pass-word!").status_code, 200)
 
         # Sessions opened before the reset are revoked, and the link is single use.

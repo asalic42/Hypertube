@@ -157,12 +157,16 @@ export function hasAccessToken() {
 export const auth = {
   async login(username, password) {
     const data = await api('/api/auth/login/', { method: 'POST', body: { username, password }, auth: false, csrf: true });
+    // Wrong credentials come back as 200 with only `detail`, so the browser logs no failed request.
+    if (!data.access) throw new ApiError(401, data);
     setToken(data.access);
     return data.user;
   },
   // Creates the account and logs it in: the refresh cookie is set and the access token returned.
   async register(fields) {
     const data = await api('/api/auth/register/', { method: 'POST', body: fields, auth: false, csrf: true });
+    // A refused account comes back as 200 with only `errors`, so the browser logs no failed request.
+    if (!data.access) throw new ApiError(400, data.errors);
     setToken(data.access);
     return data.user;
   },

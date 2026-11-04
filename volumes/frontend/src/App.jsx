@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import Profile from './pages/Profile';
 import UserProfile from './pages/UserProfile';
 import Watch from './pages/Watch';
+import NotFound from './pages/NotFound';
 import Header from './components/Header'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute';
@@ -36,6 +37,7 @@ function App() {
               <Route path="/movies/:id" element={<ProtectedRoute><Watch /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/users/:id" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
           <Footer />

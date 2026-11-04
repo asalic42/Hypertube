@@ -7,6 +7,7 @@ from drf_spectacular.utils import (
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 from rest_framework import status
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.serializers import TokenVerifySerializer
 from rest_framework.response import Response
@@ -28,11 +29,24 @@ from auth_app.models import User
 from auth_app.serializers import CustomTokenObtainPairSerializer
 
 
+WRONG_CREDENTIALS = "Wrong username or password."
+
+
 @method_decorator(csrf_protect, name="dispatch")
 @extend_schema_view(
     post=extend_schema(
         tags=["Authentication"],
         operation_id="auth_login",
+        responses={
+            200: OpenApiResponse(
+                description=(
+                    "The account and its access token, with the refresh cookie set; or, when the "
+                    "credentials are wrong, only `detail` with no token and no cookie. Wrong "
+                    "credentials are an expected answer, not an error the browser should log."
+                )
+            ),
+            400: OpenApiResponse(description="Validation error: a field is missing."),
+        },
     )
 )
 class LoginView(TokenObtainPairView):
@@ -42,7 +56,10 @@ class LoginView(TokenObtainPairView):
     throttle_scope = "login"
 
     def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
+        try:
+            response = super().post(request, *args, **kwargs)
+        except AuthenticationFailed:
+            return Response({"detail": WRONG_CREDENTIALS})
         refresh_token = response.data.pop("refresh", None)
         if refresh_token:
             set_refresh_cookie(response, refresh_token)

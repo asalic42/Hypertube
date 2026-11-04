@@ -197,3 +197,14 @@ class OAuthCallbackTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.json()["has_password"])
         self.assertEqual(response.json()["oauth_providers"], ["google"])
+
+
+class OAuthUsernameTests(TestCase):
+    def test_the_username_does_not_collide_with_an_existing_one_in_another_case(self):
+        from auth_app.views.oauth import _unique_username
+
+        User.objects.create_user(email="first@example.com", username="Jane", password="Str0ng-pass-word")
+
+        self.assertEqual(_unique_username("jane", "jane@example.com"), "jane_2")
+        # Login looks the username up whatever its case: a second "jane" would break it for both.
+        self.assertEqual(User.objects.get_by_natural_key("JANE").username, "Jane")

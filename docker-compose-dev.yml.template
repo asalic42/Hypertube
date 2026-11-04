@@ -100,6 +100,12 @@ services:
       - movies-downloads:/downloads
     networks:
       - hypertube
+    # Same image as `movies`. The build section is repeated on purpose: without it,
+    # Compose tries to pull `hypertube-movies` from Docker Hub when no local image
+    # exists yet (after a clean), instead of waiting for the movies build.
+    build:
+      context: services/movies
+      dockerfile: Dockerfile
     env_file: .env
     entrypoint: ["python3", "manage.py", "torrent_worker"]
     depends_on:

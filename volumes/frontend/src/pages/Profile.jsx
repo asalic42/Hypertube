@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { toast } from "@/components/ui/toast";
+import { PASSWORD_PROBLEM_PARAMS, passwordProblem } from "@/lib/passwordRules";
 import { auth as authApi, users as usersApi } from "@/lib/api";
 import { LANGUAGES } from "@/lib/languages";
 import { languageName, t as translate } from "@/lib/i18n";
@@ -16,11 +17,7 @@ import { forgetAvatar } from "@/lib/avatars";
 import { useAuth } from "@/hooks/useAuth";
 import { DiscordIcon, FortyTwoIcon, GithubIcon, GoogleIcon } from "@/components/icons/oauth-icons";
 
-// Same limits as the users service, so a bad picture is refused before the upload.
-const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
-const TOO_LARGE = "The picture is too large: choose an image of 5 MB or less.";
-const BAD_TYPE = "Use a JPEG, PNG or WebP image.";
+import { AVATAR_TYPES, BAD_TYPE, TOO_LARGE, avatarFileProblem } from "@/lib/avatarFile";
 
 // The providers the auth service can link to an account, with their display name.
 const PROVIDERS = {
@@ -99,17 +96,14 @@ export default function Profile() {
         setForm({ ...form, [e.target.name]: e.target.value });
     }
 
-    function choosePicture(e) {
-        const file = e.target.files[0];
+    async function choosePicture(e) {
+        const input = e.target;
+        const file = input.files[0];
         if (!file) return;
-        if (!AVATAR_TYPES.includes(file.type)) {
-            toast.add({ title: t("Unsupported picture"), description: t(BAD_TYPE), type: "error" });
-            e.target.value = "";
-            return;
-        }
-        if (file.size > AVATAR_MAX_BYTES) {
-            toast.add({ title: t("Picture too large"), description: t(TOO_LARGE), type: "error" });
-            e.target.value = "";
+        const problem = await avatarFileProblem(file);
+        if (problem) {
+            toast.add({ title: t(problem.title), description: t(problem.description), type: "error" });
+            input.value = "";
             return;
         }
         setAvatarFile(file);
@@ -152,6 +146,11 @@ export default function Profile() {
         if (!changed) return;
         if (form.password && form.password !== form.passwordConfirm) {
             toast.add({ title: t("Passwords do not match"), description: t("Type the new password twice, the same way."), type: "error" });
+            return;
+        }
+        const problem = form.password ? passwordProblem(form.password, { username: user.username, email: form.email }) : null;
+        if (problem) {
+            toast.add({ title: t("Error"), description: t(problem, PASSWORD_PROBLEM_PARAMS), type: "error" });
             return;
         }
         const passwordWasSet = Boolean(form.password);
