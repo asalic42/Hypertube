@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
-import { NativeSelect } from "@/components/ui/native-select";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { toast } from "@/components/ui/toast";
 import { auth as authApi, users as usersApi } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
@@ -300,7 +300,7 @@ export default function Signup() {
                                 onChange={handleChange}
                             >
                                 {LANGUAGES.map(([value]) => (
-                                    <option key={value} value={value}>{languageName(value, language)}</option>
+                                    <NativeSelectOption key={value} value={value}>{languageName(value, language)}</NativeSelectOption>
                                 ))}
                             </NativeSelect>
                         </div>

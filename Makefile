@@ -32,12 +32,6 @@ check-launching:
 		exit 1; \
 	fi
 
-test: check-launching
-	docker compose -f "$(FILE)" exec -T auth python3 manage.py test auth_app --settings=auth.settings_test
-	docker compose -f "$(FILE)" exec -T users python3 manage.py test users_app --settings=users.settings_test
-	docker compose -f "$(FILE)" exec -T movies python3 manage.py test movies_app --settings=movies.settings_test
-
-
 ${JWT_DIR}:
 	bash scripts/jwt_keys/set_up.sh
 
@@ -49,6 +43,26 @@ ${CERT_DIR}:
 cert: ${CERT_DIR}
 
 re : down all
+
+check-running: check-launching
+	@echo "Services en cours d'exécution : $(TEST_SERVICES)"
+
+test: check-running test-auth test-users test-movies test-frontend
+
+test-auth:
+	docker compose -f ${FILE} exec -T auth python3 manage.py test auth_app --settings=auth.settings_test
+
+test-users:
+	docker compose -f ${FILE} exec -T users python3 manage.py test users_app --settings=users.settings_test
+
+test-movies:
+	docker compose -f ${FILE} exec -T movies python3 manage.py test movies_app --settings=movies.settings_test
+
+test-frontend:
+	docker compose -f ${FILE} exec -T frontend npm run build
+
+lint:
+	docker compose -f ${FILE} exec -T frontend npm run lint
 
 clean_docker:
 	docker stop $$(docker ps -qa);\
@@ -77,4 +91,5 @@ clean: down clean_certs clean_docker
 prune: down clean
 	echo "y" | docker system prune -a
 
-.PHONY : all down clean re clean_docker prune fclean check-launching test
+.PHONY : all down clean re clean_docker prune fclean check-launching check-running \
+         test test-auth test-users test-movies test-frontend lint

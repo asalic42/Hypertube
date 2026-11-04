@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { toast } from "@/components/ui/toast";
 import { PASSWORD_PROBLEM_PARAMS, passwordProblem } from "@/lib/passwordRules";
 import { auth as authApi, users as usersApi } from "@/lib/api";
@@ -61,7 +61,8 @@ export default function Profile() {
     const [avatarUrl, setAvatarUrl] = useState(null);
     const [avatarFile, setAvatarFile] = useState(null);
     const [avatarPreview, setAvatarPreview] = useState(null);
-    const [removingAvatar, setRemovingAvatar] = useState(false);
+    // Removing the stored picture is a pending change, saved with the form.
+    const [removeAvatar, setRemoveAvatar] = useState(false);
     const fileInputRef = useRef(null);
 
     const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -108,36 +109,30 @@ export default function Profile() {
         }
         setAvatarFile(file);
         setAvatarPreview(URL.createObjectURL(file));
+        // A new picture replaces the one that was about to be removed.
+        setRemoveAvatar(false);
     }
 
-    // Removing the picture takes effect at once: it is erased from the storage
-    // and the profile without waiting for "Save changes".
-    async function removePicture() {
-        setAvatarFile(null);
-        setAvatarPreview(null);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        if (!avatarUrl) return;
-        setRemovingAvatar(true);
-        try {
-            await usersApi.deleteAvatar(user.id);
-            forgetAvatar(user.id);
-            setAvatarUrl(null);
-            toast.add({ title: t("Picture removed"), description: t("Your profile has no picture anymore."), type: "success" });
-        } catch (err) {
-            // Already gone on the server: reflect it rather than complain.
-            if (err.status === 404) setAvatarUrl(null);
-            else toast.add({ title: t("Could not remove the picture"), description: err.message, type: "error" });
-        } finally {
-            setRemovingAvatar(false);
+    // Removing the picture is a pending change: it is erased from the storage
+    // when "Save changes" is pressed, and "Discard" brings it back.
+    function removePicture() {
+        if (avatarPreview) {
+            setAvatarFile(null);
+            setAvatarPreview(null);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            return;
         }
+        if (!avatarUrl) return;
+        setRemoveAvatar(true);
     }
 
-    const changed = form && saved && (Object.keys(saved).some((key) => form[key] !== saved[key]) || avatarFile);
+    const changed = form && saved && (Object.keys(saved).some((key) => form[key] !== saved[key]) || avatarFile || removeAvatar);
 
     function discard() {
         setForm(saved);
         setAvatarFile(null);
         setAvatarPreview(null);
+        setRemoveAvatar(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
     }
 
@@ -154,6 +149,10 @@ export default function Profile() {
             return;
         }
         const passwordWasSet = Boolean(form.password);
+        // The stored picture is deleted after the profile update, only if the
+        // whole save succeeds up to that point.
+        const pictureRemoved = removeAvatar;
+        let pictureRemovalDone = false;
         setSaving(true);
         try {
             let profile;
@@ -176,6 +175,23 @@ export default function Profile() {
                 const title = avatarFile && err.data?.avatar ? t("Could not save the picture") : t("Could not save your information");
                 toast.add({ title, description: avatarFile && err.data?.avatar ? pictureError(err) : err.message, type: "error" });
                 return;
+            }
+            if (pictureRemoved) {
+                try {
+                    await usersApi.deleteAvatar(user.id);
+                    forgetAvatar(user.id);
+                    setAvatarUrl(null);
+                    pictureRemovalDone = true;
+                } catch (err) {
+                    // Already gone on the server: that is the state we wanted.
+                    if (err.status === 404) {
+                        forgetAvatar(user.id);
+                        setAvatarUrl(null);
+                        pictureRemovalDone = true;
+                    } else {
+                        toast.add({ title: t("Could not remove the picture"), description: err.message, type: "error" });
+                    }
+                }
             }
             const values = {
                 firstname: profile.firstname || "",
@@ -207,6 +223,8 @@ export default function Profile() {
             }
             setAvatarFile(null);
             setAvatarPreview(null);
+            // Keep the removal pending if the storage refused it, so the save bar stays.
+            setRemoveAvatar(pictureRemoved && !pictureRemovalDone);
             if (fileInputRef.current) fileInputRef.current.value = "";
             if (passwordWasSet) {
                 toast.add({
@@ -216,6 +234,8 @@ export default function Profile() {
                         : t("You can now also log in with your username and password."),
                     type: "success",
                 });
+            } else if (pictureRemoved && pictureRemovalDone) {
+                toast.add({ title: t("Picture removed"), description: t("Your profile has no picture anymore."), type: "success" });
             } else {
                 toast.add({ title: t("Profile updated"), description: t("Your information has been saved."), type: "success" });
             }
@@ -242,7 +262,7 @@ export default function Profile() {
     if (error) return <p className="p-8 text-destructive">{error}</p>;
     if (!form) return <p className="p-8 text-muted-foreground">{t("Loading...")}</p>;
 
-    const picture = avatarPreview || avatarUrl;
+    const picture = avatarPreview || (removeAvatar ? null : avatarUrl);
     const memberSince = user.date_joined
         ? new Date(user.date_joined).toLocaleDateString(language, { year: "numeric", month: "long" })
         : null;
@@ -283,9 +303,9 @@ export default function Profile() {
                                     <button
                                         type="button"
                                         onClick={removePicture}
-                                        disabled={removingAvatar}
-                                        aria-label={removingAvatar ? t("Removing...") : avatarPreview ? t("Discard picture") : t("Remove picture")}
-                                        title={removingAvatar ? t("Removing...") : avatarPreview ? t("Discard picture") : t("Remove picture")}
+                                        disabled={saving}
+                                        aria-label={avatarPreview ? t("Discard picture") : t("Remove picture")}
+                                        title={avatarPreview ? t("Discard picture") : t("Remove picture")}
                                         className="absolute top-0 right-0 flex size-8 items-center justify-center rounded-full bg-black text-destructive-foreground shadow-md ring-2 ring-card hover:bg-black/80 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
                                     >
                                         <Trash2 className="size-3.5" aria-hidden="true" />
@@ -357,7 +377,7 @@ export default function Profile() {
                         <Label htmlFor="preferredLanguage">{t("Language")}</Label>
                         <NativeSelect id="preferredLanguage" name="preferredLanguage" className="w-full" value={form.preferredLanguage} onChange={handleChange}>
                             {LANGUAGES.map(([value]) => (
-                                <option key={value} value={value}>{languageName(value, language)}</option>
+                                <NativeSelectOption key={value} value={value}>{languageName(value, language)}</NativeSelectOption>
                             ))}
                         </NativeSelect>
                     </div>
