@@ -73,8 +73,7 @@ def _avatar_url(user: dict) -> str:
     user_id = str(user["id"])
     avatar = user.get("avatar")
     if avatar:
-        ext = "gif" if avatar.startswith("a_") else "png"
-        return f"{CDN_BASE}/avatars/{user_id}/{avatar}.{ext}?size=256"
+        return f"{CDN_BASE}/avatars/{user_id}/{avatar}.png?size=256&format=png"
 
     index = (int(user_id) >> 22) % 6
     return f"{CDN_BASE}/embed/avatars/{index}.png"

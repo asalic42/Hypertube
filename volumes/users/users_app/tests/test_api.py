@@ -89,6 +89,18 @@ class UsersApiTests(APITestCase):
         response = self.client.get(self.url(self.bob, "avatar/"))
         self.assertEqual((response.status_code, response.data["avatar_url"]), (200, None))
 
+    def test_another_user_can_load_a_public_profile_avatar(self):
+        self.bob.avatar = "avatars/bob.png"
+        self.bob.save(update_fields=["avatar"])
+        url = "https://files.example.test/avatars/bob.png"
+        with mock.patch("users_app.serializers.get_presigned_url", return_value=url), \
+                mock.patch("users_app.views.public_users.get_presigned_url", return_value=url), \
+                mock.patch("users_app.views.public_users.default_storage", mock.Mock(bucket_name="users")):
+            profile = self.client.get(self.url(self.bob)).data["user"]
+            avatar = self.client.get(self.url(self.bob, "avatar/")).data["avatar_url"]
+        self.assertEqual(profile["avatar_url"], url)
+        self.assertEqual(avatar, url)
+
     def test_names_are_required(self):
         eve = token_user("eve", "eve@example.test")
         self.client.force_authenticate(eve)
@@ -159,6 +171,14 @@ class ProfileUpdateTests(APITestCase):
         self.ana.refresh_from_db()
         self.assertEqual((self.ana.firstname, self.ana.email), ("Anita", "ana.new@example.test"))
 
+    def test_an_oauth_account_can_create_a_password_without_the_current_one(self):
+        answer = {"user": {"email": "ana@example.test"}, "access": "new-access"}
+        with mock.patch.object(account, "update_credentials", return_value=answer) as relay:
+            response = self.patch({"password": "N3w-pass!"})
+        relay.assert_called_once_with({"password": "N3w-pass!"}, "Bearer tok")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["access"], "new-access")
+
     def test_a_refusal_of_the_auth_service_is_the_answer_and_nothing_changes(self):
         refusal = account.CredentialsRejected(400, {"current_password": ["Wrong password."]})
         with mock.patch.object(account, "update_credentials", side_effect=refusal):
@@ -218,7 +238,7 @@ class AccountRelayTests(APITestCase):
         self.assertTrue(url.endswith("/api/auth/me/"))
         self.assertEqual(kwargs["json"], {"email": "x@example.test"})
         self.assertEqual((kwargs["headers"]["Authorization"], kwargs["headers"]["X-CSRFToken"]), ("Bearer tok", "csrf-123"))
-        # Sent by hand: the Secure cookie would not leave the jar over plain HTTP.
+        # The auth cookie is Secure: an internal HTTP call must pass it explicitly.
         self.assertEqual(kwargs["cookies"], {"csrftoken": "csrf-123"})
 
     def test_refusals_and_outages_are_told_apart(self):
@@ -232,5 +252,5 @@ class AccountRelayTests(APITestCase):
 
         session.patch.return_value.status_code = 500
         with mock.patch("users_app.services.account.requests.Session", return_value=session):
-            with self.assertRaises(account.AuthUnavailable):
+            with self.assertRaises(account.AuthUnavailable), self.assertLogs("users_app.services.account", level="ERROR"):
                 account.update_credentials({"email": "x@example.test"}, "Bearer tok")
