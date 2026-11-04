@@ -34,6 +34,8 @@ def update_credentials(fields, authorization):
     the user. Returns the auth service's answer: the account and a fresh
     access token. The auth views are CSRF-protected like any browser-facing
     view, so a CSRF cookie is fetched first and sent back with its header.
+    The cookie is passed explicitly: it is flagged Secure, and the session
+    jar would withhold it on the plain-HTTP hop between the containers.
     """
     base = settings.AUTH_SERVICE_URL
     session = requests.Session()
@@ -44,6 +46,7 @@ def update_credentials(fields, authorization):
             f"{base}/api/auth/me/",
             json=fields,
             headers={"Authorization": authorization, CSRF_HEADER: csrf_token, "Referer": f"{base}/"},
+            cookies={CSRF_COOKIE: csrf_token},
             timeout=TIMEOUT,
         )
     except requests.RequestException as error:

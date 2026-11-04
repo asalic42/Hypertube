@@ -218,6 +218,8 @@ class AccountRelayTests(APITestCase):
         self.assertTrue(url.endswith("/api/auth/me/"))
         self.assertEqual(kwargs["json"], {"email": "x@example.test"})
         self.assertEqual((kwargs["headers"]["Authorization"], kwargs["headers"]["X-CSRFToken"]), ("Bearer tok", "csrf-123"))
+        # Sent by hand: the Secure cookie would not leave the jar over plain HTTP.
+        self.assertEqual(kwargs["cookies"], {"csrftoken": "csrf-123"})
 
     def test_refusals_and_outages_are_told_apart(self):
         session = mock.MagicMock()
