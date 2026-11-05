@@ -3,7 +3,7 @@ import re
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from movies_app.models import Comment, Download, Movie, Rendition, Subtitle
+from movies_app.models import Comment, Download, Movie, Rendition, Subtitle, WatchRecord
 from movies_app.services import streaming
 
 SORT_CHOICES = ("name", "-name", "year", "-year", "rating", "-rating", "popularity", "-popularity")
@@ -37,13 +37,42 @@ class GenreNamesField(serializers.Field):
         return [genre.name for genre in value.all()]
 
 
+class ProgressSerializer(serializers.Serializer):
+    """Where the viewer stopped, reported by the player."""
+
+    position = serializers.FloatField(min_value=0)
+    duration = serializers.FloatField(min_value=1)
+
+    def validate(self, attrs):
+        attrs["position"] = min(attrs["position"], attrs["duration"])
+        return attrs
+
+
 class MovieListSerializer(serializers.ModelSerializer):
     genres = GenreNamesField(read_only=True)
-    watched = serializers.BooleanField(read_only=True, default=False)
+    watched = serializers.SerializerMethodField()
+    progress = serializers.SerializerMethodField()
 
     class Meta:
         model = Movie
-        fields = ("id", "title", "year", "rating", "cover_url", "genres", "watched")
+        fields = ("id", "title", "year", "rating", "cover_url", "genres", "watched", "progress")
+
+    @staticmethod
+    def _progress(movie):
+        position, duration = getattr(movie, "watch_position", None) or 0, getattr(movie, "watch_duration", None) or 0
+        return (position, duration) if position > 0 and duration > 0 else None
+
+    @extend_schema_field({"type": "object", "nullable": True, "properties": {"position": {"type": "number"}, "duration": {"type": "number"}}})
+    def get_progress(self, movie):
+        """Seconds reached and length of the film, for the viewer to resume; null when nothing to resume."""
+        progress = self._progress(movie)
+        if progress is None or progress[0] / progress[1] >= WatchRecord.FINISHED_RATIO:
+            return None
+        return {"position": progress[0], "duration": progress[1]}
+
+    def get_watched(self, movie) -> bool:
+        """Seen before, unless the viewer left it halfway: then it is a film to resume, not a watched one."""
+        return bool(getattr(movie, "watched", False)) and self.get_progress(movie) is None
 
 
 class SourceSerializer(serializers.Serializer):

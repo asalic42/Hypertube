@@ -641,7 +641,7 @@ class CatalogTests(TestCase):
         keep, duplicate = Movie.objects.order_by("id")
         old_id = duplicate.pk
         Comment.objects.create(movie=duplicate, user_id=USER, username="ana", content="great")
-        WatchRecord.objects.create(movie=duplicate, user_id=USER)
+        WatchRecord.objects.create(movie=duplicate, user_id=USER, position=1500, duration=6000)
         Subtitle.objects.create(movie=duplicate, language="en")
 
         catalog.merge_movies(keep=keep, duplicate=duplicate)
@@ -651,6 +651,7 @@ class CatalogTests(TestCase):
         self.assertEqual(keep.sources.count(), 2)
         self.assertEqual(keep.popularity, 15)
         self.assertEqual((keep.comments.count(), keep.watch_records.count(), keep.subtitles.count()), (1, 1, 1))
+        self.assertEqual(keep.watch_records.get().position, 1500, "the position to resume survives the merge")
         self.assertEqual(MergedMovie.objects.get(old_id=old_id).movie, keep)
         self.assertEqual(catalog.resolve_movie(old_id), keep)
 

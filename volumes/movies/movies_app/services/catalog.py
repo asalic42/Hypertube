@@ -258,11 +258,13 @@ def merge_movies(keep, duplicate):
         kept, created = WatchRecord.objects.get_or_create(
             user_id=record.user_id,
             movie=keep,
-            defaults={"last_watched_at": record.last_watched_at},
+            defaults={"last_watched_at": record.last_watched_at, "position": record.position, "duration": record.duration},
         )
         if not created and record.last_watched_at > kept.last_watched_at:
+            # The most recent viewing says where to resume.
             kept.last_watched_at = record.last_watched_at
-            kept.save(update_fields=["last_watched_at"])
+            kept.position, kept.duration = record.position, record.duration
+            kept.save(update_fields=["last_watched_at", "position", "duration"])
 
     known_languages = set(keep.subtitles.values_list("language", flat=True))
     for subtitle in Subtitle.objects.filter(movie=duplicate):

@@ -1,4 +1,4 @@
-from django.db.models import Count, Exists, F, OuterRef, Value
+from django.db.models import Count, Exists, F, OuterRef, Value, Subquery
 from django.db.models.functions import Lower
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.generics import GenericAPIView
@@ -29,9 +29,15 @@ ORDERINGS = {
 
 
 def with_watched(queryset, user):
+    """Annotate the viewer's history: `watched`, and the position to resume from."""
     if not user.is_authenticated:
-        return queryset.annotate(watched=Value(False))
-    return queryset.annotate(watched=Exists(WatchRecord.objects.filter(user_id=user.id, movie=OuterRef("pk"))))
+        return queryset.annotate(watched=Value(False), watch_position=Value(0.0), watch_duration=Value(0.0))
+    records = WatchRecord.objects.filter(user_id=user.id, movie=OuterRef("pk"))
+    return queryset.annotate(
+        watched=Exists(records),
+        watch_position=Subquery(records.values("position")[:1]),
+        watch_duration=Subquery(records.values("duration")[:1]),
+    )
 
 
 class MovieListView(GenericAPIView):
