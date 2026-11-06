@@ -251,10 +251,18 @@ class Comment(models.Model):
 
 
 class WatchRecord(models.Model):
+    """One viewer's history of a movie: when, and how far they got (for resuming)."""
+
+    # Past this share of the film, a viewing counts as complete.
+    FINISHED_RATIO = 0.9
+
     user_id = models.UUIDField()
     movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name="watch_records")
     first_watched_at = models.DateTimeField(auto_now_add=True)
     last_watched_at = models.DateTimeField(default=timezone.now)
+    # Seconds into the film at the last report, and the film's length as the player saw it.
+    position = models.FloatField(default=0)
+    duration = models.FloatField(default=0)
 
     class Meta:
         constraints = [

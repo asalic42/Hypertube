@@ -11,7 +11,7 @@ from rest_framework_simplejwt.authentication import JWTStatelessUserAuthenticati
 
 from movies_app.authentication import IgnoreClientContentNegotiation, StreamTokenAuthentication
 from movies_app.models import Download, Movie, Rendition, Subtitle, WatchRecord
-from movies_app.serializers import DownloadRequestSerializer, DownloadSerializer, SubtitleSerializer
+from movies_app.serializers import DownloadRequestSerializer, DownloadSerializer, ProgressSerializer, SubtitleSerializer
 from movies_app.services import catalog, media, renditions, storage, streaming, subtitles, users
 
 from .common import get_movie_or_404
@@ -131,6 +131,34 @@ def _mark_watched(user_id, movie_id):
     if created or record.last_watched_at < now - WATCH_UPDATE_INTERVAL:
         WatchRecord.objects.filter(pk=record.pk).update(last_watched_at=now)
         Movie.objects.filter(pk=movie_id).update(last_watched_at=now)
+
+
+class MovieProgressView(APIView):
+    """Where the viewer is in the film, so that the next visit resumes there."""
+
+    @extend_schema(
+        tags=["Playback"],
+        operation_id="save_movie_progress",
+        request=ProgressSerializer,
+        responses={204: OpenApiResponse(description="Position saved.")},
+        description=(
+            "Reported by the player every few seconds and when leaving the page. "
+            "`position` and `duration` are in seconds. Past 90 % of the film, the viewing counts as complete "
+            "and the movie's detail no longer offers to resume."
+        ),
+    )
+    def put(self, request, movie_id):
+        movie = get_movie_or_404(movie_id)
+        body = ProgressSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        now = timezone.now()
+        WatchRecord.objects.update_or_create(
+            user_id=request.user.id,
+            movie=movie,
+            defaults={**body.validated_data, "last_watched_at": now},
+        )
+        Movie.objects.filter(pk=movie.pk).update(last_watched_at=now)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class MovieStreamView(MediaView):

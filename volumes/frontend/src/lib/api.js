@@ -97,8 +97,9 @@ async function parse(response) {
   }
 }
 
-async function rawFetch(path, { method = 'GET', body, headers = {}, auth = true, csrf = false } = {}) {
-  const options = { method, headers: { Accept: 'application/json', ...headers }, credentials: 'include' };
+async function rawFetch(path, { method = 'GET', body, headers = {}, auth = true, csrf = false, keepalive = false } = {}) {
+  // keepalive: the request outlives the page, for a last save when leaving it.
+  const options = { method, headers: { Accept: 'application/json', ...headers }, credentials: 'include', keepalive };
   if (body instanceof FormData) {
     options.body = body;
   } else if (body !== undefined) {
@@ -210,6 +211,10 @@ export const movies = {
   },
   requestDownload(id) {
     return api(`/api/movies/${id}/download/`, { method: 'PUT', body: {} });
+  },
+  // Where the viewer is, so the next visit resumes there. Sent with keepalive: it may be the page's last act.
+  saveProgress(id, position, duration) {
+    return api(`/api/movies/${id}/progress/`, { method: 'PUT', body: { position, duration }, keepalive: true });
   },
   comments(id, page = 1) {
     return api(`/api/movies/${id}/comments/?page=${page}`);

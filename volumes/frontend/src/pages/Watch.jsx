@@ -14,6 +14,19 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { languageName, t as translate } from "@/lib/i18n";
 
 const POLL_INTERVAL = 2000;
+// How often the position is reported while the film plays.
+const PROGRESS_INTERVAL = 10000;
+// Below this many seconds in, there is nothing worth resuming.
+const RESUME_MIN_SECONDS = 30;
+
+function formatTime(seconds) {
+    const total = Math.floor(seconds);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const sec = total % 60;
+    const mm = h ? String(m).padStart(2, "0") : String(m);
+    return `${h ? `${h}:` : ""}${mm}:${String(sec).padStart(2, "0")}`;
+}
 
 function Badge({ children, variant = "default" }) {
     const styles = variant === "secondary"
@@ -27,12 +40,10 @@ function qualityKey(quality) {
     return quality.original ? "original" : String(quality.height);
 }
 
-function Player({ movieId, initialStatus }) {
+function Player({ movieId, initialStatus, initialProgress }) {
     const { t, language } = useTranslation();
     const [download, setDownload] = useState(null);
     const [requested, setRequested] = useState(Boolean(initialStatus));
-    // A film already on the server is asked for again on arrival: the request is idempotent, nothing is
-    // downloaded twice, and it adds the subtitles of a viewer whose preferred language changed since.
     const renewRef = useRef(Boolean(initialStatus) && initialStatus !== "failed");
     const [error, setError] = useState(null);
     const videoRef = useRef(null);
@@ -47,6 +58,35 @@ function Player({ movieId, initialStatus }) {
     const [quality, setQuality] = useState("original");
     // Position and play state to restore after a change of quality.
     const resumeRef = useRef(null);
+    // Where the viewer stopped last time, used once, when the video first loads.
+    const startAtRef = useRef(initialProgress?.position || 0);
+    // Last position seen, saved when the page is left (the video element is gone by then).
+    const progressRef = useRef({ position: 0, duration: 0, sentAt: 0 });
+
+    function saveProgress() {
+        const { position, duration } = progressRef.current;
+        if (!duration) return;
+        progressRef.current.sentAt = Date.now();
+        moviesApi.saveProgress(movieId, position, duration).catch(() => {});
+    }
+
+    function trackProgress(event) {
+        const video = event.currentTarget;
+        if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+        progressRef.current.position = video.ended ? video.duration : video.currentTime;
+        progressRef.current.duration = video.duration;
+        if (event.type !== "timeupdate" || Date.now() - progressRef.current.sentAt >= PROGRESS_INTERVAL) saveProgress();
+    }
+
+    // The last position goes out when the page is left: another route, a reload, a closed tab.
+    useEffect(() => {
+        window.addEventListener("pagehide", saveProgress);
+        return () => {
+            window.removeEventListener("pagehide", saveProgress);
+            saveProgress();
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [movieId]);
 
     function follow(data) {
         setDownload(data);
@@ -114,7 +154,6 @@ function Player({ movieId, initialStatus }) {
     }, [movieId, requested]);
 
     const source = sources[quality] || sources.original || null;
-    // English is always requested; a track in another language is the viewer's own and comes first.
     const readySubtitles = download?.subtitles.filter((subtitle) => subtitle.status === "ready") ?? [];
     const defaultSubtitle = (readySubtitles.find((subtitle) => subtitle.language !== "en") || readySubtitles[0])?.language;
     const qualities = download?.qualities ?? [];
@@ -130,16 +169,37 @@ function Player({ movieId, initialStatus }) {
         const video = videoRef.current;
         const state = resumeRef.current;
         resumeRef.current = null;
-        if (!video || !state) return;
-        if (state.time > 0 && Number.isFinite(video.duration)) video.currentTime = state.time;
-        if (state.playing) video.play().catch(() => {});
+        if (!video) return;
+        if (state) {
+            if (state.time > 0 && Number.isFinite(video.duration)) video.currentTime = state.time;
+            if (state.playing) video.play().catch(() => {});
+            return;
+        }
+        // First load: pick up where the viewer left off.
+        const startAt = startAtRef.current;
+        startAtRef.current = 0;
+        if (startAt >= RESUME_MIN_SECONDS && Number.isFinite(video.duration) && startAt < video.duration) {
+            video.currentTime = startAt;
+            toast.add({ title: t("Resumed at {time}", { time: formatTime(startAt) }), type: "success" });
+        }
     }
 
     return (
         <div className="flex flex-col gap-3">
             <div className="aspect-video w-full overflow-hidden rounded-lg bg-black flex items-center justify-center">
                 {source ? (
-                    <video ref={videoRef} src={source} controls autoPlay className="h-full w-full" crossOrigin="use-credentials" onLoadedMetadata={resume}>
+                    <video
+                        ref={videoRef}
+                        src={source}
+                        controls
+                        autoPlay
+                        className="h-full w-full"
+                        crossOrigin="use-credentials"
+                        onLoadedMetadata={resume}
+                        onTimeUpdate={trackProgress}
+                        onPause={trackProgress}
+                        onEnded={trackProgress}
+                    >
                         {readySubtitles.map((subtitle) => (
                             <track
                                 key={subtitle.language}
@@ -380,7 +440,7 @@ function MoviePage({ id }) {
 
     return (
         <div className="w-full max-w-4xl mx-auto p-4 flex flex-col gap-4">
-            <Player movieId={film.id} initialStatus={film.download_status} />
+            <Player movieId={film.id} initialStatus={film.download_status} initialProgress={film.progress} />
 
             <div className="flex items-start justify-between gap-4">
                 <h1 className="text-2xl font-bold">{film.title}</h1>

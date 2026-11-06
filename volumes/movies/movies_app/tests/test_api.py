@@ -97,6 +97,15 @@ class MovieListTests(ApiTestCase):
         watched = {movie["title"]: movie["watched"] for movie in self.client.get("/api/movies/").data["results"]}
         self.assertEqual(watched, {"Charade": True, "Zorro": False, "alibi": False})
 
+    def test_a_film_left_halfway_is_to_resume_not_watched(self):
+        WatchRecord.objects.create(user_id=self.user.id, movie=self.charade, position=1200, duration=6000)
+        WatchRecord.objects.create(user_id=self.user.id, movie=self.zorro, position=5700, duration=6000)
+        WatchRecord.objects.create(user_id=uuid.uuid4(), movie=self.alibi, position=1200, duration=6000)
+        films = {movie["title"]: (movie["watched"], movie["progress"]) for movie in self.client.get("/api/movies/").data["results"]}
+        self.assertEqual(films["Charade"], (False, {"position": 1200.0, "duration": 6000.0}))
+        self.assertEqual(films["Zorro"], (True, None), "past 90 %, the film counts as watched")
+        self.assertEqual(films["alibi"], (False, None), "another viewer's position is not mine")
+
     def test_anonymous_front_page_ignores_parameters(self):
         self.client.force_authenticate(None)
         self.assertEqual(self.titles("?search=charade&sort=name&page=5"), ["Zorro", "Charade", "alibi"])
@@ -114,6 +123,37 @@ class MovieDetailTests(ApiTestCase):
 
     def test_unknown_movie(self):
         self.assertEqual(self.client.get("/api/movies/999/").status_code, 404)
+
+
+class ProgressTests(ApiTestCase):
+    def test_the_position_is_saved_then_offered_to_resume(self):
+        movie = self.make_movie()
+        url = f"/api/movies/{movie.pk}/progress/"
+        self.assertEqual(self.client.put(url, {"position": 754.5, "duration": 6000}).status_code, 204)
+        data = self.client.get(f"/api/movies/{movie.pk}/").data
+        self.assertEqual((data["watched"], data["progress"]), (False, {"position": 754.5, "duration": 6000.0}))
+        movie.refresh_from_db()
+        self.assertIsNotNone(movie.last_watched_at, "a viewing keeps the film from being purged")
+
+        self.assertEqual(self.client.put(url, {"position": 5900, "duration": 6000}).status_code, 204)
+        data = self.client.get(f"/api/movies/{movie.pk}/").data
+        self.assertEqual((data["watched"], data["progress"]), (True, None))
+        self.assertEqual(WatchRecord.objects.filter(movie=movie).count(), 1, "one record per viewer")
+
+    def test_the_position_is_clamped_and_checked(self):
+        movie = self.make_movie()
+        url = f"/api/movies/{movie.pk}/progress/"
+        self.assertEqual(self.client.put(url, {"position": 7000, "duration": 6000}).status_code, 204)
+        self.assertEqual(WatchRecord.objects.get(movie=movie).position, 6000)
+        self.assertEqual(self.client.put(url, {"position": -1, "duration": 6000}).status_code, 400)
+        self.assertEqual(self.client.put(url, {"position": 10, "duration": 0}).status_code, 400)
+        self.assertEqual(self.client.put(url, {"position": 10}).status_code, 400)
+        self.assertEqual(self.client.put("/api/movies/999/progress/", {"position": 10, "duration": 60}).status_code, 404)
+
+    def test_the_position_needs_a_login(self):
+        movie = self.make_movie()
+        self.client.force_authenticate(None)
+        self.assertEqual(self.client.put(f"/api/movies/{movie.pk}/progress/", {"position": 10, "duration": 60}).status_code, 401)
 
 
 class CommentTests(ApiTestCase):
