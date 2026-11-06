@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/toast";
 import { movies as moviesApi, comments as commentsApi } from "@/lib/api";
 import { COMMENT_MAX_LENGTH } from "@/lib/limits";
+import { appendPage } from "@/lib/pages";
 import { useAuth } from "@/hooks/useAuth";
 import { useAvatarUrl } from "@/lib/avatars";
 import CoverPlaceholder from "@/components/CoverPlaceholder";
@@ -414,7 +415,7 @@ function Comments({ movieId }) {
 
     function loadMore() {
         moviesApi.comments(movieId, nextPage).then((data) => {
-            setComments((current) => [...current, ...data.results]);
+            setComments((current) => appendPage(current, data.results));
             setNextPage(data.next_page);
         }).catch(showError);
     }

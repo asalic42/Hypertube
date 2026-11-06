@@ -1,4 +1,6 @@
+import socket
 import tempfile
+import time
 import uuid
 from pathlib import Path
 from types import SimpleNamespace
@@ -379,6 +381,26 @@ class PlaybackTests(ApiTestCase):
             response = self.client.get(stream, HTTP_RANGE="bytes=8192-8200")
             self.assertEqual(response.status_code, 206)
             self.assertEqual(b"".join(response.streaming_content), content[8192:8201])
+
+            # The viewer seeked again: the browser dropped this request, and
+            # its thread is not to wait START_TIMEOUT for a piece nobody wants.
+            with mock.patch("movies_app.views.playback._client_gone", return_value=True), mock.patch.object(streaming, "START_TIMEOUT", 60):
+                started = time.monotonic()
+                response = self.client.get(stream, HTTP_RANGE="bytes=5000-5999")
+            self.assertEqual(response.status_code, 503)
+            self.assertLess(time.monotonic() - started, 5)
+
+    def test_client_gone_reads_the_proxy_closing_the_connection(self):
+        from movies_app.views.playback import _client_gone
+
+        server, client = socket.socketpair()
+        self.addCleanup(server.close)
+        request = SimpleNamespace(META={"gunicorn.socket": server})
+        self.assertFalse(_client_gone(request))
+        client.close()
+        self.assertTrue(_client_gone(request))
+        # Outside gunicorn there is no socket to watch: the request lives on until its timeout.
+        self.assertFalse(_client_gone(SimpleNamespace(META={})))
 
     def test_stream_serves_the_requested_quality(self):
         download = Download.objects.create(
