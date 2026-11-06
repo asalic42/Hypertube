@@ -18,6 +18,7 @@ from .common import get_movie_or_404
 
 SUBTITLE_RETRY_DELAY = timedelta(days=1)
 WATCH_UPDATE_INTERVAL = timedelta(minutes=1)
+RETRY_AFTER_SECONDS = 2
 TOKEN_PARAMETER = OpenApiParameter("token", str, description="Stream token found in the download resource.")
 QUALITY_PARAMETER = OpenApiParameter(
     "quality",
@@ -172,10 +173,13 @@ class MovieStreamView(MediaView):
             404: OpenApiResponse(description="This resolution is not available."),
             409: OpenApiResponse(description="Not enough data has been downloaded yet."),
             416: OpenApiResponse(description="Range not satisfiable."),
+            503: OpenApiResponse(description="This part of the film is not on the server yet: retry after `Retry-After` seconds."),
         },
         description=(
             "The video, with HTTP range support. Non browser-ready formats are converted on the fly. "
-            "`quality` selects one of the lower resolutions encoded once the movie is stored."
+            "`quality` selects one of the lower resolutions encoded once the movie is stored. "
+            "While the film downloads, a range that is not on the server yet is fetched first, and "
+            "answered 503 when it takes more than a few seconds to arrive."
         ),
     )
     def get(self, request, movie_id):
@@ -199,6 +203,12 @@ class MovieStreamView(MediaView):
             return self._respond(request, download)
         except media.MediaError:
             raise NotFound("The video file is missing.") from None
+        except streaming.PieceUnavailable:
+            response = Response(
+                {"detail": "This part of the film is not on the server yet."}, status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+            response["Retry-After"] = str(RETRY_AFTER_SECONDS)
+            return response
         except storage.StorageError:
             return Response({"detail": "The file storage is unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
