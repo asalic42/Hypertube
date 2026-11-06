@@ -66,8 +66,11 @@ class UserUpdateSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError({"current_password": "Your current password is required to set a new one."})
                 if not self.instance.check_password(current_password):
                     raise serializers.ValidationError({"current_password": "Wrong password."})
+            # The same rules as at sign-up, against the account as it will be: an
+            # email sent along must not be found in the password any more than the current one.
+            candidate = User(username=self.instance.username, email=attributes.get("email", self.instance.email))
             try:
-                validate_password(password, user=self.instance)
+                validate_password(password, user=candidate)
             except DjangoValidationError as exc:
                 raise serializers.ValidationError({"password": exc.messages})
         return attributes
