@@ -1,0 +1,272 @@
+services:
+  proxy:
+    image: hypertube-proxy
+    container_name: 'hypertube-proxy'
+    networks:
+      - hypertube
+    depends_on:
+      - frontend
+    build:
+      context: services/proxy
+      dockerfile: Dockerfile
+    env_file: .env
+    volumes:
+      - ./services/proxy/certs:/etc/nginx/certs
+    ports:
+      - '8080:8080'
+    restart: on-failure
+
+  frontend:
+    image: hypertube-frontend
+    container_name: 'hypertube-frontend'
+    volumes:
+      #- data-frontend:/var/www/hypertube_frontend
+      - ./volumes/frontend:/app
+      - /app/node_modules
+    networks:
+      - hypertube
+    build:
+      context: .
+      dockerfile: services/frontend/Dockerfile
+    env_file: .env
+    expose:
+      - '5173'
+    restart: on-failure
+
+  users:
+    image: hypertube-users
+    container_name: 'hypertube-users'
+    volumes:
+      - users:/code
+    networks:
+      - hypertube
+    build:
+      context: services/users
+      dockerfile: Dockerfile
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      file-storage-init:
+        condition: service_completed_successfully
+    expose:
+      - '8443'
+    restart: on-failure
+
+  auth:
+    image: hypertube-auth
+    container_name: 'hypertube-auth'
+    volumes:
+      - auth:/code
+    networks:
+      - hypertube
+    build:
+      context: services/auth
+      dockerfile: Dockerfile
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - '8443'
+    restart: on-failure
+
+  movies:
+    image: hypertube-movies
+    container_name: 'hypertube-movies'
+    volumes:
+      - movies:/code
+      - movies-downloads:/downloads
+    networks:
+      - hypertube
+    build:
+      context: services/movies
+      dockerfile: Dockerfile
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      file-storage-init:
+        condition: service_completed_successfully
+    expose:
+      - '8443'
+    restart: on-failure
+
+  movies-worker:
+    image: hypertube-movies
+    container_name: 'hypertube-movies-worker'
+    volumes:
+      - movies:/code
+      - movies-downloads:/downloads
+    networks:
+      - hypertube
+    # Same image as `movies`. The build section is repeated on purpose: without it,
+    # Compose tries to pull `hypertube-movies` from Docker Hub when no local image
+    # exists yet (after a clean), instead of waiting for the movies build.
+    build:
+      context: services/movies
+      dockerfile: Dockerfile
+    env_file: .env
+    entrypoint: ["python3", "manage.py", "torrent_worker"]
+    depends_on:
+      movies:
+        condition: service_started
+      file-storage-init:
+        condition: service_completed_successfully
+    ports:
+      - '6881:6881'
+      - '6881:6881/udp'
+    restart: on-failure
+
+  db:
+    image: hypertube-db
+    container_name: 'hypertube-db'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - hypertube
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_DB: ${DB_NAME:?DB_NAME is not set in .env}
+      POSTGRES_USER: ${DB_USER:?DB_USER is not set in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is not set in .env}
+    env_file: .env
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${DB_USER}", "-d", "${DB_NAME}"]
+    restart: on-failure
+  
+  pgAdmin:
+    image: docker.io/dpage/pgadmin4
+    container_name: hypertube-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:?PGADMIN_EMAIL is not set in .env}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?PGADMIN_PASSWORD is not set in .env}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      MASTER_PASSWORD_REQUIRED: 'False'
+    ports:
+      - "5050:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - hypertube
+    restart: on-failure
+    volumes:
+      - ./servers.json:/pgadmin4/servers.json
+
+  file-storage:
+    image: docker.io/rustfs/rustfs:rc-glibc
+    container_name: hypertube-fs
+    volumes:
+      - file-storage:/data
+    networks:
+      - hypertube
+    env_file: .env
+    environment:
+      - RUSTFS_CONSOLE_ENABLE=${RUSTFS_CONSOLE_ENABLE}
+      - RUSTFS_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
+      - RUSTFS_SECRET_KEY=${AWS_SECRET_ACCESS_KEY}
+    ports:
+      - 9000:9000 # S3 API
+      - 9001:9001 # Web interface
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://file-storage:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  file-storage-init:
+    image: hypertube-fs-init
+    container_name: hypertube-fs-init
+    env_file: .env
+    networks:
+      - hypertube
+    build:
+      context: services/file-storage
+      dockerfile: Dockerfile
+    depends_on:
+      file-storage:
+        condition: service_healthy
+    restart: "no"
+
+  mailpit:
+    image: docker.io/axllent/mailpit:latest
+    container_name: hypertube-mailpit
+    networks:
+      - hypertube
+    ports:
+      - 1025:1025 # SMTP
+      - 8025:8025 # Web interface
+    restart: unless-stopped
+
+  dbgate:
+    image: docker.io/dbgate/dbgate
+    container_name: hypertube-dbgate
+    networks:
+      - hypertube
+    restart: always
+    ports:
+      - 5051:3000
+    environment:
+      CONNECTIONS: con1
+      LABEL_con1: Hypertube Database
+      SERVER_con1: hypertube-db
+      DATABASE_con1: $DB_NAME
+      USER_con1: $DB_USER
+      PASSWORD_con1: $DB_PASSWORD
+      PORT_con1: $DB_PORT
+      ENGINE_con1: postgres@dbgate-plugin-postgres
+
+
+volumes:
+  data-frontend:
+    name: data-frontend
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: placeholder/volumes/frontend
+
+  users:
+    name: users
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: placeholder/volumes/users
+
+  auth:
+    name: auth
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: placeholder/volumes/auth
+
+  movies:
+    name: movies
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: placeholder/volumes/movies
+
+  movies-downloads:
+    name: movies-downloads
+
+  postgres-data:
+    name: postgres-data
+
+  file-storage:
+    name: file-storage
+ 
+
+networks:
+  hypertube:
+    name: hypertube
+    driver: bridge

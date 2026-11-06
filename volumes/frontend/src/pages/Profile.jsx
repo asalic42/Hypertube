@@ -1,0 +1,476 @@
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { CalendarDays, Camera, KeyRound, Languages, Link2, Mail, ShieldAlert, Trash2, UserRound } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { toast } from "@/components/ui/toast";
+import { PASSWORD_PROBLEM_PARAMS, passwordProblem } from "@/lib/passwordRules";
+import { auth as authApi, users as usersApi } from "@/lib/api";
+import { LANGUAGES } from "@/lib/languages";
+import { languageName, t as translate } from "@/lib/i18n";
+import { useTranslation } from "@/hooks/useTranslation";
+import { forgetAvatar } from "@/lib/avatars";
+import { useAuth } from "@/hooks/useAuth";
+import { DiscordIcon, FortyTwoIcon, GithubIcon, GoogleIcon } from "@/components/icons/oauth-icons";
+
+import { AVATAR_TYPES, BAD_TYPE, TOO_LARGE, avatarFileProblem } from "@/lib/avatarFile";
+
+// The providers the auth service can link to an account, with their display name.
+const PROVIDERS = {
+    "42": { label: "42", Icon: FortyTwoIcon },
+    github: { label: "GitHub", Icon: GithubIcon },
+    google: { label: "Google", Icon: GoogleIcon },
+    discord: { label: "Discord", Icon: DiscordIcon },
+};
+
+// A plain sentence for a failed picture upload, whatever layer refused it.
+function pictureError(err) {
+    if (err.status === 413) return TOO_LARGE;
+    if (err.status === 400) {
+        const reason = String(err.data?.avatar?.[0] || err.message);
+        if (/d[ée]passer|too large|size/i.test(reason)) return translate(TOO_LARGE);
+        if (/JPEG|PNG|WebP|image/i.test(reason)) return translate(BAD_TYPE);
+    }
+    return err.message;
+}
+
+// The password fields are never "saved": they are cleared once the change is made.
+const EMPTY_PASSWORDS = { currentPassword: "", password: "", passwordConfirm: "" };
+
+/**
+ * The account of the connected user. One save sends everything to the users
+ * service, which relays the email and the password to the auth service.
+ */
+export default function Profile() {
+    const { user, updateUser, clearSession } = useAuth();
+    const navigate = useNavigate();
+    const { t, language, setLanguage } = useTranslation();
+    // Accounts created through OAuth have no password yet: they can create one.
+    const hasPassword = Boolean(user.has_password);
+    const providers = Array.isArray(user.oauth_providers) ? user.oauth_providers : [];
+    const [form, setForm] = useState(null);
+    // Values as last stored, to know what changed on save.
+    const [saved, setSaved] = useState(null);
+    const [error, setError] = useState(null);
+    const [saving, setSaving] = useState(false);
+
+    const [avatarUrl, setAvatarUrl] = useState(null);
+    const [avatarFile, setAvatarFile] = useState(null);
+    const [avatarPreview, setAvatarPreview] = useState(null);
+    // Removing the stored picture is a pending change, saved with the form.
+    const [removeAvatar, setRemoveAvatar] = useState(false);
+    const fileInputRef = useRef(null);
+
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        usersApi.get(user.id)
+            .then((profile) => {
+                if (cancelled) return;
+                const values = {
+                    firstname: profile.firstname || "",
+                    lastname: profile.lastname || "",
+                    email: user.email || profile.email || "",
+                    preferredLanguage: profile.preferredLanguage || "en",
+                    ...EMPTY_PASSWORDS,
+                };
+                setForm(values);
+                setSaved(values);
+                setAvatarUrl(profile.avatar_url);
+            })
+            .catch((err) => !cancelled && setError(err.message));
+        return () => {
+            cancelled = true;
+        };
+    }, [user.id, user.email]);
+
+    // The preview of a chosen picture is an object URL: release it when replaced or on leave.
+    useEffect(() => () => avatarPreview && URL.revokeObjectURL(avatarPreview), [avatarPreview]);
+
+    function handleChange(e) {
+        setForm({ ...form, [e.target.name]: e.target.value });
+    }
+
+    async function choosePicture(e) {
+        const input = e.target;
+        const file = input.files[0];
+        if (!file) return;
+        const problem = await avatarFileProblem(file);
+        if (problem) {
+            toast.add({ title: t(problem.title), description: t(problem.description), type: "error" });
+            input.value = "";
+            return;
+        }
+        setAvatarFile(file);
+        setAvatarPreview(URL.createObjectURL(file));
+        // A new picture replaces the one that was about to be removed.
+        setRemoveAvatar(false);
+    }
+
+    // Removing the picture is a pending change: it is erased from the storage
+    // when "Save changes" is pressed, and "Discard" brings it back.
+    function removePicture() {
+        if (avatarPreview) {
+            setAvatarFile(null);
+            setAvatarPreview(null);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            return;
+        }
+        if (!avatarUrl) return;
+        setRemoveAvatar(true);
+    }
+
+    const changed = form && saved && (Object.keys(saved).some((key) => form[key] !== saved[key]) || avatarFile || removeAvatar);
+
+    function discard() {
+        setForm(saved);
+        setAvatarFile(null);
+        setAvatarPreview(null);
+        setRemoveAvatar(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+
+    async function save(e) {
+        e.preventDefault();
+        if (!changed) return;
+        if (form.password && form.password !== form.passwordConfirm) {
+            toast.add({ title: t("Passwords do not match"), description: t("Type the new password twice, the same way."), type: "error" });
+            return;
+        }
+        const problem = form.password ? passwordProblem(form.password, { username: user.username, email: form.email }) : null;
+        if (problem) {
+            toast.add({ title: t("Error"), description: t(problem, PASSWORD_PROBLEM_PARAMS), type: "error" });
+            return;
+        }
+        const passwordWasSet = Boolean(form.password);
+        // The stored picture is deleted after the profile update, only if the
+        // whole save succeeds up to that point.
+        const pictureRemoved = removeAvatar;
+        let pictureRemovalDone = false;
+        setSaving(true);
+        try {
+            let profile;
+            try {
+                // Everything in one call. The email and the password are only sent
+                // when they change: the users service relays them to the auth service.
+                const fields = {
+                    firstname: form.firstname,
+                    lastname: form.lastname,
+                    preferredLanguage: form.preferredLanguage,
+                    email: form.email !== saved.email ? form.email : null,
+                    password: form.password || null,
+                    avatar: avatarFile,
+                };
+                // A current password only exists once the account has one. An OAuth
+                // account creating its first password must not be asked for it.
+                if (passwordWasSet && hasPassword) fields.current_password = form.currentPassword;
+                profile = await usersApi.update(user.id, fields);
+            } catch (err) {
+                const title = avatarFile && err.data?.avatar ? t("Could not save the picture") : t("Could not save your information");
+                toast.add({ title, description: avatarFile && err.data?.avatar ? pictureError(err) : err.message, type: "error" });
+                return;
+            }
+            if (pictureRemoved) {
+                try {
+                    await usersApi.deleteAvatar(user.id);
+                    forgetAvatar(user.id);
+                    setAvatarUrl(null);
+                    pictureRemovalDone = true;
+                } catch (err) {
+                    // Already gone on the server: that is the state we wanted.
+                    if (err.status === 404) {
+                        forgetAvatar(user.id);
+                        setAvatarUrl(null);
+                        pictureRemovalDone = true;
+                    } else {
+                        toast.add({ title: t("Could not remove the picture"), description: err.message, type: "error" });
+                    }
+                }
+            }
+            const values = {
+                firstname: profile.firstname || "",
+                lastname: profile.lastname || "",
+                email: profile.email || form.email,
+                preferredLanguage: profile.preferredLanguage || "en",
+                ...EMPTY_PASSWORDS,
+            };
+            setForm(values);
+            setSaved(values);
+            // Keep the session in step: a new email changes the token claims, and a
+            // new password turns the "create" section into the "change" one at once.
+            const nextUser = { ...user };
+            let userChanged = false;
+            if (values.email !== user.email) {
+                nextUser.email = values.email;
+                userChanged = true;
+            }
+            if (passwordWasSet) {
+                nextUser.has_password = true;
+                userChanged = true;
+            }
+            if (userChanged) updateUser(nextUser);
+            // The site follows the preference at once.
+            setLanguage(values.preferredLanguage);
+            if (avatarFile) {
+                forgetAvatar(user.id);
+                setAvatarUrl(profile.avatar_url);
+            }
+            setAvatarFile(null);
+            setAvatarPreview(null);
+            // Keep the removal pending if the storage refused it, so the save bar stays.
+            setRemoveAvatar(pictureRemoved && !pictureRemovalDone);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            if (passwordWasSet) {
+                toast.add({
+                    title: hasPassword ? t("Password changed") : t("Password created"),
+                    description: hasPassword
+                        ? t("Your new password is now active.")
+                        : t("You can now also log in with your username and password."),
+                    type: "success",
+                });
+            } else if (pictureRemoved && pictureRemovalDone) {
+                toast.add({ title: t("Picture removed"), description: t("Your profile has no picture anymore."), type: "success" });
+            } else {
+                toast.add({ title: t("Profile updated"), description: t("Your information has been saved."), type: "success" });
+            }
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    async function deleteAccount() {
+        setDeleting(true);
+        try {
+            // The auth service erases the profile, comments and watch history with the account.
+            await authApi.deleteMe();
+        } catch (err) {
+            toast.add({ title: t("Could not delete the account"), description: err.message, type: "error" });
+            setDeleting(false);
+            return;
+        }
+        clearSession();
+        navigate("/login", { replace: true });
+        toast.add({ title: t("Account deleted"), description: t("Your account has been removed."), type: "success" });
+    }
+
+    if (error) return <p className="p-8 text-destructive">{error}</p>;
+    if (!form) return <p className="p-8 text-muted-foreground">{t("Loading...")}</p>;
+
+    const picture = avatarPreview || (removeAvatar ? null : avatarUrl);
+    const memberSince = user.date_joined
+        ? new Date(user.date_joined).toLocaleDateString(language, { year: "numeric", month: "long" })
+        : null;
+    const spoken = languageName(form.preferredLanguage, language);
+
+    return (
+        <div className="w-full max-w-3xl p-4 sm:py-8">
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept={AVATAR_TYPES.join(",")}
+                className="sr-only"
+                aria-label={t("Profile picture")}
+                onChange={choosePicture}
+            />
+
+            <form id="profile-form" onSubmit={save} className="flex flex-col gap-5">
+                {/* Identity: banner, picture and the facts that do not change here. */}
+                <section className="overflow-hidden rounded-2xl bg-card text-card-foreground shadow-xs ring-1 ring-foreground/10">
+                    <div className="h-28 bg-linear-to-r from-accent via-primary/35 to-primary/60 dark:from-black dark:via-primary/70 dark:to-primary sm:h-32" aria-hidden="true" />
+                    <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+                        <div className="-mt-14 flex flex-col gap-4 sm:mt-0 sm:flex-row sm:items-start sm:gap-5">
+                            <div className="relative w-fit sm:-mb-16 sm:-translate-y-16">
+                                <Avatar className="size-28 ring-4 ring-card sm:size-32">
+                                    {picture && <AvatarImage src={picture} alt={t("Your profile picture")} />}
+                                    <AvatarFallback className="text-4xl">{user.username[0].toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    aria-label={picture ? t("Change picture") : t("Add a picture")}
+                                    title={picture ? t("Change picture") : t("Add a picture")}
+                                    className="absolute right-0 bottom-0 flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-card hover:bg-primary/80 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                                >
+                                    <Camera className="size-4" aria-hidden="true" />
+                                </button>
+                                {picture && (
+                                    <button
+                                        type="button"
+                                        onClick={removePicture}
+                                        disabled={saving}
+                                        aria-label={avatarPreview ? t("Discard picture") : t("Remove picture")}
+                                        title={avatarPreview ? t("Discard picture") : t("Remove picture")}
+                                        className="absolute top-0 right-0 flex size-8 items-center justify-center rounded-full bg-black text-destructive-foreground shadow-md ring-2 ring-card hover:bg-black/80 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
+                                    >
+                                        <Trash2 className="size-3.5" aria-hidden="true" />
+                                    </button>
+                                )}
+                            </div>
+                            <div className="flex min-w-0 flex-1 flex-col gap-1">
+                                <h1 className="truncate text-2xl font-bold tracking-tight">{user.username}</h1>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                                    <span className="flex items-center gap-1.5"><Mail className="size-3.5" aria-hidden="true" />{saved.email}</span>
+                                    {spoken && (
+                                        <span className="flex items-center gap-1.5"><Languages className="size-3.5" aria-hidden="true" />{spoken}</span>
+                                    )}
+                                    {memberSince && (
+                                        <span className="flex items-center gap-1.5"><CalendarDays className="size-3.5" aria-hidden="true" />{t("Member since {date}", { date: memberSince })}</span>
+                                    )}
+                                    {providers.length > 0 && (
+                                        <span className="flex flex-wrap items-center gap-1.5">
+                                            <Link2 className="size-3.5" aria-hidden="true" />
+                                            <span>{t("Linked accounts:")}</span>
+                                            {providers.map((provider) => {
+                                                const info = PROVIDERS[provider] || { label: provider, Icon: null };
+                                                const ProviderIcon = info.Icon;
+                                                return (
+                                                    <span key={provider} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
+                                                        {ProviderIcon && <ProviderIcon className="size-3" />}
+                                                        {info.label}
+                                                    </span>
+                                                );
+                                            })}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        {avatarPreview && (
+                            <p className="mt-3 text-xs text-muted-foreground">{t("New picture selected. Save your changes to keep it.")}</p>
+                        )}
+                    </div>
+                </section>
+
+                <Section
+                    icon={UserRound}
+                    title={t("Personal information")}
+                    description={t("Your name as other viewers see it on your comments, and the email you log in with.")}
+                >
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid gap-2">
+                            <Label htmlFor="firstname">{t("First name")}</Label>
+                            <Input id="firstname" name="firstname" autoComplete="given-name" value={form.firstname} onChange={handleChange} required maxLength={128} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="lastname">{t("Last name")}</Label>
+                            <Input id="lastname" name="lastname" autoComplete="family-name" value={form.lastname} onChange={handleChange} required maxLength={128} />
+                        </div>
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="email">{t("Email")}</Label>
+                        <Input id="email" type="email" name="email" autoComplete="email" value={form.email} onChange={handleChange} required />
+                    </div>
+                </Section>
+
+                <Section
+                    icon={Languages}
+                    title={t("Preferences")}
+                    description={t("Subtitles are requested in this language whenever a film has them.")}
+                >
+                    <div className="grid gap-2 sm:max-w-xs">
+                        <Label htmlFor="preferredLanguage">{t("Language")}</Label>
+                        <NativeSelect id="preferredLanguage" name="preferredLanguage" className="w-full" value={form.preferredLanguage} onChange={handleChange}>
+                            {LANGUAGES.map(([value]) => (
+                                <NativeSelectOption key={value} value={value}>{languageName(value, language)}</NativeSelectOption>
+                            ))}
+                        </NativeSelect>
+                    </div>
+                </Section>
+
+                <Section
+                    icon={KeyRound}
+                    title={hasPassword ? t("Change password") : t("Create a password")}
+                    description={hasPassword
+                        ? t("Leave empty to keep your password. Your current password is required to set a new one.")
+                        : t("Add a password to also sign in with your username and password.")}
+                >
+                    {hasPassword && (
+                        <div className="grid gap-2 sm:max-w-xs">
+                            <Label htmlFor="currentPassword">{t("Current password")}</Label>
+                            <Input id="currentPassword" type="password" name="currentPassword" autoComplete="current-password" value={form.currentPassword} onChange={handleChange} required={Boolean(form.password)} />
+                        </div>
+                    )}
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid gap-2">
+                            <Label htmlFor="password">{t("New password")}</Label>
+                            <Input id="password" type="password" name="password" autoComplete="new-password" value={form.password} onChange={handleChange} minLength={8} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="passwordConfirm">{t("Confirm new password")}</Label>
+                            <Input id="passwordConfirm" type="password" name="passwordConfirm" autoComplete="new-password" value={form.passwordConfirm} onChange={handleChange} required={Boolean(form.password)} />
+                        </div>
+                    </div>
+                </Section>
+
+                <Section
+                    icon={ShieldAlert}
+                    title={t("Danger zone")}
+                    description={t("Deleting the account removes your login, profile and picture for good.")}
+                    tone="danger"
+                >
+                    <Button type="button" variant="destructive" className="w-fit" onClick={() => setConfirmingDelete(true)}>
+                        <Trash2 aria-hidden="true" />
+                        {t("Delete account")}
+                    </Button>
+                </Section>
+
+                {/* Follows the viewer while something is unsaved, so the action is never out of reach. */}
+                {changed && (
+                    <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-primary px-4 py-3 text-primary-foreground shadow-lg">
+                        <p className="text-sm font-medium">{t("You have unsaved changes")}</p>
+                        <div className="flex gap-2">
+                            <Button type="button" variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground" onClick={discard} disabled={saving}>
+                                {t("Discard")}
+                            </Button>
+                            <Button type="submit" variant="secondary" size="sm" disabled={saving}>
+                                {saving ? t("Saving...") : t("Save changes")}
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </form>
+
+            <Dialog open={confirmingDelete} onOpenChange={(open) => !deleting && setConfirmingDelete(open)}>
+                <DialogContent showCloseButton={!deleting}>
+                    <DialogHeader>
+                        <DialogTitle>{t("Delete your account?")}</DialogTitle>
+                        <DialogDescription>
+                            {t("This cannot be undone. Your profile and picture are erased and you are logged out.")}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <DialogClose render={<Button variant="outline" />} disabled={deleting}>{t("Cancel")}</DialogClose>
+                        <Button type="button" variant="destructive" onClick={deleteAccount} disabled={deleting}>
+                            {deleting ? t("Deleting...") : t("Delete my account")}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+}
+
+/** A settings block: heading and explanation on the left, fields on the right from tablets up. */
+function Section({ icon: Icon, title, description, tone, children }) {
+    const danger = tone === "danger";
+    return (
+        <section
+            className={`grid gap-4 rounded-2xl bg-card p-5 text-card-foreground shadow-xs ring-1 sm:p-6 md:grid-cols-[240px_1fr] md:gap-8 ${danger ? "ring-destructive/30" : "ring-foreground/10"}`}
+        >
+            <div className="flex flex-col gap-1">
+                <h2 className={`flex items-center gap-2 text-base font-semibold ${danger ? "text-destructive" : ""}`}>
+                    <Icon className="size-4" aria-hidden="true" />
+                    {title}
+                </h2>
+                <p className="text-sm text-muted-foreground">{description}</p>
+            </div>
+            <div className="flex flex-col gap-4">{children}</div>
+        </section>
+    );
+}

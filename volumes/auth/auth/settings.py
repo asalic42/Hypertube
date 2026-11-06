@@ -1,0 +1,334 @@
+from pathlib import Path
+from datetime import timedelta
+import os
+
+from django.core.exceptions import ImproperlyConfigured
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+def required_env(name: str) -> str:
+    """A setting that must come from the environment: no fallback, start-up fails without it."""
+    value = os.getenv(name, "").strip()
+    if not value:
+        raise ImproperlyConfigured(f"{name} is not set. Add it to the .env file at the root of the project.")
+    return value
+
+
+def secret_key(name: str) -> str:
+    key = required_env(name)
+    if len(key) < 50 or key.startswith("django-insecure-"):
+        raise ImproperlyConfigured(
+            f"{name} is too weak: use at least 50 random characters, never committed, made with "
+            "python3 -c \"import secrets; print(secrets.token_urlsafe(64))\""
+        )
+    return key
+
+
+# Security settings have no safe default: each one is read from .env, and the
+# service refuses to start without them. DEBUG is off unless asked for.
+SECRET_KEY = secret_key("AUTH_SECRET_KEY")
+DEBUG = os.getenv("DJANGO_DEBUG", "0").strip().lower() in ("1", "true", "yes")
+ALLOWED_HOSTS = [host.strip() for host in required_env("DJANGO_ALLOWED_HOSTS").split(",") if host.strip()]
+
+# Refresh token cookie configuration:
+
+REFRESH_COOKIE_NAME = "refresh"
+REFRESH_COOKIE_PATH = "/api/auth/"
+REFRESH_COOKIE_SECURE = True
+REFRESH_COOKIE_HTTPONLY = True
+REFRESH_COOKIE_SAMESITE = "Lax"
+# Readable twin of the refresh cookie: it carries no secret, it only tells
+# the front end that a session exists, so it never calls refresh for nothing.
+SESSION_COOKIE_MARKER_NAME = "logged_in"
+SESSION_COOKIE_MARKER_PATH = "/"
+
+# CSRF cookie configuration:
+
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_PATH = "/"
+CSRF_FAILURE_VIEW = "auth_app.views.csrf.csrf_failure"
+
+# Session configuration (used to store the OAuth "state"):
+
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = "Lax"
+
+# Email configuration:
+
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.smtp.EmailBackend",
+)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "mailpit")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "1025"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "false") == "true"
+EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "false") == "true"
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DEFAULT_FROM_EMAIL",
+    "no-reply@hypertube.local",
+)
+
+FRONTEND_BASE_URL = os.getenv(
+    "FRONTEND_BASE_URL",
+    "https://localhost:8080",
+)
+
+PASSWORD_RESET_TIMEOUT = int(
+    os.getenv("PASSWORD_RESET_TIMEOUT", "3600"),
+)
+
+# OAuth (OmniAuth) configuration:
+
+OMNIAUTH_REDIRECT_URL = os.getenv(
+    "OMNIAUTH_REDIRECT_URL",
+    "https://localhost:8080",
+)
+
+OAUTH_FRONTEND_CALLBACK = f"{FRONTEND_BASE_URL}/oauth/callback"
+
+# Internal URL of the users service (server to server, plain HTTP on 8443).
+
+USERS_SERVICE_BASE_URL = os.getenv(
+    "USERS_SERVICE_BASE_URL",
+    "http://users:8443",
+)
+
+# Internal URL of the movies service, for erasing a deleted account's data.
+
+MOVIES_SERVICE_BASE_URL = os.getenv(
+    "MOVIES_SERVICE_BASE_URL",
+    "http://movies:8443",
+)
+
+# Provider: 42 (intra)
+
+FORTY_TWO_UID = os.getenv("FORTY_TWO_UID")
+FORTY_TWO_SECRET = os.getenv("FORTY_TWO_SECRET")
+FORTY_TWO_REDIRECT_URI = (
+    f"{OMNIAUTH_REDIRECT_URL}/api/auth/oauth/42/callback/"
+)
+
+# Provider: GitHub
+
+GITHUB_UID = os.getenv("GITHUB_UID")
+GITHUB_SECRET = os.getenv("GITHUB_SECRET")
+GITHUB_REDIRECT_URI = (
+    f"{OMNIAUTH_REDIRECT_URL}/api/auth/oauth/github/callback/"
+)
+
+# Provider: Google (OIDC)
+
+GOOGLE_UID = os.getenv("GOOGLE_OIDC")
+GOOGLE_SECRET = os.getenv("GOOGLE_SECRET")
+GOOGLE_REDIRECT_URI = (
+    f"{OMNIAUTH_REDIRECT_URL}/api/auth/oauth/google/callback/"
+)
+
+# Provider: Discord
+
+DISCORD_UID = os.getenv("DISCORD_UID")
+DISCORD_SECRET = os.getenv("DISCORD_SECRET")
+DISCORD_REDIRECT_URI = (
+    f"{OMNIAUTH_REDIRECT_URL}/api/auth/oauth/discord/callback/"
+)
+
+INSTALLED_APPS = [
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "rest_framework",
+    "drf_spectacular",
+    "auth_app.apps.AuthAppConfig",
+    "rest_framework_simplejwt.token_blacklist",
+    "corsheaders",
+]
+
+MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+]
+
+ROOT_URLCONF = "auth.urls"
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "https://localhost:8080"
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://localhost:8080",
+    "https://127.0.0.1:8080",
+]
+
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = "auth.wsgi.application"
+ASGI_APPLICATION = "auth.asgi.application"
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DB_NAME"),
+        "USER": os.getenv("AUTH_USER"),
+        "PASSWORD": os.getenv("AUTH_PASSWORD"),
+        "HOST": os.getenv("DB_HOST"),
+        "PORT": os.getenv("DB_PORT"),
+        "OPTIONS": {
+            "sslmode": "verify-full",
+            "sslrootcert": "/certs/ca.crt",
+        },
+    }
+}
+
+AUTH_USER_MODEL = "auth_app.User"
+
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {
+            "min_length": 8,
+        },
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+    },
+]
+
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions."
+        "IsAuthenticated",
+    ),
+    "DEFAULT_SCHEMA_CLASS":
+        "drf_spectacular.openapi.AutoSchema",
+    # One proxy (nginx) stands in front: the client address is the one it
+    # writes in X-Forwarded-For, not whatever the client put there itself.
+    "NUM_PROXIES": 1,
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling."
+        "AnonRateThrottle",
+        "rest_framework.throttling."
+        "UserRateThrottle",
+        "rest_framework.throttling."
+        "ScopedRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "60/minute",
+        "user": "600/minute",
+        "register": "5/minute",
+        "login": "10/minute",
+        "refresh": "30/minute",
+        "verify": "60/minute",
+        "forgot": "5/minute",
+        "reset": "10/minute",
+        "oauth": "10/minute",
+    },
+}
+
+
+def read_required_file(env_variable: str) -> str:
+    path = os.getenv(env_variable)
+    if not path:
+        raise RuntimeError(f"Missing {env_variable}")
+    return Path(path).read_text(encoding="utf-8")
+
+JWT_PRIVATE_KEY = read_required_file("JWT_PRIVATE_KEY_PATH")
+
+
+JWT_PUBLIC_KEY = read_required_file("JWT_PUBLIC_KEY_PATH")
+
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME":
+        timedelta(minutes=10),
+    "REFRESH_TOKEN_LIFETIME":
+        timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS":
+        True,
+    "BLACKLIST_AFTER_ROTATION":
+        True,
+    "UPDATE_LAST_LOGIN":
+        False,
+    "ALGORITHM":
+        "RS256",
+    "SIGNING_KEY":
+        JWT_PRIVATE_KEY,
+    "VERIFYING_KEY":
+        JWT_PUBLIC_KEY,
+    "ISSUER":
+        "auth-service",
+    "AUDIENCE":
+        "hypertube",
+    "AUTH_HEADER_TYPES": (
+        "Bearer",
+    ),
+    "USER_ID_FIELD":
+        "id",
+    "USER_ID_CLAIM":
+        "sub",
+    "TOKEN_TYPE_CLAIM":
+        "token_type",
+    "JTI_CLAIM":
+        "jti",
+    "LEEWAY":
+        5,
+}
+
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "auth API",
+    "DESCRIPTION":
+        "Authentication service for Hypertube",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+}
+
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "Europe/Paris"
+USE_I18N = True
+USE_TZ = True
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+SECURE_PROXY_SSL_HEADER = (
+    "HTTP_X_FORWARDED_PROTO",
+    "https",
+)
