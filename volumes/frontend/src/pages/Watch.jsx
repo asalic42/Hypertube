@@ -22,6 +22,15 @@ const RESUME_MIN_SECONDS = 30;
 // (a part of it was not on the server yet: the API answers 503 and fetches it first).
 const RETRY_DELAY = 3000;
 
+// Whether the browser lets the film start on its own. Firefox and Chrome block
+// an audible video until the viewer has interacted with the page (a direct load
+// or a refresh of this page has had none), and Firefox warns in the console at
+// every blocked attempt: the film is then left for the viewer to start.
+function autoplayAllowed() {
+    if (typeof navigator.getAutoplayPolicy === "function") return navigator.getAutoplayPolicy("mediaelement") === "allowed";
+    return navigator.userActivation?.hasBeenActive ?? true;
+}
+
 function formatTime(seconds) {
     const total = Math.floor(seconds);
     const h = Math.floor(total / 3600);
@@ -216,7 +225,7 @@ function Player({ movieId, initialStatus, initialProgress }) {
         if (state) {
             if (state.time > 0 && Number.isFinite(video.duration)) video.currentTime = state.time;
             // The autoplay attribute would otherwise start a film the viewer had paused.
-            if (state.playing) video.play().catch(() => {});
+            if (state.playing && autoplayAllowed()) video.play().catch(() => {});
             else video.pause();
             return;
         }
@@ -237,7 +246,7 @@ function Player({ movieId, initialStatus, initialProgress }) {
                         ref={videoRef}
                         src={source}
                         controls
-                        autoPlay
+                        autoPlay={autoplayAllowed()}
                         className="h-full w-full"
                         crossOrigin="use-credentials"
                         onLoadedMetadata={resume}
