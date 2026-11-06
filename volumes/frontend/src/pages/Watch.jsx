@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/toast";
-import { movies as moviesApi, comments as commentsApi } from "@/lib/api";
+import { movies as moviesApi, comments as commentsApi, hasAccessToken } from "@/lib/api";
 import { COMMENT_MAX_LENGTH } from "@/lib/limits";
 import { appendPage } from "@/lib/pages";
 import { useAuth } from "@/hooks/useAuth";
@@ -85,7 +85,11 @@ function Player({ movieId, initialStatus, initialProgress }) {
 
     function saveProgress() {
         const { position, duration } = progressRef.current;
-        if (!duration) return;
+        // Nothing to report, or nobody to report it as: logging out while the film
+        // is open drops the token before this page unmounts, and the request
+        // would only come back 401 (the last position went out at the last pause
+        // or within the previous ten seconds of playback).
+        if (!duration || !hasAccessToken()) return;
         progressRef.current.sentAt = Date.now();
         moviesApi.saveProgress(movieId, position, duration).catch(() => {});
     }
