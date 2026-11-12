@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { toast } from "@/components/ui/toast";
-import { PASSWORD_PROBLEM_PARAMS, passwordProblem } from "@/lib/passwordRules";
+import { PASSWORD_MIN_LENGTH, PASSWORD_PROBLEM_PARAMS, passwordProblem } from "@/lib/passwordRules";
 import { auth as authApi, users as usersApi } from "@/lib/api";
 import { LANGUAGES } from "@/lib/languages";
 import { languageName, t as translate } from "@/lib/i18n";
@@ -148,6 +148,15 @@ export default function Profile() {
             toast.add({ title: t("Error"), description: t(problem, PASSWORD_PROBLEM_PARAMS), type: "error" });
             return;
         }
+        // The users service refuses a blank name (spaces only), with a 400 the
+        // browser would log: it is caught here, and the names go without their
+        // surrounding spaces, as the service would store them.
+        const firstname = form.firstname.trim();
+        const lastname = form.lastname.trim();
+        if (!firstname || !lastname) {
+            toast.add({ title: t("Could not save your information"), description: t("The first and last names cannot be empty."), type: "error" });
+            return;
+        }
         const passwordWasSet = Boolean(form.password);
         // The stored picture is deleted after the profile update, only if the
         // whole save succeeds up to that point.
@@ -160,8 +169,8 @@ export default function Profile() {
                 // Everything in one call. The email and the password are only sent
                 // when they change: the users service relays them to the auth service.
                 const fields = {
-                    firstname: form.firstname,
-                    lastname: form.lastname,
+                    firstname,
+                    lastname,
                     preferredLanguage: form.preferredLanguage,
                     email: form.email !== saved.email ? form.email : null,
                     password: form.password || null,
@@ -306,7 +315,7 @@ export default function Profile() {
                                         disabled={saving}
                                         aria-label={avatarPreview ? t("Discard picture") : t("Remove picture")}
                                         title={avatarPreview ? t("Discard picture") : t("Remove picture")}
-                                        className="absolute top-0 right-0 flex size-8 items-center justify-center rounded-full bg-black text-destructive-foreground shadow-md ring-2 ring-card hover:bg-black/80 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
+                                        className="absolute top-0 right-0 flex size-8 items-center justify-center rounded-full bg-black text-white shadow-md ring-2 ring-card hover:bg-black/80 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
                                     >
                                         <Trash2 className="size-3.5" aria-hidden="true" />
                                     </button>
@@ -399,7 +408,7 @@ export default function Profile() {
                     <div className="grid gap-4 sm:grid-cols-2">
                         <div className="grid gap-2">
                             <Label htmlFor="password">{t("New password")}</Label>
-                            <Input id="password" type="password" name="password" autoComplete="new-password" value={form.password} onChange={handleChange} minLength={8} />
+                            <Input id="password" type="password" name="password" autoComplete="new-password" value={form.password} onChange={handleChange} minLength={PASSWORD_MIN_LENGTH} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="passwordConfirm">{t("Confirm new password")}</Label>

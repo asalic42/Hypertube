@@ -19,7 +19,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import AuthLayout from "@/components/AuthLayout";
 import { LANGUAGES } from "@/lib/languages";
 import { languageName } from "@/lib/i18n";
-import { PASSWORD_PROBLEM_PARAMS, passwordProblem } from "@/lib/passwordRules";
+import { PASSWORD_MIN_LENGTH, PASSWORD_PROBLEM_PARAMS, passwordProblem } from "@/lib/passwordRules";
 import { useTranslation } from "@/hooks/useTranslation";
 import { AVATAR_TYPES, avatarFileProblem } from "@/lib/avatarFile";
 
@@ -93,6 +93,14 @@ export default function Signup() {
             toast.add({ title: t("Error"), description: t("The passwords do not match."), type: "error" });
             return;
         }
+        // Checked before the account exists: the users service would refuse a
+        // blank name once it is created, leaving an account without a profile.
+        const firstname = formData.firstname.trim();
+        const lastname = formData.lastname.trim();
+        if (!firstname || !lastname) {
+            toast.add({ title: t("Error"), description: t("The first and last names cannot be empty."), type: "error" });
+            return;
+        }
         const problem = passwordProblem(formData.password, { username: formData.username, email: formData.email });
         if (problem) {
             toast.add({ title: t("Could not create the account"), description: t(problem, PASSWORD_PROBLEM_PARAMS), type: "error" });
@@ -107,8 +115,8 @@ export default function Signup() {
             password_confirmation: formData.confirm_password,
         };
         const profile = {
-            firstname: formData.firstname,
-            lastname: formData.lastname,
+            firstname,
+            lastname,
             preferredLanguage: formData.preferredLanguage,
             avatar: formData.avatar,
         };
@@ -246,6 +254,7 @@ export default function Signup() {
                                     value={formData.password}
                                     onChange={handleChange}
                                     required
+                                    minLength={PASSWORD_MIN_LENGTH}
                                 />
                             </div>
 

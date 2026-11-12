@@ -159,6 +159,9 @@ class QualitySerializer(serializers.Serializer):
     original = serializers.BooleanField()
     status = serializers.ChoiceField(choices=("ready", "pending"))
     stream_url = serializers.CharField(allow_null=True)
+    version = serializers.CharField(
+        help_text="Changes when another file is served under `stream_url`: the player then reloads it at the same position."
+    )
 
 
 class DownloadSerializer(serializers.ModelSerializer):
@@ -205,6 +208,7 @@ class DownloadSerializer(serializers.ModelSerializer):
                 "original": True,
                 "status": "ready" if playable else "pending",
                 "stream_url": self.get_stream_url(download),
+                "version": streaming.version(download),
             }
         ]
         for rendition in download.renditions.exclude(status=Rendition.Status.FAILED):
@@ -216,6 +220,7 @@ class DownloadSerializer(serializers.ModelSerializer):
                     "original": False,
                     "status": "ready" if ready else "pending",
                     "stream_url": f"{self.get_stream_url(download)}&quality={rendition.height}" if ready and playable else None,
+                    "version": "stored",
                 }
             )
         return qualities

@@ -1,3 +1,5 @@
+import select
+import socket
 from datetime import timedelta
 
 from django.http import HttpResponse, StreamingHttpResponse
@@ -18,6 +20,7 @@ from .common import get_movie_or_404
 
 SUBTITLE_RETRY_DELAY = timedelta(days=1)
 WATCH_UPDATE_INTERVAL = timedelta(minutes=1)
+RETRY_AFTER_SECONDS = 2
 TOKEN_PARAMETER = OpenApiParameter("token", str, description="Stream token found in the download resource.")
 QUALITY_PARAMETER = OpenApiParameter(
     "quality",
@@ -172,10 +175,13 @@ class MovieStreamView(MediaView):
             404: OpenApiResponse(description="This resolution is not available."),
             409: OpenApiResponse(description="Not enough data has been downloaded yet."),
             416: OpenApiResponse(description="Range not satisfiable."),
+            503: OpenApiResponse(description="This part of the film is not on the server yet: retry after `Retry-After` seconds."),
         },
         description=(
             "The video, with HTTP range support. Non browser-ready formats are converted on the fly. "
-            "`quality` selects one of the lower resolutions encoded once the movie is stored."
+            "`quality` selects one of the lower resolutions encoded once the movie is stored. "
+            "While the film downloads, a range that is not on the server yet is fetched first: the response "
+            "waits for it, and is a 503 when it has not arrived within two minutes."
         ),
     )
     def get(self, request, movie_id):
@@ -199,6 +205,12 @@ class MovieStreamView(MediaView):
             return self._respond(request, download)
         except media.MediaError:
             raise NotFound("The video file is missing.") from None
+        except streaming.PieceUnavailable:
+            response = Response(
+                {"detail": "This part of the film is not on the server yet."}, status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+            response["Retry-After"] = str(RETRY_AFTER_SECONDS)
+            return response
         except storage.StorageError:
             return Response({"detail": "The file storage is unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
@@ -215,7 +227,10 @@ class MovieStreamView(MediaView):
             return response
         content_type = "video/webm" if download.local_path.lower().endswith(".webm") else "video/mp4"
         return self._respond_ranges(
-            request, download.file_size, content_type, lambda start, end: streaming.iter_local(download, start, end)
+            request,
+            download.file_size,
+            content_type,
+            lambda start, end: streaming.iter_local(download, start, end, aborted=lambda: _client_gone(request)),
         )
 
     def _respond_stored(self, request, key, size, content_type):
@@ -257,6 +272,26 @@ def _quality(request):
     if not value.isdigit() or int(value) == 0:
         raise ValidationError({"quality": "Must be a height in pixels."})
     return int(value)
+
+
+def _client_gone(request):
+    """
+    Whether the browser gave up on this request while its first bytes are
+    awaited: the viewer seeked again, or left. A GET sends nothing after its
+    headers, so anything readable on the connection is the proxy closing it
+    (nginx does so when its client goes). Only gunicorn hands out the socket;
+    elsewhere the request is taken to be alive until its timeout.
+    """
+    sock = request.META.get("gunicorn.socket")
+    if sock is None:
+        return False
+    try:
+        readable, _, _ = select.select([sock], [], [], 0)
+        return bool(readable) and sock.recv(1, socket.MSG_PEEK) == b""
+    except OSError:
+        return True  # the connection is closed already
+    except ValueError:
+        return False  # a socket that cannot be peeked at (TLS): the request lives on until its timeout
 
 
 def _chain(first, rest):

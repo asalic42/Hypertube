@@ -18,7 +18,17 @@ logger = logging.getLogger(__name__)
 CHUNK_SIZE = 256 * 1024
 POLL_INTERVAL = 0.5
 STATUS_REFRESH_INTERVAL = 5
-PIECE_TIMEOUT = 90
+# How long a request may wait for its first byte before it is answered 503.
+# The viewer who seeks into a part of the film not downloaded yet waits for it
+# with the player buffering, the worker fetching that part first; a request the
+# browser gave up (the viewer seeked again, or left) is noticed and freed as it
+# waits, so a long wait costs nothing. Under the proxy's 300 s read timeout.
+START_TIMEOUT = 120
+# Between two pieces of a range being served; the body stops short past it and
+# the browser reconnects where it was, which goes through START_TIMEOUT again.
+PIECE_TIMEOUT = 30
+# The live conversion reads the whole file: a slow swarm must not cut it.
+FEED_TIMEOUT = 90
 MIN_BUFFER_BYTES = 8 * 1024 * 1024
 MIN_BUFFER_RATIO = 0.03
 TOKEN_SALT = "movies.stream"
@@ -28,6 +38,10 @@ _RANGE = re.compile(r"^bytes=(\d*)-(\d*)$")
 
 class RangeNotSatisfiable(Exception):
     pass
+
+
+class PieceUnavailable(Exception):
+    """The first byte asked for is not on the server yet; the worker has been told to fetch it first."""
 
 
 # --- Stream tokens ----------------------------------------------------------
@@ -81,6 +95,18 @@ def parse_range(header, size):
     return start, end
 
 
+def version(download):
+    """
+    Names the file behind the stream URL: the torrent's own file while it
+    downloads, the stored copy afterwards. The stored copy is remuxed, so its
+    bytes are laid out differently: the player reloads when the version
+    changes, or the index it already read would point into the wrong file.
+    """
+    if download.status == Download.Status.READY:
+        return "stored"
+    return f"torrent-{download.torrent_id}"
+
+
 def is_playable(download):
     """Enough of the beginning is there for playback to start smoothly."""
     if download.status in (Download.Status.READY, Download.Status.PROCESSING):
@@ -102,11 +128,14 @@ def iter_storage(key, start, end):
         body.close()
 
 
-def _wait_for_piece(download, position):
-    """Block until the piece holding `position` is on disk. False when it will not come."""
+def _wait_for_piece(download, position, timeout, aborted=None):
+    """
+    Block until the piece holding `position` is on disk. False when it will not
+    come in time, or when `aborted()` says nobody is waiting for it any more.
+    """
     first_piece = download.file_offset // download.piece_length
     index = (download.file_offset + position) // download.piece_length - first_piece
-    deadline = time.monotonic() + PIECE_TIMEOUT
+    deadline = time.monotonic() + timeout
     next_refresh = 0.0
     asked = False
 
@@ -130,26 +159,33 @@ def _wait_for_piece(download, position):
             # Tell the worker where this viewer is, so it fetches these pieces first.
             Download.objects.filter(pk=download.pk).update(requested_offset=position)
             asked = True
-        if now >= deadline:
+        if now >= deadline or (aborted is not None and aborted()):
             return False
         time.sleep(POLL_INTERVAL)
 
 
-def iter_local(download, start, end):
+def iter_local(download, start, end, aborted=None):
     """
     Read [start, end] of a file that is still downloading, waiting for the
-    pieces as needed. Raises media.MediaError right away on an invalid path.
+    pieces as needed. Raises media.MediaError right away on an invalid path,
+    and PieceUnavailable when the first byte is not there within
+    START_TIMEOUT, so that the answer is a 503 rather than a response that
+    hangs and then stops short. `aborted()` tells when the request was given
+    up by its client: the wait ends there and then.
     """
-    return _iter_local(download, media.local_video_path(download), start, end)
+    path = media.local_video_path(download)
+    if download.status == Download.Status.DOWNLOADING and not _wait_for_piece(download, start, START_TIMEOUT, aborted):
+        raise PieceUnavailable
+    return _iter_local(download, path, start, end, PIECE_TIMEOUT, aborted)
 
 
-def _iter_local(download, path, start, end):
+def _iter_local(download, path, start, end, timeout, aborted=None):
     complete = download.status != Download.Status.DOWNLOADING
     position = start
     handle = None
     try:
         while position <= end:
-            if not complete and not _wait_for_piece(download, position):
+            if not complete and not _wait_for_piece(download, position, timeout, aborted):
                 return
             if handle is None:
                 handle = path.open("rb")
@@ -165,9 +201,9 @@ def _iter_local(download, path, start, end):
             handle.close()
 
 
-def _feed(process, download):
+def _feed(process, download, path):
     try:
-        for chunk in iter_local(download, 0, download.file_size - 1):
+        for chunk in _iter_local(download, path, 0, download.file_size - 1, FEED_TIMEOUT):
             process.stdin.write(chunk)
     except (BrokenPipeError, OSError, ValueError):
         pass
@@ -198,7 +234,7 @@ def _iter_transcoded(download, path):
         stderr=subprocess.DEVNULL,
     )
     if not complete:
-        threading.Thread(target=_feed, args=(process, download), daemon=True).start()
+        threading.Thread(target=_feed, args=(process, download, path), daemon=True).start()
     try:
         while data := process.stdout.read(CHUNK_SIZE):
             yield data

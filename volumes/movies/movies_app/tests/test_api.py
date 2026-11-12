@@ -1,4 +1,6 @@
+import socket
 import tempfile
+import time
 import uuid
 from pathlib import Path
 from types import SimpleNamespace
@@ -331,9 +333,12 @@ class PlaybackTests(ApiTestCase):
         self.assertIsNotNone(self.movie.last_watched_at)
 
     def test_qualities_follow_the_renditions(self):
-        download = Download.objects.create(movie=self.movie, status=Download.Status.DOWNLOADING, file_size=10**9, buffered_bytes=1000)
+        download = Download.objects.create(movie=self.movie, torrent=self.torrent, status=Download.Status.DOWNLOADING, file_size=10**9, buffered_bytes=1000)
         data = self.client.get(self.url).data
-        self.assertEqual(data["qualities"], [{"height": None, "label": "Source", "original": True, "status": "pending", "stream_url": None}])
+        self.assertEqual(
+            data["qualities"],
+            [{"height": None, "label": "Source", "original": True, "status": "pending", "stream_url": None, "version": f"torrent-{self.torrent.pk}"}],
+        )
 
         Download.objects.filter(pk=download.pk).update(status=Download.Status.READY, height=1080, storage_key="1/video.mp4", storage_size=10)
         Rendition.objects.create(download=download, height=720, status=Rendition.Status.READY, storage_key="1/video_720p.mp4", storage_size=5)
@@ -344,6 +349,58 @@ class PlaybackTests(ApiTestCase):
         self.assertIn("token=", qualities[0]["stream_url"])
         self.assertTrue(qualities[1]["stream_url"].endswith("&quality=720"))
         self.assertIsNone(qualities[2]["stream_url"])
+        # The stored copy is another file (remuxed): the player must know to reload it.
+        self.assertEqual([q["version"] for q in qualities], ["stored", "stored", "stored"])
+
+    def test_a_missing_piece_is_answered_503_and_fetched_first(self):
+        content = bytes(range(256)) * 40  # three pieces of 4096 bytes, the last one short
+        with tempfile.TemporaryDirectory() as root, override_settings(MOVIES_DOWNLOAD_DIR=root):
+            download = Download.objects.create(
+                movie=self.movie,
+                torrent=self.torrent,
+                status=Download.Status.DOWNLOADING,
+                local_path="1/data/charade.mp4",
+                file_size=len(content),
+                buffered_bytes=len(content),
+                file_offset=0,
+                piece_length=4096,
+            )
+            path = Path(root) / download.local_path
+            path.parent.mkdir(parents=True)
+            path.write_bytes(content)
+            pieces = Path(root) / str(download.pk) / "pieces.bin"
+            pieces.write_bytes(bytes([1, 0, 1]))
+            stream = f"/api/movies/{self.movie.pk}/stream/"
+
+            with mock.patch.object(streaming, "START_TIMEOUT", 0):
+                response = self.client.get(stream, HTTP_RANGE="bytes=5000-5999")
+            self.assertEqual((response.status_code, response["Retry-After"]), (503, "2"))
+            download.refresh_from_db()
+            self.assertEqual(download.requested_offset, 5000)
+
+            response = self.client.get(stream, HTTP_RANGE="bytes=8192-8200")
+            self.assertEqual(response.status_code, 206)
+            self.assertEqual(b"".join(response.streaming_content), content[8192:8201])
+
+            # The viewer seeked again: the browser dropped this request, and
+            # its thread is not to wait START_TIMEOUT for a piece nobody wants.
+            with mock.patch("movies_app.views.playback._client_gone", return_value=True), mock.patch.object(streaming, "START_TIMEOUT", 60):
+                started = time.monotonic()
+                response = self.client.get(stream, HTTP_RANGE="bytes=5000-5999")
+            self.assertEqual(response.status_code, 503)
+            self.assertLess(time.monotonic() - started, 5)
+
+    def test_client_gone_reads_the_proxy_closing_the_connection(self):
+        from movies_app.views.playback import _client_gone
+
+        server, client = socket.socketpair()
+        self.addCleanup(server.close)
+        request = SimpleNamespace(META={"gunicorn.socket": server})
+        self.assertFalse(_client_gone(request))
+        client.close()
+        self.assertTrue(_client_gone(request))
+        # Outside gunicorn there is no socket to watch: the request lives on until its timeout.
+        self.assertFalse(_client_gone(SimpleNamespace(META={})))
 
     def test_stream_serves_the_requested_quality(self):
         download = Download.objects.create(

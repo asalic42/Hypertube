@@ -17,5 +17,10 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+    rules: {
+      // Nothing is written to the browser console: errors reach the user as
+      // toasts or page messages, and the lint keeps it that way.
+      'no-console': 'error',
+    },
   },
 ])

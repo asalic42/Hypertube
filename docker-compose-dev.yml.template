@@ -20,7 +20,6 @@ services:
     image: hypertube-frontend
     container_name: 'hypertube-frontend'
     volumes:
-      #- data-frontend:/var/www/hypertube_frontend
       - ./volumes/frontend:/app
       - /app/node_modules
     networks:
@@ -100,9 +99,6 @@ services:
       - movies-downloads:/downloads
     networks:
       - hypertube
-    # Same image as `movies`. The build section is repeated on purpose: without it,
-    # Compose tries to pull `hypertube-movies` from Docker Hub when no local image
-    # exists yet (after a clean), instead of waiting for the movies build.
     build:
       context: services/movies
       dockerfile: Dockerfile
