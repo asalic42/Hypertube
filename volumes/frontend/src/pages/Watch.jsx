@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/toast";
-import { movies as moviesApi, comments as commentsApi } from "@/lib/api";
+import { movies as moviesApi, comments as commentsApi, hasAccessToken } from "@/lib/api";
 import { COMMENT_MAX_LENGTH } from "@/lib/limits";
+import { appendPage } from "@/lib/pages";
 import { useAuth } from "@/hooks/useAuth";
 import { useAvatarUrl } from "@/lib/avatars";
 import CoverPlaceholder from "@/components/CoverPlaceholder";
@@ -18,6 +19,18 @@ const POLL_INTERVAL = 2000;
 const PROGRESS_INTERVAL = 10000;
 // Below this many seconds in, there is nothing worth resuming.
 const RESUME_MIN_SECONDS = 30;
+// Before the video is reloaded after an error while the film still downloads
+// (a part of it was not on the server yet: the API answers 503 and fetches it first).
+const RETRY_DELAY = 3000;
+
+// Whether the browser lets the film start on its own. Firefox and Chrome block
+// an audible video until the viewer has interacted with the page (a direct load
+// or a refresh of this page has had none), and Firefox warns in the console at
+// every blocked attempt: the film is then left for the viewer to start.
+function autoplayAllowed() {
+    if (typeof navigator.getAutoplayPolicy === "function") return navigator.getAutoplayPolicy("mediaelement") === "allowed";
+    return navigator.userActivation?.hasBeenActive ?? true;
+}
 
 function formatTime(seconds) {
     const total = Math.floor(seconds);
@@ -50,8 +63,10 @@ function Player({ movieId, initialStatus, initialProgress }) {
 
     const [starting, setStarting] = useState(false);
 
-    // The stream URLs are fixed once known: each poll signs a new token, and a
-    // changing src would restart the film.
+    // The stream URL of each quality, with the version of the file behind it.
+    // Each poll signs a new token, and a changing src would restart the film:
+    // the URL is kept until the API serves another file under it (the stored
+    // copy once the download is complete), when the player reloads at the same position.
     const [sources, setSources] = useState({});
     // Likewise for the subtitle tracks, renewed only when a track was lined up on the sound track.
     const [tracks, setTracks] = useState({});
@@ -62,16 +77,27 @@ function Player({ movieId, initialStatus, initialProgress }) {
     const startAtRef = useRef(initialProgress?.position || 0);
     // Last position seen, saved when the page is left (the video element is gone by then).
     const progressRef = useRef({ position: 0, duration: 0, sentAt: 0 });
+    // Whether the film was playing, as of the last play/pause event.
+    const playingRef = useRef(false);
+    // The latest download resource and the pending reload after an error.
+    const downloadRef = useRef(initialStatus ? { status: initialStatus } : null);
+    const retryRef = useRef(null);
 
     function saveProgress() {
         const { position, duration } = progressRef.current;
-        if (!duration) return;
+        // Nothing to report, or nobody to report it as: logging out while the film
+        // is open drops the token before this page unmounts, and the request
+        // would only come back 401 (the last position went out at the last pause
+        // or within the previous ten seconds of playback).
+        if (!duration || !hasAccessToken()) return;
         progressRef.current.sentAt = Date.now();
         moviesApi.saveProgress(movieId, position, duration).catch(() => {});
     }
 
     function trackProgress(event) {
         const video = event.currentTarget;
+        // A reload is under way: the events it fires (pause, time reset to 0) are not the viewer's.
+        if (resumeRef.current) return;
         if (!Number.isFinite(video.duration) || video.duration <= 0) return;
         progressRef.current.position = video.ended ? video.duration : video.currentTime;
         progressRef.current.duration = video.duration;
@@ -83,18 +109,26 @@ function Player({ movieId, initialStatus, initialProgress }) {
         window.addEventListener("pagehide", saveProgress);
         return () => {
             window.removeEventListener("pagehide", saveProgress);
+            clearTimeout(retryRef.current);
             saveProgress();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [movieId]);
 
     function follow(data) {
+        downloadRef.current = data;
         setDownload(data);
+        // Another file under a known URL is only taken up when the player can tell
+        // where it is: a live conversion has no known length, and keeps its stream.
+        const video = videoRef.current;
+        const resumable = Number.isFinite(video?.duration) && video.duration > 0;
         setSources((current) => {
             const next = { ...current };
             for (const item of data.qualities) {
                 const key = qualityKey(item);
-                if (item.stream_url && !next[key]) next[key] = item.stream_url;
+                if (item.stream_url && (!next[key] || (next[key].version !== item.version && resumable))) {
+                    next[key] = { url: item.stream_url, version: item.version };
+                }
             }
             return next;
         });
@@ -153,7 +187,7 @@ function Player({ movieId, initialStatus, initialProgress }) {
         };
     }, [movieId, requested]);
 
-    const source = sources[quality] || sources.original || null;
+    const source = (sources[quality] || sources.original)?.url ?? null;
     const readySubtitles = download?.subtitles.filter((subtitle) => subtitle.status === "ready") ?? [];
     const defaultSubtitle = (readySubtitles.find((subtitle) => subtitle.language !== "en") || readySubtitles[0])?.language;
     const qualities = download?.qualities ?? [];
@@ -165,6 +199,29 @@ function Player({ movieId, initialStatus, initialProgress }) {
         setQuality(event.target.value);
     }
 
+    // The src is about to be replaced by another file of the same film (its
+    // stored copy): note where the viewer is, so that the new one resumes there.
+    // A change of quality has already done so, with the exact position.
+    const sourceRef = useRef(null);
+    useLayoutEffect(() => {
+        const previous = sourceRef.current;
+        sourceRef.current = source;
+        if (!previous || !source || previous === source || resumeRef.current) return;
+        resumeRef.current = { time: progressRef.current.position, playing: playingRef.current };
+    }, [source]);
+
+    // An error while the film still downloads is transient: a part of it was
+    // not on the server yet (503), or the stream stopped while waiting for it.
+    // The video is reloaded where it was once the worker had time to fetch it.
+    function retryLater(event) {
+        const video = event.currentTarget;
+        const status = downloadRef.current?.status;
+        if (status !== "downloading" && status !== "processing") return;
+        if (!resumeRef.current) resumeRef.current = { time: progressRef.current.position, playing: playingRef.current };
+        clearTimeout(retryRef.current);
+        retryRef.current = setTimeout(() => video.load(), RETRY_DELAY);
+    }
+
     function resume() {
         const video = videoRef.current;
         const state = resumeRef.current;
@@ -172,7 +229,9 @@ function Player({ movieId, initialStatus, initialProgress }) {
         if (!video) return;
         if (state) {
             if (state.time > 0 && Number.isFinite(video.duration)) video.currentTime = state.time;
-            if (state.playing) video.play().catch(() => {});
+            // The autoplay attribute would otherwise start a film the viewer had paused.
+            if (state.playing && autoplayAllowed()) video.play().catch(() => {});
+            else video.pause();
             return;
         }
         // First load: pick up where the viewer left off.
@@ -192,13 +251,15 @@ function Player({ movieId, initialStatus, initialProgress }) {
                         ref={videoRef}
                         src={source}
                         controls
-                        autoPlay
+                        autoPlay={autoplayAllowed()}
                         className="h-full w-full"
                         crossOrigin="use-credentials"
                         onLoadedMetadata={resume}
+                        onPlay={() => { playingRef.current = true; }}
                         onTimeUpdate={trackProgress}
-                        onPause={trackProgress}
-                        onEnded={trackProgress}
+                        onPause={(event) => { playingRef.current = false; trackProgress(event); }}
+                        onEnded={(event) => { playingRef.current = false; trackProgress(event); }}
+                        onError={retryLater}
                     >
                         {readySubtitles.map((subtitle) => (
                             <track
@@ -358,7 +419,7 @@ function Comments({ movieId }) {
 
     function loadMore() {
         moviesApi.comments(movieId, nextPage).then((data) => {
-            setComments((current) => [...current, ...data.results]);
+            setComments((current) => appendPage(current, data.results));
             setNextPage(data.next_page);
         }).catch(showError);
     }

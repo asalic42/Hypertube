@@ -127,6 +127,12 @@ class UpdatePasswordTests(TestCase):
         self.assertEqual((response.status_code, response.json()["user"]["email"]), (200, "jane.new@example.com"))
         self.assertEqual(self.login("N3w-pass-word!").status_code, 200)
 
+    def test_the_new_password_is_checked_against_the_new_email_too(self):
+        # As at sign-up, where the email it must not resemble is the one being given.
+        response = self.patch(email="brand.new.handle@example.com", password="brand.new.handle", current_password="Str0ng-pass!")
+        self.assertEqual((response.status_code, list(response.json())), (400, ["password"]))
+        self.assertEqual(self.login("Str0ng-pass!").status_code, 200, "nothing changed")
+
     def test_the_owner_is_notified_of_the_change(self):
         response = self.patch(password="N3w-pass-word!", current_password="Str0ng-pass!")
         self.assertEqual(response.status_code, 200)

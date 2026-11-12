@@ -9,6 +9,7 @@ import { toast } from "@/components/ui/toast";
 import { movies as moviesApi } from "@/lib/api";
 import { useTranslation } from "@/hooks/useTranslation";
 import { t as translate } from "@/lib/i18n";
+import { appendPage } from "@/lib/pages";
 
 const FILTERS = ['search', 'genre', 'sort', 'year_min', 'year_max', 'rating_min'];
 const SORTS = [
@@ -35,7 +36,7 @@ function Results({ params, onCount }) {
         let cancelled = false;
         moviesApi.list({ ...params, page: loadingPage }).then((data) => {
             if (cancelled) return;
-            setFilms((current) => (loadingPage === 1 ? data.results : [...current, ...data.results]));
+            setFilms((current) => (loadingPage === 1 ? data.results : appendPage(current, data.results)));
             setNextPage(data.next_page);
             setCount(data.count);
             onCount(data.count);
